@@ -4,7 +4,7 @@ import random
 import time
 import logging
 
-from utils import data_encoding, lambda_utils, access_s3
+from utils import access_s3, data_encoding, lambda_utils
 from aws_lambda import lambda_manager
 from multiprocessing.dummy import Pool as ThreadPool
 from functools import partial
@@ -277,7 +277,7 @@ class Driver:
 
         # 4. Delete Mapper function
         xray_recorder.begin_subsegment('Delete mappers')
-        l_mapper.delete_function()
+        # l_mapper.delete_function()
         xray_recorder.end_subsegment()  # Delete mappers
 
         # 5. Calculate costs - Approx (since we are using exec time reported by our func and not billed ms)

@@ -1,13 +1,13 @@
 import json
 
-from python.job.reduce_handler import reduce_handler
+from job.reduce_handler import reduce_handler
 
 # Contents are values stored under one S3 key
 @reduce_handler
 def reduce_function(results, contents):
     line_count = 0
     try:
-        for srcIp, val in json.loads(contents).iteritems():
+        for srcIp, val in json.loads(contents).items():
             line_count += 1
             if srcIp not in results:
                 results[srcIp] = 0

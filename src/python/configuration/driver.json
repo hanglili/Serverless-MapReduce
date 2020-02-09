@@ -9,17 +9,17 @@
     "boto_max_connections": 1000,
     "mapper": {
         "name": "job/map.py",
-        "handler": "map.map_function",
+        "handler": "job/map.map_function",
         "zip": "map.zip"
     },
     "reducer":{
         "name": "job/reduce.py",
-        "handler": "reduce.reduce_function",
+        "handler": "job/reduce.reduce_function",
         "zip": "reduce.zip"
     },
     "reducerCoordinator":{
-        "name": "reducerCoordinator.py",
-        "handler": "reducerCoordinator.lambda_handler",
-        "zip": "reducerCoordinator.zip"
+        "name": "coordinator/reduce_coordinator.py",
+        "handler": "coordinator/reduce_coordinator.lambda_handler",
+        "zip": "reduce_coordinator.zip"
     }
 }

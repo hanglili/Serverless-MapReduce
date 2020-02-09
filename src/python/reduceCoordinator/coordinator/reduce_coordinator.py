@@ -17,7 +17,6 @@ s3 = boto3.resource('s3')
 s3_client = boto3.client('s3')
 lambda_client = boto3.client('lambda')
 
-JOB_INFO = "configuration/job-info.json"
 
 # Write to S3 Bucket
 def write_to_s3(bucket, key, data, metadata):
@@ -111,7 +110,7 @@ def lambda_handler(event, context):
 
     # key = urllib.unquote_plus(event['Records'][0]['s3']['object']['key'].encode('utf8'))
 
-    config = json.loads(open(JOB_INFO, "r").read())
+    config = json.loads(open('./jobinfo.json', "r").read())
 
     job_id = config["jobId"]
     map_count = config["mapCount"]
@@ -147,7 +146,7 @@ def lambda_handler(event, context):
                 return
 
             # Compute this based on metadata of files
-            r_batch_size = get_reducer_batch_size(reducer_keys)
+            r_batch_size = get_reducer_batch_size(reducer_keys);
 
             print("Starting the the reducer step", step_number)
             print("Batch Size", r_batch_size)

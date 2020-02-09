@@ -4,7 +4,7 @@ from job.map_handler import map_handler
 @map_handler
 def map_function(output, contents):
     line_count = 0
-    for line in contents.decode("utf-8").split('\n')[:-1]:
+    for line in contents.split('\n')[:-1]:
         line_count +=1
         try:
             data = line.split(',')
