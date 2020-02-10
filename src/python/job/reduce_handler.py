@@ -31,7 +31,6 @@ def reduce_handler(reduce_function):
         n_reducers = event['nReducers']
 
         # aggr
-        results = {}
         line_count = 0
         intermediate_data = []
 
@@ -42,9 +41,9 @@ def reduce_handler(reduce_function):
             response = s3_client.get_object(Bucket=job_bucket, Key=key)
             contents = response['Body'].read()
 
-            for key_value in json.loads(contents).items():
+            for key_value in json.loads(contents):
                 line_count += 1
-                intermediate_data += key_value
+                intermediate_data.append(key_value)
 
         intermediate_data.sort(key=lambda x: x[0])
 
@@ -55,7 +54,7 @@ def reduce_handler(reduce_function):
             if cur_key == key:
                 cur_values.append(value)
             else:
-                if (cur_key != None):
+                if cur_key is not None:
                     cur_key_outputs = []
                     reduce_function(cur_key_outputs, (cur_key, cur_values))
                     outputs += cur_key_outputs
@@ -63,7 +62,7 @@ def reduce_handler(reduce_function):
                 cur_key = key
                 cur_values = [value]
 
-        if (cur_key != None):
+        if cur_key is not None:
             cur_key_outputs = []
             reduce_function(cur_key_outputs, (cur_key, cur_values))
             outputs += cur_key_outputs
@@ -87,7 +86,7 @@ def reduce_handler(reduce_function):
             "memoryUsage": '%s' % resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
         }
 
-        write_to_s3(job_bucket, fname, json.dumps(results), metadata)
+        write_to_s3(job_bucket, fname, json.dumps(outputs), metadata)
         return pret
 
     return lambda_handler
