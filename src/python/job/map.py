@@ -1,7 +1,6 @@
 from job.map_handler import map_handler
 
 
-
 @map_handler
 def map_function(outputs, input_pair):
     """
