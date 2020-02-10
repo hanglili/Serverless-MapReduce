@@ -63,7 +63,8 @@ def map_handler(map_function):
         output_partitions = [dict() for x in range(num_bins + 1)]
 
         for key, value in output.items():
-            partition_id = "partition%s" % partition(key)
+            # partition_id = "partition%s" % partition(key)
+            partition_id = partition(key)
             output_partitions[partition_id][key] = value
 
         for i in range(1, num_bins + 1):

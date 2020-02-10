@@ -8,7 +8,7 @@ def map_function(output, contents):
         line_count +=1
         try:
             data = line.split(',')
-            srcIp = data[0][:8]
+            srcIp = data[0]
             if srcIp not in output:
                 output[srcIp] = 0
             output[srcIp] += float(data[3])
