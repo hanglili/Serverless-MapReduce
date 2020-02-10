@@ -1,6 +1,6 @@
 {
-    "bucket": "big-data-benchmark",
-    "prefix": "pavlo/text/1node/uservisits/",
+    "bucket": "serverless-mapreduce-storage",
+    "prefix": "input-data",
     "jobBucket": "serverless-mapreduce-storage",
     "region": "us-east-1",
     "lambdaMemory": 1536,

@@ -130,3 +130,5 @@ dmypy.json
 
 .idea
 .DS_STORE
+
+input_data/
