@@ -277,7 +277,7 @@ class Driver:
 
         # 4. Delete Mapper function
         xray_recorder.begin_subsegment('Delete mappers')
-        # l_mapper.delete_function()
+        l_mapper.delete_function()
         xray_recorder.end_subsegment()  # Delete mappers
 
         # 5. Calculate costs - Approx (since we are using exec time reported by our func and not billed ms)

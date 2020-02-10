@@ -3,5 +3,6 @@
     "jobBucket": "serverless-mapreduce-storage",
     "mapCount": 202,
     "reducerFunction": "BL-reducer-bl-release",
-    "reducerHandler": "job/reduce.reduce_function"
+    "reducerHandler": "job/reduce.reduce_function",
+    "reduceCount": 20
 }
