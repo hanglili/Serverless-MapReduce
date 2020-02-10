@@ -26,18 +26,25 @@ def map_handler(map_function):
         mapper_id = event['mapperId']
 
         # aggr
-        output = {}
+        outputs = {}
         line_count = 0
         err = ''
 
         # INPUT CSV => OUTPUT JSON
+
+        outputs = []
 
         # Download and process all keys
         for key in src_keys:
             response = s3_client.get_object(Bucket=src_bucket, Key=key)
             contents = response['Body'].read()
 
-            line_count += map_function(output, contents)
+            for line in contents.decode("utf-8").split('\n')[:-1]:
+                line_count += 1
+                cur_input_pair = (key, line)
+                cur_line_outputs = []
+                map_function(cur_line_outputs, cur_input_pair)
+                outputs += cur_line_outputs
 
         time_in_secs = (time.time() - start_time)
         # timeTaken = time_in_secs * 1000000000 # in 10^9
@@ -52,7 +59,7 @@ def map_handler(map_function):
         }
 
         print("metadata: ", metadata)
-        write_to_s3(job_bucket, mapper_fname, json.dumps(output), metadata)
+        write_to_s3(job_bucket, mapper_fname, json.dumps(outputs), metadata)
         return pret
 
     return lambda_handler

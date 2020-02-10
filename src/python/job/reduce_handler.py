@@ -33,6 +33,7 @@ def reduce_handler(reduce_function):
         # aggr
         results = {}
         line_count = 0
+        intermediate_data = []
 
         # INPUT JSON => OUTPUT JSON
 
@@ -41,7 +42,31 @@ def reduce_handler(reduce_function):
             response = s3_client.get_object(Bucket=job_bucket, Key=key)
             contents = response['Body'].read()
 
-            line_count += reduce_function(results, contents)
+            for key_value in json.loads(contents).items():
+                line_count += 1
+                intermediate_data += key_value
+
+        intermediate_data.sort(key=lambda x: x[0])
+
+        cur_key = None
+        cur_values = []
+        outputs = []
+        for key, value in intermediate_data:
+            if cur_key == key:
+                cur_values.append(value)
+            else:
+                if (cur_key != None):
+                    cur_key_outputs = []
+                    reduce_function(cur_key_outputs, (cur_key, cur_values))
+                    outputs += cur_key_outputs
+
+                cur_key = key
+                cur_values = [value]
+
+        if (cur_key != None):
+            cur_key_outputs = []
+            reduce_function(cur_key_outputs, (cur_key, cur_values))
+            outputs += cur_key_outputs
 
         time_in_secs = (time.time() - start_time)
         # timeTaken = time_in_secs * 1000000000 # in 10^9
