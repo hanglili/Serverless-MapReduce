@@ -23,12 +23,12 @@ def batch_creator(all_keys, batch_size):
 
     batches = []
     batch = []
-    for i in range(len(all_keys)):
-        batch.append(all_keys[i])
+    for key in all_keys:
+        batch.append(key)
         if len(batch) >= batch_size:
             batches.append(batch)
             batch = []
 
-    if len(batch):
+    if len(batch) > 0:
         batches.append(batch)
     return batches

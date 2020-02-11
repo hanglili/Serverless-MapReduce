@@ -1,13 +1,13 @@
 {
     "bucket": "serverless-mapreduce-storage",
-    "prefix": "input_data/",
+    "prefix": "test_input_data/",
     "jobBucket": "serverless-mapreduce-storage",
     "region": "us-east-1",
     "lambdaMemory": 1536,
     "concurrentLambdas": 1000,
     "lambda_read_timeout": 300,
     "boto_max_connections": 1000,
-    "num_reducers": 8,
+    "num_reducers": 4,
     "mapper": {
         "name": "job/map.py",
         "handler": "job/map.map_function",
