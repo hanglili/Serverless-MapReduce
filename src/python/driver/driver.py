@@ -70,7 +70,7 @@ class Driver:
         return all_keys, n_mappers, batches
 
     # Create the aws_lambda functions
-    def _create_lambda(self, n_mappers):
+    def _create_lambda(self, num_mappers):
         xray_recorder.begin_subsegment('Prepare Lambda functions')
 
         # Lambda functions
@@ -79,11 +79,11 @@ class Driver:
         rc_lambda_name = Driver.L_PREFIX + "-rc-" + Driver.JOB_ID
         job_bucket = self.config["jobBucket"]
         region = self.config["region"]
-        n_reducers = 8
+        num_reducers = self.config["num_reducers"]
 
         # write job self.config
-        access_s3.write_job_config(Driver.JOB_ID, job_bucket, n_mappers, reducer_lambda_name,
-                                   self.config["reducer"]["handler"], n_reducers)
+        access_s3.write_job_config(Driver.JOB_ID, job_bucket, num_mappers, reducer_lambda_name,
+                                   self.config["reducer"]["handler"], num_reducers)
 
         # Prepare Lambda functions
         data_encoding.zip_lambda(self.config["mapper"]["name"], self.config["mapper"]["zip"])
@@ -118,7 +118,7 @@ class Driver:
         l_rc.add_lambda_permission(random.randint(1, 1000), job_bucket)
 
         # create event source for coordinator
-        l_rc.create_s3_eventsource_notification(job_bucket, Driver.TASK_MAPPER_PREFIX + "bin" + str(n_reducers) + "/")
+        l_rc.create_s3_eventsource_notification(job_bucket, Driver.TASK_MAPPER_PREFIX + "bin" + str(num_reducers) + "/")
         xray_recorder.end_subsegment()  # Create reducer coordinator Lambda function
         return l_mapper, l_reducer, l_rc
 

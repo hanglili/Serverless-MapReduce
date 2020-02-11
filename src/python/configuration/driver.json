@@ -7,6 +7,7 @@
     "concurrentLambdas": 1000,
     "lambda_read_timeout": 300,
     "boto_max_connections": 1000,
+    "num_reducers": 8,
     "mapper": {
         "name": "job/map.py",
         "handler": "job/map.map_function",
