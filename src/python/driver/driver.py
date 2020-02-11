@@ -210,7 +210,6 @@ class Driver:
 
         # Note: Wait for the job to complete so that we can compute total cost ; create a poll every 10 secs
         # Get all reducer keys
-        reducer_keys = []
 
         # Total execution time for reducers
         reducer_lambda_time = 0
@@ -221,20 +220,14 @@ class Driver:
             response = self.s3_client.list_objects(Bucket=job_bucket, Prefix=Driver.TASK_REDUCER_PREFIX)
             if "Contents" in response:
                 job_keys = response["Contents"]
-                keys = [jk["Key"] for jk in job_keys]
-                total_s3_size = sum([jk["Size"] for jk in job_keys])
-
-                print("check to see if the job is done")
-
+                print("Checking whether the job is completed ...")
                 # check job done
-                if len(job_keys) == 8:
-                    print("job done")
-                    # reducer_lambda_time += float(
-                    #     self.s3.Object(job_bucket, Driver.JOB_ID + "/result").metadata['processingtime'])
-                    # for key in keys:
-                    #     if "task/reducer" in key:
-                    #         reducer_lambda_time += float(self.s3.Object(job_bucket, key).metadata['processingtime'])
-                    #         reducer_keys.append(key)
+                if len(job_keys) == self.config["num_reducers"]:
+                    print("Job Complete")
+                    keys = [jk["Key"] for jk in job_keys]
+                    total_s3_size = sum([jk["Size"] for jk in job_keys])
+                    for key in keys:
+                        reducer_lambda_time += float(self.s3.Object(job_bucket, key).metadata['processingtime'])
                     break
 
             time.sleep(5)
