@@ -7,8 +7,11 @@ import time
 s3 = boto3.resource('s3')
 s3_client = boto3.client('s3')
 
+from job.partition import partition
+
 # constants
 TASK_MAPPER_PREFIX = "task/mapper/"
+JOB_INFO = "configuration/job-info.json"
 
 
 def write_to_s3(bucket, key, data, metadata):
@@ -24,6 +27,10 @@ def map_handler(map_function):
         src_keys = event['keys']
         job_id = event['jobId']
         mapper_id = event['mapperId']
+
+        config = json.loads(open(JOB_INFO, "r").read())
+
+        num_bins = config["reduceCount"]
 
         # aggr
         outputs = {}
@@ -51,15 +58,28 @@ def map_handler(map_function):
         # s3DownloadTime = 0
         # totalProcessingTime = 0
         pret = [len(src_keys), line_count, time_in_secs, err]
-        mapper_fname = "%s/%s%s" % (job_id, TASK_MAPPER_PREFIX, mapper_id)
+
         metadata = {
             "linecount": '%s' % line_count,
             "processingtime": '%s' % time_in_secs,
             "memoryUsage": '%s' % resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
         }
-
         print("metadata: ", metadata)
-        write_to_s3(job_bucket, mapper_fname, json.dumps(outputs), metadata)
+
+        # Partition ids are from 1 to n (inclusive).
+        output_partitions = [[] for _ in range(num_bins + 1)]
+
+        for key, value in outputs:
+            # partition_id = "partition%s" % partition(key)
+            partition_id = partition(key, num_bins) + 1
+            cur_partition = output_partitions[partition_id]
+            cur_partition.append(tuple((key, value)))
+
+        for i in range(1, num_bins + 1):
+            partition_id = "bin%s" % i
+            mapper_fname = "%s/%s%s/%s" % (job_id, TASK_MAPPER_PREFIX, partition_id, mapper_id)
+            write_to_s3(job_bucket, mapper_fname, json.dumps(output_partitions[i]), metadata)
+
         return pret
 
     return lambda_handler

@@ -17,6 +17,8 @@ class Driver:
     JOB_ID = "bl-release"
     DRIVER_CONFIG_PATH = "configuration/driver.json"
     L_PREFIX = "BL"
+    TASK_MAPPER_PREFIX = JOB_ID + "/task/mapper/"
+    TASK_REDUCER_PREFIX = JOB_ID + "/task/reducer/"
 
     def __init__(self):
         self.s3 = boto3.resource('s3')
@@ -77,10 +79,11 @@ class Driver:
         rc_lambda_name = Driver.L_PREFIX + "-rc-" + Driver.JOB_ID
         job_bucket = self.config["jobBucket"]
         region = self.config["region"]
+        n_reducers = 8
 
         # write job self.config
         access_s3.write_job_config(Driver.JOB_ID, job_bucket, n_mappers, reducer_lambda_name,
-                                   self.config["reducer"]["handler"])
+                                   self.config["reducer"]["handler"], n_reducers)
 
         # Prepare Lambda functions
         data_encoding.zip_lambda(self.config["mapper"]["name"], self.config["mapper"]["zip"])
@@ -115,7 +118,7 @@ class Driver:
         l_rc.add_lambda_permission(random.randint(1, 1000), job_bucket)
 
         # create event source for coordinator
-        l_rc.create_s3_eventsource_notification(job_bucket)
+        l_rc.create_s3_eventsource_notification(job_bucket, Driver.TASK_MAPPER_PREFIX + "bin" + str(n_reducers) + "/")
         xray_recorder.end_subsegment()  # Create reducer coordinator Lambda function
         return l_mapper, l_reducer, l_rc
 
@@ -215,22 +218,25 @@ class Driver:
         lambda_memory = self.config["lambdaMemory"]
 
         while True:
-            job_keys = self.s3_client.list_objects(Bucket=job_bucket, Prefix=Driver.JOB_ID)["Contents"]
-            keys = [jk["Key"] for jk in job_keys]
-            total_s3_size = sum([jk["Size"] for jk in job_keys])
+            response = self.s3_client.list_objects(Bucket=job_bucket, Prefix=Driver.TASK_REDUCER_PREFIX)
+            if "Contents" in response:
+                job_keys = response["Contents"]
+                keys = [jk["Key"] for jk in job_keys]
+                total_s3_size = sum([jk["Size"] for jk in job_keys])
 
-            print("check to see if the job is done")
+                print("check to see if the job is done")
 
-            # check job done
-            if Driver.JOB_ID + "/result" in keys:
-                print("job done")
-                reducer_lambda_time += float(
-                    self.s3.Object(job_bucket, Driver.JOB_ID + "/result").metadata['processingtime'])
-                for key in keys:
-                    if "task/reducer" in key:
-                        reducer_lambda_time += float(self.s3.Object(job_bucket, key).metadata['processingtime'])
-                        reducer_keys.append(key)
-                break
+                # check job done
+                if len(job_keys) == 8:
+                    print("job done")
+                    # reducer_lambda_time += float(
+                    #     self.s3.Object(job_bucket, Driver.JOB_ID + "/result").metadata['processingtime'])
+                    # for key in keys:
+                    #     if "task/reducer" in key:
+                    #         reducer_lambda_time += float(self.s3.Object(job_bucket, key).metadata['processingtime'])
+                    #         reducer_keys.append(key)
+                    break
+
             time.sleep(5)
 
         # S3 Storage cost - Account for mappers only; This cost is neglibile anyways since S3

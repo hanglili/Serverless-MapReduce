@@ -26,9 +26,9 @@ def reduce_handler(reduce_function):
         bucket = event['bucket']
         reducer_keys = event['keys']
         job_id = event['jobId']
-        r_id = event['reducerId']
-        step_id = event['stepId']
-        n_reducers = event['nReducers']
+        reducer_id = event['reducerId']
+        # step_id = event['stepId']
+        # n_reducers = event['nReducers']
 
         # aggr
         line_count = 0
@@ -74,11 +74,7 @@ def reduce_handler(reduce_function):
         pret = [len(reducer_keys), line_count, time_in_secs]
         print("Reducer output", pret)
 
-        if n_reducers == 1:
-            # Last reducer file, final result
-            fname = "%s/result" % job_id
-        else:
-            fname = "%s/%s%s/%s" % (job_id, TASK_REDUCER_PREFIX, step_id, r_id)
+        fname = "%s/%s%s" % (job_id, TASK_REDUCER_PREFIX, reducer_id)
 
         metadata = {
             "linecount": '%s' % line_count,
