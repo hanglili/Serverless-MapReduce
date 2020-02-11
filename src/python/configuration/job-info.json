@@ -4,5 +4,5 @@
     "mapCount": 32,
     "reducerFunction": "BL-reducer-bl-release",
     "reducerHandler": "job/reduce.reduce_function",
-    "reduceCount": 20
+    "reduceCount": 8
 }

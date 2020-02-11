@@ -67,12 +67,13 @@ def map_handler(map_function):
         print("metadata: ", metadata)
 
         # Partition ids are from 1 to n (inclusive).
-        output_partitions = [dict() for _ in range(num_bins + 1)]
+        output_partitions = [[] for _ in range(num_bins + 1)]
 
         for key, value in outputs:
             # partition_id = "partition%s" % partition(key)
-            partition_id = partition(key)
-            output_partitions[partition_id][key] = value
+            partition_id = partition(key, num_bins) + 1
+            cur_partition = output_partitions[partition_id]
+            cur_partition.append(tuple((key, value)))
 
         for i in range(1, num_bins + 1):
             partition_id = "bin%s" % i

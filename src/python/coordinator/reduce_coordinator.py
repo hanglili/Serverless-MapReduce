@@ -34,23 +34,27 @@ TASK_MAPPER_PREFIX = "task/mapper/"
 
 
 # Count mapper files
-def get_num_finished_mappers(files, num_bins):
-    bitmap_finished_mappers = [0 for x in range(num_bins)]
-    for mf in files:
-        if "task/mapper" in mf["Key"]:
-            paths_components = mf["Key"].split("/")
-            mapper_id = paths_components[len(paths_components) - 1]
-            bitmap_finished_mappers[mapper_id - 1] = 1
+def get_num_finished_mappers(files):
+    pass
+    # bitmap_finished_mappers = [0 for x in range(num_mappers)]
+    # for mf in files:
+    #     if "task/mapper" in mf["Key"]:
+    #         # print("The path is ", mf["Key"])
+    #         # print("Current bitmap is", bitmap_finished_mappers)
+    #         paths_components = mf["Key"].split("/")
+    #         mapper_id = paths_components[len(paths_components) - 1]
+    #         bitmap_finished_mappers[int(mapper_id) - 1] = 1
+    #
+    # return sum(bitmap_finished_mappers)
 
-    return sum(bitmap_finished_mappers)
 
 
 def get_mapper_files(num_bins, bucket, job_id):
     bins_of_keys = [[] for x in range(num_bins + 1)]
 
     for i in range(1, num_bins + 1):
-        prefix = ("%s/%s%s") % (job_id, TASK_MAPPER_PREFIX, i)
-        files = s3_client.list_objects(Bucket=bucket, Prefix=job_id)["Contents"]
+        prefix = ("%s/%sbin%s/") % (job_id, TASK_MAPPER_PREFIX, i)
+        files = s3_client.list_objects(Bucket=bucket, Prefix=prefix)["Contents"]
         bins_of_keys[i] = files
 
     return bins_of_keys
@@ -134,14 +138,17 @@ def lambda_handler(event, context):
     config = json.loads(open(JOB_INFO, "r").read())
     num_reducers = config["reduceCount"]
 
+    # prefix = "%s/%s" % (job_id, TASK_MAPPER_PREFIX)
+    prefix = job_id + "/task/mapper/" + "bin" + str(num_reducers) + "/"
+
     ### Get Mapper Finished Count ###
 
     # Get job files
-    files = s3_client.list_objects(Bucket=bucket, Prefix=job_id)["Contents"]
+    files = s3_client.list_objects(Bucket=bucket, Prefix=prefix)["Contents"]
 
     ### Stateless Coordinator logic
-    num_finished_mappers = get_num_finished_mappers(files, num_reducers)
-    print("Mappers Done so far ", num_finished_mappers)
+    num_finished_mappers = len(files)
+    print("Number of mappers completed: ", num_finished_mappers)
 
     if map_count == num_finished_mappers:
 
@@ -191,7 +198,7 @@ def lambda_handler(event, context):
             )
             print(response)
 
-        print("Finished scheduling %s number of reducers", num_reducers)
+        print("Finished scheduling %s number of reducers" % num_reducers)
 
         # Now write the reducer state
         # fname = "%s/reducerstate.%s" % (job_id, step_id)

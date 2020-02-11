@@ -13,6 +13,6 @@ def map_function(outputs, input_pair):
         data = line.split(',')
         src_ip = data[0]
         ad_revenue = float(data[3])
-        outputs.append((src_ip, ad_revenue))
+        outputs.append(tuple((src_ip, ad_revenue)))
     except Exception as e:
         print("type error: " + str(e))
