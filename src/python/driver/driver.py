@@ -62,12 +62,12 @@ class Driver:
 
         bsize = lambda_utils.compute_batch_size(all_keys, lambda_memory, concurrent_lambdas)
         batches = lambda_utils.batch_creator(all_keys, bsize)
-        n_mappers = len(batches)
+        num_mappers = len(batches)
         document = xray_recorder.current_subsegment()
         document.put_metadata("Batch size: ", bsize, "Processing initialization")
-        document.put_metadata("Mappers: ", n_mappers, "Processing initialization")
+        document.put_metadata("Mappers: ", num_mappers, "Processing initialization")
         xray_recorder.end_subsegment()  # Get all keys to be processed
-        return all_keys, n_mappers, batches
+        return all_keys, num_mappers, batches
 
     # Create the aws_lambda functions
     def _create_lambda(self, num_mappers):

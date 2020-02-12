@@ -1,8 +1,8 @@
 {
     "jobId": "bl-release",
     "jobBucket": "serverless-mapreduce-storage",
-    "mapCount": 32,
+    "mapCount": 5,
     "reducerFunction": "BL-reducer-bl-release",
     "reducerHandler": "job/reduce.reduce_function",
-    "reduceCount": 8
+    "reduceCount": 4
 }
