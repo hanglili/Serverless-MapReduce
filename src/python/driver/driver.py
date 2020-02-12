@@ -174,6 +174,7 @@ class Driver:
             InvocationType='RequestResponse',
             Payload=json.dumps({
                 "taskCode": Driver.CODE_MAPPER_PREFIX + Driver.EXECUTOR_ZIP_PATH,
+                "taskBucket": bucket,
                 "taskInfo": {
                     "bucket": bucket,
                     "keys": batch,

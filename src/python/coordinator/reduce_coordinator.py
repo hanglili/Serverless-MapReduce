@@ -17,6 +17,10 @@ lambda_client = boto3.client('lambda')
 
 JOB_INFO = "configuration/job-info.json"
 TASK_MAPPER_PREFIX = "task/mapper/"
+JOB_ID = "bl-release"
+L_PREFIX = "BL"
+CODE_REDUCER_PREFIX = JOB_ID + "/code/reducer/"
+EXECUTOR_ZIP_PATH = "executor.zip"
 
 # Write to S3 Bucket
 # def write_to_s3(bucket, key, data, metadata):
@@ -134,6 +138,7 @@ def lambda_handler(event, context):
     map_count = config["mapCount"]
     r_function_name = config["reducerFunction"]
     r_handler = config["reducerHandler"]
+    executor_lambda_name = L_PREFIX + "-executor-" + JOB_ID
 
     config = json.loads(open(JOB_INFO, "r").read())
     num_reducers = config["reduceCount"]
@@ -184,16 +189,20 @@ def lambda_handler(event, context):
 
             # invoke the reducers asynchronously
             response = lambda_client.invoke(
-                FunctionName=r_function_name,
+                FunctionName=executor_lambda_name,
                 InvocationType='Event',
                 Payload=json.dumps({
-                    "bucket": bucket,
-                    "keys": cur_reducer_keys,
-                    "jobBucket": bucket,
-                    "jobId": job_id,
-                    # "nReducers": n_reducers,
-                    # "stepId": step_id,
-                    "reducerId": i
+                    "taskCode": CODE_REDUCER_PREFIX + EXECUTOR_ZIP_PATH,
+                    "taskBucket": bucket,
+                    "taskInfo": {
+                        "bucket": bucket,
+                        "keys": cur_reducer_keys,
+                        "jobBucket": bucket,
+                        "jobId": job_id,
+                        # "nReducers": n_reducers,
+                        # "stepId": step_id,
+                        "reducerId": i
+                    }
                 })
             )
             print(response)
