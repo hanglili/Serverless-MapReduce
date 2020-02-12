@@ -8,6 +8,7 @@ s3 = boto3.resource('s3')
 s3_client = boto3.client('s3')
 
 from job.partition import partition
+from job.combine import combine_function
 
 # constants
 TASK_MAPPER_PREFIX = "task/mapper/"
@@ -38,7 +39,7 @@ def map_handler(map_function):
 
         # INPUT CSV => OUTPUT JSON
 
-        outputs = []
+        intermediate_data = []
 
         # Download and process all keys
         for key in src_keys:
@@ -50,7 +51,29 @@ def map_handler(map_function):
                 cur_input_pair = (key, line)
                 cur_line_outputs = []
                 map_function(cur_line_outputs, cur_input_pair)
-                outputs += cur_line_outputs
+                intermediate_data += cur_line_outputs
+
+        intermediate_data.sort(key=lambda x: x[0])
+
+        cur_key = None
+        cur_values = []
+        outputs = []
+        for key, value in intermediate_data:
+            if cur_key == key:
+                cur_values.append(value)
+            else:
+                if cur_key is not None:
+                    cur_key_outputs = []
+                    combine_function(cur_key_outputs, (cur_key, cur_values))
+                    outputs += cur_key_outputs
+
+                cur_key = key
+                cur_values = [value]
+
+        if cur_key is not None:
+            cur_key_outputs = []
+            combine_function(cur_key_outputs, (cur_key, cur_values))
+            outputs += cur_key_outputs
 
         time_in_secs = (time.time() - start_time)
         # timeTaken = time_in_secs * 1000000000 # in 10^9

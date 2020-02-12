@@ -16,3 +16,4 @@ def map_function(outputs, input_pair):
         outputs.append(tuple((src_ip, ad_revenue)))
     except Exception as e:
         print("type error: " + str(e))
+
