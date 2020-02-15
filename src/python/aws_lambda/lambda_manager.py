@@ -12,7 +12,9 @@ class LambdaManager(object):
         self.job_id = job_id
         self.function_name = fname
         self.handler = handler
-        self.role = os.environ.get('serverless_mapreduce_role')
+        # TODO: fix this
+        # self.role = os.environ.get('serverless_mapreduce_role')
+        self.role = "arn:aws:iam::990092034516:role/serverless_mr_role"
         self.memory = lmem
         self.timeout = 300
         self.function_arn = None  # set after creation
@@ -60,6 +62,7 @@ class LambdaManager(object):
             self.create_lambda_function()
         except botocore.exceptions.ClientError as e:
             # parse (Function already exist)
+            print("Failed to create or update lambda:", e)
             self.update_function()
 
     def add_lambda_permission(self, sId, bucket):

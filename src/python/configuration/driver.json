@@ -13,14 +13,19 @@
         "handler": "job/map.map_function",
         "zip": "map.zip"
     },
-    "reducer":{
+    "reducer": {
         "name": "job/reduce.py",
         "handler": "job/reduce.reduce_function",
         "zip": "reduce.zip"
     },
-    "reducerCoordinator":{
+    "reducerCoordinator": {
         "name": "coordinator/reduce_coordinator.py",
         "handler": "coordinator/reduce_coordinator.lambda_handler",
         "zip": "reduce_coordinator.zip"
+    },
+    "driver": {
+        "name": "driver/serverless_driver.py",
+        "handler": "driver/serverless_driver.lambda_handler",
+        "zip": "serverless_driver.zip"
     }
 }

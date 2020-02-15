@@ -37,6 +37,13 @@ def map_handler(map_function):
         line_count = 0
         err = ''
 
+        # command = "aws --version"
+        # command_list = command.split(' ')
+        #
+        # print("Running shell command: \"{}\"".format(command))
+        # result = subprocess.call(command_list, stdout=subprocess.PIPE)
+        # print("Command output:\n---\n{}\n---".format(result.stdout.decode('UTF-8')))
+
         # INPUT CSV => OUTPUT JSON
 
         intermediate_data = []

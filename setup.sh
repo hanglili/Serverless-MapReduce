@@ -17,4 +17,4 @@ cat src/python/configuration/driver.json
 ./xray_mac -o -n us-east-1 &
 
 cd src/python/
-python3 main.py
+python3 main.py 1
