@@ -18,7 +18,7 @@ class LambdaManager(object):
         # TODO: remove this if above works
         # self.role = "arn:aws:iam::990092034516:role/serverless_mr_role"
         self.memory = memory_limit
-        self.timeout = 300
+        self.timeout = StaticVariables.LAMBDA_TIMEOUT
         self.function_arn = None  # set after creation
 
     # TracingConfig parameter switches X-Ray tracing on/off.

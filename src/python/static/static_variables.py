@@ -18,3 +18,4 @@ class StaticVariables:
 
     DEFAULT_REGION = "us-east-1"
     LAMBDA_MEMORY_LIMIT = 1536
+    LAMBDA_TIMEOUT = 300

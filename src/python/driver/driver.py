@@ -187,7 +187,9 @@ class Driver:
                     keys = [jk["Key"] for jk in job_keys]
                     total_s3_size = sum([jk["Size"] for jk in job_keys])
                     for key in keys:
-                        reducer_lambda_time += float(self.s3.Object(job_bucket, key).metadata['processingTime'])
+                        # Even though metadata processing time is written as processingTime, AWS does not accept uppercase
+                        # letter metadata key
+                        reducer_lambda_time += float(self.s3.Object(job_bucket, key).metadata['processingtime'])
                     break
 
             time.sleep(5)

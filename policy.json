@@ -59,7 +59,7 @@
                 "s3:PutObjectVersionAcl"
             ],
             "Resource": [
-                "arn:aws:s3:::serverless-mapreduce-storage/",
+                "arn:aws:s3:::serverless-mapreduce-storage",
                 "arn:aws:s3:::serverless-mapreduce-storage/*"
             ]
         },
