@@ -1,27 +1,29 @@
 import boto3
-import botocore
 import os
+
+from static.static_variables import StaticVariables
 
 
 class LambdaManager(object):
-    def __init__(self, l, s3, region, codepath, job_id, fname, handler, lmem=1536):
-        self.aws_lambda = l
-        self.region = "us-east-1" if region is None else region
+    def __init__(self, lambda_client, s3, region, code_path, job_id, filename, handler,
+                 memory_limit=StaticVariables.LAMBDA_MEMORY_LIMIT):
+        self.lambda_client = lambda_client
+        self.region = StaticVariables.DEFAULT_REGION if region is None else region
         self.s3 = s3
-        self.code_file = codepath
+        self.code_file = code_path
         self.job_id = job_id
-        self.function_name = fname
+        self.function_name = filename
         self.handler = handler
-        self.role = os.environ.get('serverless_mapreduce_role')
-        self.memory = lmem
-        self.timeout = 300
+        self.role = os.environ.get("serverless_mapreduce_role")
+        self.memory = memory_limit
+        self.timeout = StaticVariables.LAMBDA_TIMEOUT
         self.function_arn = None  # set after creation
 
     # TracingConfig parameter switches X-Ray tracing on/off.
     # Change value to 'Mode':'PassThrough' to switch it off
-    def create_lambda_function(self):
+    def create_lambda_function(self, num_mappers):
         runtime = 'python3.7'
-        response = self.aws_lambda.create_function(
+        response = self.lambda_client.create_function(
             FunctionName=self.function_name,
             Code={
                 "ZipFile": open(self.code_file, 'rb').read()
@@ -30,6 +32,12 @@ class LambdaManager(object):
             Role=self.role,
             Runtime=runtime,
             Description=self.function_name,
+            Environment={
+                'Variables': {
+                    "serverless_mapreduce_role": self.role,
+                    "num_mappers": num_mappers
+                }
+            },
             MemorySize=self.memory,
             Timeout=self.timeout,
             TracingConfig={'Mode': 'PassThrough'}
@@ -38,10 +46,10 @@ class LambdaManager(object):
         print(response)
 
     def update_function(self):
-        '''
+        """
         Update aws_lambda function
-        '''
-        response = self.aws_lambda.update_function_code(
+        """
+        response = self.lambda_client.update_function_code(
             FunctionName=self.function_name,
             ZipFile=open(self.code_file, 'rb').read(),
             Publish=True
@@ -52,30 +60,28 @@ class LambdaManager(object):
         self.function_arn = arn
         print(response)
 
-    def update_code_or_create_on_noexist(self):
-        '''
+    def update_code_or_create_on_no_exist(self, num_mappers=""):
+        """
         Update if the function exists, else create function
-        '''
+        """
         try:
-            self.create_lambda_function()
-        except botocore.exceptions.ClientError as e:
+            self.create_lambda_function(num_mappers)
+        except Exception as e:
             # parse (Function already exist)
+            print("Failed to create lambda:", e)
             self.update_function()
 
-    def add_lambda_permission(self, sId, bucket):
-        response = self.aws_lambda.add_permission(
+    def add_lambda_permission(self, s_id, bucket):
+        response = self.lambda_client.add_permission(
             Action='lambda:InvokeFunction',
             FunctionName=self.function_name,
             Principal='s3.amazonaws.com',
-            StatementId='%s' % sId,
+            StatementId='%s' % s_id,
             SourceArn='arn:aws:s3:::' + bucket
         )
         print(response)
 
-    def create_s3_eventsource_notification(self, bucket, prefix=None):
-        if not prefix:
-            prefix = self.job_id + "/task"
-
+    def create_s3_event_source_notification(self, bucket, prefix):
         self.s3.put_bucket_notification_configuration(
             Bucket=bucket,
             NotificationConfiguration={
@@ -101,14 +107,13 @@ class LambdaManager(object):
         )
 
     def delete_function(self):
-        self.aws_lambda.delete_function(FunctionName=self.function_name)
+        self.lambda_client.delete_function(FunctionName=self.function_name)
 
     @classmethod
     def cleanup_logs(cls, func_name):
-        '''
+        """
         Delete all Lambda log group and log streams for a given function
-
-        '''
+        """
         log_client = boto3.client('logs')
         # response = log_client.describe_log_streams(logGroupName='/aws/aws_lambda/' + func_name)
         response = log_client.delete_log_group(logGroupName='/aws/aws_lambda/' + func_name)

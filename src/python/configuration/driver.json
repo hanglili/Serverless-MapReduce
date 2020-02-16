@@ -5,22 +5,27 @@
     "region": "us-east-1",
     "lambdaMemory": 1536,
     "concurrentLambdas": 1000,
-    "lambda_read_timeout": 300,
-    "boto_max_connections": 1000,
-    "num_reducers": 4,
+    "lambdaReadTimeout": 300,
+    "botoMaxConnections": 1000,
+    "numReducers": 4,
     "mapper": {
         "name": "job/map.py",
         "handler": "job/map.map_function",
         "zip": "map.zip"
     },
-    "reducer":{
+    "reducer": {
         "name": "job/reduce.py",
         "handler": "job/reduce.reduce_function",
         "zip": "reduce.zip"
     },
-    "reducerCoordinator":{
+    "reducerCoordinator": {
         "name": "coordinator/reduce_coordinator.py",
         "handler": "coordinator/reduce_coordinator.lambda_handler",
         "zip": "reduce_coordinator.zip"
+    },
+    "driver": {
+        "name": "driver/serverless_driver.py",
+        "handler": "driver/serverless_driver.lambda_handler",
+        "zip": "serverless_driver.zip"
     }
 }

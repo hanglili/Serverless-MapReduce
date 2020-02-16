@@ -23,7 +23,6 @@
                 "*"
             ]
         },
-
         {
             "Sid": "Stmt1475879730000",
             "Effect": "Allow",
@@ -39,8 +38,7 @@
                 "*"
             ]
         },
-
-{
+        {
             "Sid": "Stmt1475879783000",
             "Effect": "Allow",
             "Action": [
@@ -61,10 +59,10 @@
                 "s3:PutObjectVersionAcl"
             ],
             "Resource": [
+                "arn:aws:s3:::serverless-mapreduce-storage",
                 "arn:aws:s3:::serverless-mapreduce-storage/*"
             ]
         },
-
         {
             "Sid": "StmXrayAllow",
             "Effect": "Allow",
@@ -76,7 +74,6 @@
                 "*"
             ]
         },
-
         {
             "Effect": "Allow",
             "Action": [
@@ -86,9 +83,15 @@
             "Resource": [
                 "*"
             ]
+        },
+        {
+            "Sid": "passRole",
+            "Effect": "Allow",
+            "Action": [
+                "iam:GetRole",
+                "iam:PassRole"
+            ],
+            "Resource": "arn:aws:iam::990092034516:role/*"
         }
-
-
-
     ]
 }

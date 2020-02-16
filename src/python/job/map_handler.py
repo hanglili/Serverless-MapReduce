@@ -9,10 +9,7 @@ s3_client = boto3.client('s3')
 
 from job.partition import partition
 from job.combine import combine_function
-
-# constants
-TASK_MAPPER_PREFIX = "task/mapper/"
-JOB_INFO = "configuration/job-info.json"
+from static.static_variables import StaticVariables
 
 
 def write_to_s3(bucket, key, data, metadata):
@@ -20,7 +17,7 @@ def write_to_s3(bucket, key, data, metadata):
 
 
 def map_handler(map_function):
-    def lambda_handler(event, context):
+    def lambda_handler(event, _):
         start_time = time.time()
 
         job_bucket = event['jobBucket']
@@ -29,11 +26,10 @@ def map_handler(map_function):
         job_id = event['jobId']
         mapper_id = event['mapperId']
 
-        config = json.loads(open(JOB_INFO, "r").read())
+        config = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, "r").read())
         num_bins = config["reduceCount"]
 
         # aggr
-        outputs = {}
         line_count = 0
         err = ''
 
@@ -79,14 +75,14 @@ def map_handler(map_function):
         # timeTaken = time_in_secs * 1000000000 # in 10^9
         # s3DownloadTime = 0
         # totalProcessingTime = 0
-        pret = [len(src_keys), line_count, time_in_secs, err]
+        processing_info = [len(src_keys), line_count, time_in_secs, err]
+        print("Mapper process information: (number of keys processed, line count, processing time)\n", processing_info)
 
         metadata = {
-            "linecount": '%s' % line_count,
-            "processingtime": '%s' % time_in_secs,
+            "lineCount": '%s' % line_count,
+            "processingTime": '%s' % time_in_secs,
             "memoryUsage": '%s' % resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
         }
-        print("metadata: ", metadata)
 
         # Partition ids are from 1 to n (inclusive).
         output_partitions = [[] for _ in range(num_bins + 1)]
@@ -98,9 +94,9 @@ def map_handler(map_function):
 
         for i in range(1, num_bins + 1):
             partition_id = "bin%s" % i
-            mapper_filename = "%s/%s%s/%s" % (job_id, TASK_MAPPER_PREFIX, partition_id, mapper_id)
+            mapper_filename = "%s/%s%s/%s" % (job_id, StaticVariables.MAP_OUTPUT_PREFIX, partition_id, mapper_id)
             write_to_s3(job_bucket, mapper_filename, json.dumps(output_partitions[i]), metadata)
 
-        return pret
+        return processing_info
 
     return lambda_handler

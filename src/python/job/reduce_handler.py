@@ -3,13 +3,11 @@ import json
 import resource
 import time
 
+from static.static_variables import StaticVariables
+
 # create an S3 & Dynamo session
 s3 = boto3.resource('s3')
 s3_client = boto3.client('s3')
-
-# constants
-TASK_MAPPER_PREFIX = "task/mapper/"
-TASK_REDUCER_PREFIX = "task/reducer/"
 
 
 def write_to_s3(bucket, key, data, metadata):
@@ -18,17 +16,17 @@ def write_to_s3(bucket, key, data, metadata):
 
 
 def reduce_handler(reduce_function):
-    def lambda_handler(event, context):
+    def lambda_handler(event, _):
 
         start_time = time.time()
 
         job_bucket = event['jobBucket']
-        bucket = event['bucket']
-        reducer_keys = event['keys']
+        # bucket = event['bucket']
+        reduce_keys = event['keys']
         job_id = event['jobId']
         reducer_id = event['reducerId']
         # step_id = event['stepId']
-        # n_reducers = event['nReducers']
+        # n_reducers = event['numReducers']
 
         # aggr
         line_count = 0
@@ -37,7 +35,7 @@ def reduce_handler(reduce_function):
         # INPUT JSON => OUTPUT JSON
 
         # Download and process all keys
-        for key in reducer_keys:
+        for key in reduce_keys:
             response = s3_client.get_object(Bucket=job_bucket, Key=key)
             contents = response['Body'].read()
 
@@ -71,18 +69,18 @@ def reduce_handler(reduce_function):
         # timeTaken = time_in_secs * 1000000000 # in 10^9
         # s3DownloadTime = 0
         # totalProcessingTime = 0
-        pret = [len(reducer_keys), line_count, time_in_secs]
-        print("Reducer output", pret)
+        processing_info = [len(reduce_keys), line_count, time_in_secs]
+        print("Reducer process information: (number of keys processed, line count, processing time)\n", processing_info)
 
-        fname = "%s/%s%s" % (job_id, TASK_REDUCER_PREFIX, reducer_id)
+        filename = "%s/%s%s" % (job_id, StaticVariables.REDUCE_OUTPUT_PREFIX, reducer_id)
 
         metadata = {
-            "linecount": '%s' % line_count,
-            "processingtime": '%s' % time_in_secs,
+            "lineCount": '%s' % line_count,
+            "processingTime": '%s' % time_in_secs,
             "memoryUsage": '%s' % resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
         }
 
-        write_to_s3(job_bucket, fname, json.dumps(outputs), metadata)
-        return pret
+        write_to_s3(job_bucket, filename, json.dumps(outputs), metadata)
+        return processing_info
 
     return lambda_handler

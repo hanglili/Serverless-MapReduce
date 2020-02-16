@@ -1,5 +1,4 @@
 import boto3
-import botocore
 import json
 
 client = boto3.client('iam')
@@ -25,16 +24,14 @@ try:
     response = client.create_role(RoleName=rn, AssumeRolePolicyDocument=json.dumps(trust_role))
     print(response['Role']['Arn'])
     print("Success: done creating role")
-except botocore.exceptions.ClientError as e:
+except Exception as e:
     print("Error: {0}".format(e))
 
 try:
     with open('policy.json') as json_data:
-        response = client.put_role_policy(RoleName=rn,PolicyName=rp,
+        response = client.put_role_policy(RoleName=rn, PolicyName=rp,
             PolicyDocument=json.dumps(json.load(json_data))
         )
         print("Success: done adding inline policy to role")
-except botocore.exceptions.ClientError as e:
+except Exception as e:
     print("Error: {0}".format(e))
-
-
