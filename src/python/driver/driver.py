@@ -12,15 +12,14 @@ from static.static_variables import StaticVariables
 
 
 class Driver:
-    JOB_ID = "bl-release"
-    L_PREFIX = "BL"
-
-    def __init__(self):
+    def __init__(self, is_serverless=False):
         self.s3 = boto3.resource('s3')
         self.s3_client = boto3.client('s3')
         self.lambda_config = None
         self.lambda_client = None
         self.config = json.loads(open(StaticVariables.DRIVER_CONFIG_PATH, 'r').read())
+        self.static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
+        self.is_serverless = is_serverless
 
     # Get all keys to be processed
     def _get_all_keys(self):
@@ -53,52 +52,53 @@ class Driver:
     # Create the aws_lambda functions
     def _create_lambda(self, num_mappers):
         # Lambda functions
-        mapper_lambda_name = Driver.L_PREFIX + "-mapper-" + Driver.JOB_ID
-        reducer_lambda_name = Driver.L_PREFIX + "-reducer-" + Driver.JOB_ID
-        rc_lambda_name = Driver.L_PREFIX + "-rc-" + Driver.JOB_ID
+        job_id = self.static_job_info["jobId"]
+        lambda_name_prefix = self.static_job_info["lambdaNamePrefix"]
+        mapper_lambda_name = lambda_name_prefix + "-mapper-" + job_id
+        reducer_lambda_name = lambda_name_prefix + "-reducer-" + job_id
+        rc_lambda_name = lambda_name_prefix + "-rc-" + job_id
+
         job_bucket = self.config["jobBucket"]
         region = self.config["region"]
         num_reducers = self.config["numReducers"]
 
-        # write job self.config
-        # access_s3.write_job_config(Driver.JOB_ID, job_bucket, num_mappers, reducer_lambda_name,
-        #                            self.config["reducer"]["handler"], num_reducers)
-
-        # Prepare Lambda functions
-        # zip.zip_lambda(self.config["mapper"]["name"], self.config["mapper"]["zip"])
-        # zip.zip_lambda(self.config["reducer"]["name"], self.config["reducer"]["zip"])
-        # zip.zip_lambda(self.config["reducerCoordinator"]["name"], self.config["reducerCoordinator"]["zip"])
+        # Prepare Lambda functions if driver running in local machine
+        if not self.is_serverless:
+            zip.zip_lambda(self.config["mapper"]["name"], self.config["mapper"]["zip"])
+            zip.zip_lambda(self.config["reducer"]["name"], self.config["reducer"]["zip"])
+            zip.zip_lambda(self.config["reducerCoordinator"]["name"], self.config["reducerCoordinator"]["zip"])
 
         # Mapper
         l_mapper = lambda_manager.LambdaManager(self.lambda_client, self.s3_client, region,
-                                                self.config["mapper"]["zip"], Driver.JOB_ID,
+                                                self.config["mapper"]["zip"], job_id,
                                                 mapper_lambda_name, self.config["mapper"]["handler"])
         l_mapper.update_code_or_create_on_no_exist()
 
         # Reducer
         l_reducer = lambda_manager.LambdaManager(self.lambda_client, self.s3_client, region,
-                                                 self.config["reducer"]["zip"], Driver.JOB_ID,
+                                                 self.config["reducer"]["zip"], job_id,
                                                  reducer_lambda_name, self.config["reducer"]["handler"])
         l_reducer.update_code_or_create_on_no_exist()
 
         # Coordinator
         l_rc = lambda_manager.LambdaManager(self.lambda_client, self.s3_client, region,
-                                            self.config["reducerCoordinator"]["zip"], Driver.JOB_ID,
+                                            self.config["reducerCoordinator"]["zip"], job_id,
                                             rc_lambda_name, self.config["reducerCoordinator"]["handler"])
-        l_rc.update_code_or_create_on_no_exist()
+        l_rc.update_code_or_create_on_no_exist(str(num_mappers))
 
         # Add permission to the coordinator
         l_rc.add_lambda_permission(random.randint(1, 1000), job_bucket)
 
         # create event source for coordinator
-        last_bin_path = "%s/%sbin%s/" % (Driver.JOB_ID, StaticVariables.MAP_OUTPUT_PREFIX, str(num_reducers))
+        last_bin_path = "%s/%sbin%s/" % (job_id, StaticVariables.MAP_OUTPUT_PREFIX, str(num_reducers))
         l_rc.create_s3_event_source_notification(job_bucket, last_bin_path)
         return l_mapper, l_reducer, l_rc
 
     # Write Jobdata to S3
     def _write_job_data(self, all_keys, n_mappers):
         # xray_recorder.begin_subsegment('Write job data to S3')
-        j_key = "%s/%s" % (Driver.JOB_ID, StaticVariables.JOB_DATA_S3_FILENAME)
+        job_id = self.static_job_info["jobId"]
+        j_key = "%s/%s" % (job_id, StaticVariables.JOB_DATA_S3_FILENAME)
         data = json.dumps({
             "mapCount": n_mappers,
             "totalS3Files": len(all_keys),
@@ -114,7 +114,9 @@ class Driver:
         """
         bucket = self.config["bucket"]
         job_bucket = self.config["jobBucket"]
-        mapper_lambda_name = Driver.L_PREFIX + "-mapper-" + Driver.JOB_ID
+        job_id = self.static_job_info["jobId"]
+        lambda_name_prefix = self.static_job_info["lambdaNamePrefix"]
+        mapper_lambda_name = lambda_name_prefix + "-mapper-" + job_id
 
         batch = [k.key for k in batches[m_id - 1]]
         resp = self.lambda_client.invoke(
@@ -124,7 +126,7 @@ class Driver:
                 "bucket": bucket,
                 "keys": batch,
                 "jobBucket": job_bucket,
-                "jobId": Driver.JOB_ID,
+                "jobId": job_id,
                 "mapperId": m_id
             })
         )
@@ -174,9 +176,10 @@ class Driver:
         reducer_lambda_time = 0
         job_bucket = self.config["jobBucket"]
         lambda_memory = self.config["lambdaMemory"]
+        job_id = self.static_job_info["jobId"]
 
         while True:
-            reduce_output_full_prefix = "%s/%s" % (Driver.JOB_ID, StaticVariables.REDUCE_OUTPUT_PREFIX)
+            reduce_output_full_prefix = "%s/%s" % (job_id, StaticVariables.REDUCE_OUTPUT_PREFIX)
             response = self.s3_client.list_objects(Bucket=job_bucket, Prefix=reduce_output_full_prefix)
             if "Contents" in response:
                 job_keys = response["Contents"]
@@ -187,8 +190,8 @@ class Driver:
                     keys = [jk["Key"] for jk in job_keys]
                     total_s3_size = sum([jk["Size"] for jk in job_keys])
                     for key in keys:
-                        # Even though metadata processing time is written as processingTime, AWS does not accept uppercase
-                        # letter metadata key
+                        # Even though metadata processing time is written as processingTime, AWS does not accept
+                        # uppercase letter metadata key
                         reducer_lambda_time += float(self.s3.Object(job_bucket, key).metadata['processingtime'])
                     break
 
@@ -220,15 +223,15 @@ class Driver:
 
     def run(self):
         # 1. Get all keys to be processed
-        all_keys, n_mappers, batches = self._get_all_keys()
+        all_keys, num_mappers, batches = self._get_all_keys()
 
         # 2. Create the aws_lambda functions
-        l_mapper, l_reducer, l_rc = self._create_lambda(n_mappers)
-        self._write_job_data(all_keys, n_mappers)
+        l_mapper, l_reducer, l_rc = self._create_lambda(num_mappers)
+        self._write_job_data(all_keys, num_mappers)
 
         # Execute
         # 3. Invoke Mappers and wait until they finish the execution
-        mapper_outputs = self._invoke_mappers(n_mappers, batches)
+        mapper_outputs = self._invoke_mappers(num_mappers, batches)
 
         # 4. Delete Mapper function
         l_mapper.delete_function()

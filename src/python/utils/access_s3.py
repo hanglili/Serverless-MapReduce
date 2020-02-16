@@ -9,15 +9,15 @@ def write_to_s3(bucket, key, data, metadata):
     s3.Bucket(bucket).put_object(Key=key, Body=data, Metadata=metadata)
 
 
-def write_job_config(job_id, job_bucket, num_mappers, reducer_function, reduce_handler, reduce_count):
-    filename = StaticVariables.JOB_INFO_PATH
-    with open(filename, 'w') as f:
-        data = json.dumps({
-            "jobId": job_id,
-            "jobBucket": job_bucket,
-            "mapCount": num_mappers,
-            "reducerFunction": reducer_function,
-            "reducerHandler": reduce_handler,
-            "reduceCount": reduce_count
-        }, indent=4)
-        f.write(data)
+# def write_job_config(job_id, job_bucket, num_mappers, reducer_function, reduce_handler, reduce_count):
+#     filename = StaticVariables.JOB_INFO_LAMBDA_PATH
+#     with open(filename, 'w') as f:
+#         data = json.dumps({
+#             # "jobId": job_id,
+#             # "jobBucket": job_bucket,
+#             "mapCount": num_mappers,
+#             # "reducerFunction": reducer_function,
+#             # "reducerHandler": reduce_handler,
+#             # "reduceCount": reduce_count
+#         }, indent=4)
+#         f.write(data)

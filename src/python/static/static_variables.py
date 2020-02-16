@@ -1,7 +1,8 @@
 class StaticVariables:
 
     # constants
-    JOB_INFO_PATH = 'configuration/job-info.json'
+    STATIC_JOB_INFO_PATH = 'configuration/static-job-info.json'
+    # JOB_INFO_LAMBDA_PATH = "/tmp/job-info.json"
     MAP_HANDLER_PATH = "job/map_handler.py"
     REDUCE_HANDLER_PATH = "job/reduce_handler.py"
     PARTITION_PATH = "job/partition.py"

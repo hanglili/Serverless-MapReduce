@@ -6,7 +6,7 @@ from static.static_variables import StaticVariables
 
 def zip_lambda(filename, zip_name):
     # faster to zip with shell exec
-    subprocess.call(['zip', zip_name] + glob.glob(filename) + glob.glob(StaticVariables.JOB_INFO_PATH)
+    subprocess.call(['zip', zip_name] + glob.glob(filename) + glob.glob(StaticVariables.STATIC_JOB_INFO_PATH)
                     + glob.glob(StaticVariables.LAMBDA_UTILS_PATH) + glob.glob(StaticVariables.MAP_HANDLER_PATH)
                     + glob.glob(StaticVariables.REDUCE_HANDLER_PATH) + glob.glob(StaticVariables.JOB_INIT_PATH)
                     + glob.glob(StaticVariables.UTILS_INIT_PATH) + glob.glob(StaticVariables.PARTITION_PATH)

@@ -1,5 +1,6 @@
 import boto3
 import json
+import os
 
 from static.static_variables import StaticVariables
 
@@ -30,15 +31,14 @@ def lambda_handler(event, _):
 
     # key = urllib.unquote_plus(event['Records'][0]['s3']['object']['key'].encode('utf8'))
 
-    config = json.loads(open(StaticVariables.JOB_INFO_PATH, "r").read())
+    config = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, "r").read())
 
     job_id = config["jobId"]
-    map_count = config["mapCount"]
     reduce_function_name = config["reducerFunction"]
     # reduce_handler = config["reducerHandler"]
-
-    config = json.loads(open(StaticVariables.JOB_INFO_PATH, "r").read())
     num_reducers = config["reduceCount"]
+
+    map_count = int(os.environ.get("num_mappers"))
 
     prefix = "%s/%sbin%s/" % (job_id, StaticVariables.MAP_OUTPUT_PREFIX, str(num_reducers))
 

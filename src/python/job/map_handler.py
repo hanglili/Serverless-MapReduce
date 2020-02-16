@@ -26,7 +26,7 @@ def map_handler(map_function):
         job_id = event['jobId']
         mapper_id = event['mapperId']
 
-        config = json.loads(open(StaticVariables.JOB_INFO_PATH, "r").read())
+        config = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, "r").read())
         num_bins = config["reduceCount"]
 
         # aggr

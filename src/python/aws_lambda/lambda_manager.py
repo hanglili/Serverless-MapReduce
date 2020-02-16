@@ -15,15 +15,13 @@ class LambdaManager(object):
         self.function_name = filename
         self.handler = handler
         self.role = os.environ.get("serverless_mapreduce_role")
-        # TODO: remove this if above works
-        # self.role = "arn:aws:iam::990092034516:role/serverless_mr_role"
         self.memory = memory_limit
         self.timeout = StaticVariables.LAMBDA_TIMEOUT
         self.function_arn = None  # set after creation
 
     # TracingConfig parameter switches X-Ray tracing on/off.
     # Change value to 'Mode':'PassThrough' to switch it off
-    def create_lambda_function(self):
+    def create_lambda_function(self, num_mappers):
         runtime = 'python3.7'
         response = self.lambda_client.create_function(
             FunctionName=self.function_name,
@@ -36,7 +34,8 @@ class LambdaManager(object):
             Description=self.function_name,
             Environment={
                 'Variables': {
-                    "serverless_mapreduce_role": self.role
+                    "serverless_mapreduce_role": self.role,
+                    "num_mappers": num_mappers
                 }
             },
             MemorySize=self.memory,
@@ -61,15 +60,15 @@ class LambdaManager(object):
         self.function_arn = arn
         print(response)
 
-    def update_code_or_create_on_no_exist(self):
+    def update_code_or_create_on_no_exist(self, num_mappers=""):
         """
         Update if the function exists, else create function
         """
         try:
-            self.create_lambda_function()
+            self.create_lambda_function(num_mappers)
         except Exception as e:
             # parse (Function already exist)
-            print("Failed to create or update lambda:", e)
+            print("Failed to create lambda:", e)
             self.update_function()
 
     def add_lambda_permission(self, s_id, bucket):
