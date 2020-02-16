@@ -4,9 +4,9 @@ from job.map_handler import map_handler
 @map_handler
 def map_function(outputs, input_pair):
     """
-    :param output: [(k2, v2)] where k2 and v2 are intermediate data
+    :param outputs: [(k2, v2)] where k2 and v2 are intermediate data
     which can be of any types
-    :param line: (k1, v1) where k1 and v1 are assumed to be of type string
+    :param input_pair: (k1, v1) where k1 and v1 are assumed to be of type string
     """
     try:
         _, line = input_pair

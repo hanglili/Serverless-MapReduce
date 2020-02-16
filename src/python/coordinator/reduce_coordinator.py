@@ -1,210 +1,82 @@
 import boto3
 import json
-import time
 
-DEFAULT_REGION = "us-east-1"
+from static.static_variables import StaticVariables
 
-### STATES
-MAPPERS_DONE = 0
-REDUCER_STEP = 1
-
-### Helpers ###
-
-# create an S3 session
+# create an S3 and Lambda session
 s3 = boto3.resource('s3')
 s3_client = boto3.client('s3')
 lambda_client = boto3.client('lambda')
 
-JOB_INFO = "configuration/job-info.json"
-TASK_MAPPER_PREFIX = "task/mapper/"
-
-# Write to S3 Bucket
-# def write_to_s3(bucket, key, data, metadata):
-#     s3.Bucket(bucket).put_object(Key=key, Body=data, Metadata=metadata)
-
-
-# def write_reducer_state(n_reducers, n_s3, bucket, fname):
-#     ts = time.time()
-#     data = json.dumps({
-#         "reducerCount": '%s' % n_reducers,
-#         "totalS3Files": '%s' % n_s3,
-#         "start_time": '%s' % ts
-#     })
-#     write_to_s3(bucket, fname, data, {})
-
-
-# Count mapper files
-def get_num_finished_mappers(files):
-    pass
-    # bitmap_finished_mappers = [0 for x in range(num_mappers)]
-    # for mf in files:
-    #     if "task/mapper" in mf["Key"]:
-    #         # print("The path is ", mf["Key"])
-    #         # print("Current bitmap is", bitmap_finished_mappers)
-    #         paths_components = mf["Key"].split("/")
-    #         mapper_id = paths_components[len(paths_components) - 1]
-    #         bitmap_finished_mappers[int(mapper_id) - 1] = 1
-    #
-    # return sum(bitmap_finished_mappers)
-
-
 
 def get_mapper_files(num_bins, bucket, job_id):
-    bins_of_keys = [[] for x in range(num_bins + 1)]
+    bins_of_keys = [[] for _ in range(num_bins + 1)]
 
     for i in range(1, num_bins + 1):
-        prefix = ("%s/%sbin%s/") % (job_id, TASK_MAPPER_PREFIX, i)
+        prefix = "%s/%sbin%s/" % (job_id, StaticVariables.MAP_OUTPUT_PREFIX, i)
         files = s3_client.list_objects(Bucket=bucket, Prefix=prefix)["Contents"]
         bins_of_keys[i] = files
 
     return bins_of_keys
 
 
-# def get_reducer_batch_size(keys):
-#     # TODO: Parameritize memory size
-#     batch_size = lambda_utils.compute_batch_size(keys, 1536, 1000)
-#     return max(batch_size, 2)  # At least 2 in a batch - Condition for termination
-
-
-# def check_job_done(files):
-#     # TODO: USE re
-#     for f in files:
-#         if "result" in f["Key"]:
-#             return True
-#     return False
-
-
-# def get_reducer_state_info(files, job_id, job_bucket):
-#     reducers = []
-#     max_index = 0
-#     reducer_step = False
-#     r_index = 0
-
-    # Check if step is complete
-
-    # Check for the Reducer state
-    # Determine the latest reducer step#
-    # for f in files:
-    #     # parts = f['Key'].split('/');
-    #     if "reducerstate." in f['Key']:
-    #         idx = int(f['Key'].split('.')[1])
-    #         if idx > r_index:
-    #             r_index = idx
-    #         reducer_step = True
-
-    # Find with reducer state is complete
-    # if reducer_step == False:
-        # return mapper files
-    # return [MAPPERS_DONE, get_mapper_files(files)]
-    # else:
-    #     # Check if the current step is done
-    #     key = "%s/reducerstate.%s" % (job_id, r_index)
-    #     response = s3_client.get_object(Bucket=job_bucket, Key=key)
-    #     contents = json.loads(response['Body'].read())
-    #
-    #     # get reducer outputs
-    #     for f in files:
-    #         fname = f['Key']
-    #         parts = fname.split('/')
-    #         if len(parts) < 3:
-    #             continue
-    #         rFname = 'reducer/' + str(r_index)
-    #         if rFname in fname:
-    #             reducers.append(f)
-    #
-    #     if int(contents["reducerCount"]) == len(reducers):
-    #         return (r_index, reducers)
-    #     else:
-    #         return (r_index, [])
-
-
-def lambda_handler(event, context):
+def lambda_handler(event, _):
     print("Received event: " + json.dumps(event, indent=2))
 
-    start_time = time.time()
+    # start_time = time.time()
 
     # Job Bucket. We just got a notification from this bucket
     bucket = event['Records'][0]['s3']['bucket']['name']
 
     # key = urllib.unquote_plus(event['Records'][0]['s3']['object']['key'].encode('utf8'))
 
-    config = json.loads(open(JOB_INFO, "r").read())
+    config = json.loads(open(StaticVariables.JOB_INFO_PATH, "r").read())
 
     job_id = config["jobId"]
     map_count = config["mapCount"]
-    r_function_name = config["reducerFunction"]
-    r_handler = config["reducerHandler"]
+    reduce_function_name = config["reducerFunction"]
+    # reduce_handler = config["reducerHandler"]
 
-    config = json.loads(open(JOB_INFO, "r").read())
+    config = json.loads(open(StaticVariables.JOB_INFO_PATH, "r").read())
     num_reducers = config["reduceCount"]
 
-    # prefix = "%s/%s" % (job_id, TASK_MAPPER_PREFIX)
-    prefix = job_id + "/task/mapper/" + "bin" + str(num_reducers) + "/"
+    prefix = "%s/%sbin%s/" % (job_id, StaticVariables.MAP_OUTPUT_PREFIX, str(num_reducers))
 
-    ### Get Mapper Finished Count ###
-
+    # Get Mapper Finished Count
     # Get job files
     files = s3_client.list_objects(Bucket=bucket, Prefix=prefix)["Contents"]
 
-    ### Stateless Coordinator logic
+    # Stateless Coordinator logic
     num_finished_mappers = len(files)
     print("Number of mappers completed: ", num_finished_mappers)
 
     if map_count == num_finished_mappers:
 
         # All the mappers have finished, time to schedule the reducers
-        # stepInfo = get_reducer_state_info(files, job_id, bucket)
-
-        # print("stepInfo", stepInfo)
-
-        # step_number = stepInfo[0]
-        # reducer_keys = stepInfo[1]
-
-        # if len(reducer_keys) == 0:
-        #     print("Still waiting to finish Reducer step ", step_number)
-        #     return
-
-        # Compute this based on metadata of files
-        # r_batch_size = get_reducer_batch_size(reducer_keys)
-
-        # print("Starting the the reducer step", step_number)
-        # print("Batch Size", r_batch_size)
-
-        # Create Batch params for the Lambda function
-        # r_batch_params = lambda_utils.batch_creator(reducer_keys, r_batch_size)
         bins_of_keys = get_mapper_files(num_reducers, bucket, job_id)
-
-        # Build the lambda parameters
-        # n_reducers = len(r_batch_params)
-        # n_s3 = n_reducers * len(r_batch_params[0])
-        # step_id = step_number + 1
 
         for i in range(1, num_reducers + 1):
             cur_reducer_keys = [b['Key'] for b in bins_of_keys[i]]
 
             # invoke the reducers asynchronously
             response = lambda_client.invoke(
-                FunctionName=r_function_name,
+                FunctionName=reduce_function_name,
                 InvocationType='Event',
                 Payload=json.dumps({
                     "bucket": bucket,
                     "keys": cur_reducer_keys,
                     "jobBucket": bucket,
                     "jobId": job_id,
-                    # "nReducers": n_reducers,
+                    # "numReducers": num_reducers,
                     # "stepId": step_id,
                     "reducerId": i
                 })
             )
-            print(response)
+            print("Reducer invocation response: ", response)
 
         print("Finished scheduling %s number of reducers" % num_reducers)
-
-        # Now write the reducer state
-        # fname = "%s/reducerstate.%s" % (job_id, step_id)
-        # write_reducer_state(n_reducers, n_s3, bucket, fname)
     else:
-        print("Still waiting for all the mappers to finish ..")
+        print("Still waiting for all the mappers to finish ...")
 
 
 '''
