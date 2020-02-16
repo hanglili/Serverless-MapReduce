@@ -40,11 +40,16 @@ class Driver:
 
         # Fetch all the keys that match the prefix
         all_keys = []
-        for obj in self.s3.Bucket(bucket).objects.filter(Prefix=self.config["prefix"]).all():
-            all_keys.append(obj)
+        for obj in self.s3.Bucket(bucket).objects.filter(Prefix=(self.config["prefix"])).all():
+            if not obj.key.endswith('/'):
+                print("The object is ", obj)
+                all_keys.append(obj)
 
+        print("The number of keys: ", len(all_keys))
         bsize = lambda_utils.compute_batch_size(all_keys, lambda_memory, concurrent_lambdas)
+        print("The batch size is: ", bsize)
         batches = lambda_utils.batch_creator(all_keys, bsize)
+        print("The number of batches is the number of mappers: ", len(batches))
         num_mappers = len(batches)
 
         return all_keys, num_mappers, batches

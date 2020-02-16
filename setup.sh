@@ -18,4 +18,4 @@ cat src/python/configuration/driver.json
 
 # shellcheck disable=SC2164
 cd src/python/
-python3 main.py 1
+python3 main.py 0

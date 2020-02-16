@@ -1,3 +1,4 @@
+
 def compute_batch_size(keys, lambda_memory, concurrent_lambdas):
     max_mem_for_data = 0.6 * lambda_memory * 1000 * 1000
     size = 0.0
@@ -16,7 +17,7 @@ def compute_batch_size(keys, lambda_memory, concurrent_lambdas):
 
 
 def batch_creator(all_keys, batch_size):
-    # TODO: Create optimal batch sizes based on key size & number of keys
+    # TODO: Create optimal batch sizes based on key size & number of keys. Use queueing theory?
 
     batches = []
     batch = []
