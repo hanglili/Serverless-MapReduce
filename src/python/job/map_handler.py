@@ -2,6 +2,7 @@ import boto3
 import json
 import resource
 import time
+import os
 
 # create an S3 session
 s3 = boto3.resource('s3')

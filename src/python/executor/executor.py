@@ -1,5 +1,6 @@
 import boto3
 import json
+import os
 import subprocess
 import resource
 import time
@@ -7,6 +8,17 @@ import time
 # create an S3 session
 s3 = boto3.resource('s3')
 s3_client = boto3.client('s3')
+
+
+def download_directory_from_s3(bucket_name, remote_directory_name):
+    bucket = s3.Bucket(bucket_name)
+    for obj in bucket.objects.filter(Prefix=remote_directory_name):
+        if not obj.key.endswith("/"):
+            print("The object is", obj)
+            if not os.path.exists("/tmp/" + os.path.dirname(obj.key)):
+                os.makedirs("/tmp/" + os.path.dirname(obj.key))
+            print("The filepath is", obj.key)
+            bucket.download_file(obj.key, "/tmp/")
 
 
 def lambda_handler(event, context):
@@ -20,9 +32,11 @@ def lambda_handler(event, context):
 
     # response = s3_client.get_object(Bucket=task_bucket, Key=task_code)
     # contents = response['Body'].read()
-    subprocess.call(["aws", "-l"])
 
-
+    download_directory_from_s3(task_bucket, task_code)
+    # bucket = s3.Bucket(task_bucket)
+    # bucket.download_file(task_code, "/tmp/" + task_code)
+    subprocess.call(["ls", "/tmp/"])
 
     # time_in_secs = (time.time() - start_time)
     #

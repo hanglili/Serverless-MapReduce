@@ -1,6 +1,5 @@
 import glob
 import subprocess
-from aws_xray_sdk.core import xray_recorder
 
 JOB_INFO = "configuration/job-info.json"
 MAP_HANDLER = "job/map_handler.py"
@@ -12,7 +11,6 @@ UTILS_INIT_FILE = "job/__init__.py"
 JOB_INIT_FILE = "utils/__init__.py"
 
 
-@xray_recorder.capture('zip_lambda')
 def zip_lambda(filename, zip_name):
     # faster to zip with shell exec
     subprocess.call(['zip', zip_name] + glob.glob(filename) + glob.glob(JOB_INFO)

@@ -2,16 +2,12 @@ import boto3
 import json
 import random
 import time
-import logging
 
 from utils import access_s3, data_encoding, lambda_utils
 from aws_lambda import lambda_manager
 from multiprocessing.dummy import Pool as ThreadPool
 from functools import partial
 from botocore.client import Config
-from aws_xray_sdk.core import xray_recorder
-from aws_xray_sdk.core import patch_all
-from aws_xray_sdk.core.sampling.local.sampler import LocalSampler
 
 
 class Driver:
@@ -33,21 +29,8 @@ class Driver:
         self.lambda_client = None
         self.config = json.loads(open(Driver.DRIVER_CONFIG_PATH, 'r').read())
 
-    @staticmethod
-    def _setting():
-        patch_all()
-        logging.basicConfig(level='WARNING')
-        # logging.getLogger('aws_xray_sdk').setLevel(logging.ERROR)
-
-        # collect all tracing samples
-        sampling_rules = {"version": 1, "default": {"fixed_target": 1, "rate": 1}}
-        # xray_recorder.configure(sampling_rules=sampling_rules)
-        # xray_recorder.configure(sampling_rules=LocalSampler())
-
     # Get all keys to be processed
     def _get_all_keys(self):
-        xray_recorder.begin_subsegment('Get all keys to be processed')
-
         # init
         bucket = self.config["bucket"]
         region = self.config["region"]
@@ -70,15 +53,10 @@ class Driver:
         bsize = lambda_utils.compute_batch_size(all_keys, lambda_memory, concurrent_lambdas)
         batches = lambda_utils.batch_creator(all_keys, bsize)
         num_mappers = len(batches)
-        document = xray_recorder.current_subsegment()
-        document.put_metadata("Batch size: ", bsize, "Processing initialization")
-        document.put_metadata("Mappers: ", num_mappers, "Processing initialization")
-        xray_recorder.end_subsegment()  # Get all keys to be processed
         return all_keys, num_mappers, batches
 
     # Create the aws_lambda functions
     def _create_lambda(self, num_mappers):
-        xray_recorder.begin_subsegment('Prepare Lambda functions')
 
         # Lambda functions
         mapper_lambda_name = Driver.L_PREFIX + "-mapper-" + Driver.JOB_ID
@@ -98,10 +76,21 @@ class Driver:
         data_encoding.zip_lambda(self.config["reducer"]["name"], self.config["reducer"]["zip"])
         data_encoding.zip_lambda(self.config["reducerCoordinator"]["name"], self.config["reducerCoordinator"]["zip"])
         data_encoding.zip_lambda(Driver.EXECUTOR_PATH, Driver.EXECUTOR_ZIP_PATH)
-        xray_recorder.end_subsegment()
 
-        access_s3.write_to_s3(self.config["jobBucket"], Driver.CODE_MAPPER_PREFIX, self.config["mapper"]["zip"], {})
-        access_s3.write_to_s3(self.config["jobBucket"], Driver.CODE_REDUCER_PREFIX, self.config["reducer"]["zip"], {})
+        # access_s3.write_to_s3(self.config["jobBucket"], Driver.CODE_MAPPER_PREFIX, self.config["mapper"]["zip"], {})
+        # access_s3.write_to_s3(self.config["jobBucket"], Driver.CODE_REDUCER_PREFIX, self.config["reducer"]["zip"], {})
+
+        print("The mapper zip path is", self.config["mapper"]["zip"])
+        print("The code mapper prefix is", Driver.CODE_MAPPER_PREFIX)
+        print("The reducer zip path is", self.config["reducer"]["zip"])
+        print("The code reducer prefix zip path is", Driver.CODE_REDUCER_PREFIX)
+        print("The job bucket is", self.config["jobBucket"])
+        # self.s3_client.upload_file(self.config["mapper"]["zip"], self.config["jobBucket"], Driver.CODE_MAPPER_PREFIX)
+        # self.s3_client.upload_file(self.config["reducer"]["zip"], self.config["jobBucket"], Driver.CODE_REDUCER_PREFIX)
+        self.s3.Bucket(self.config["jobBucket"]).upload_file(self.config["mapper"]["zip"],
+                                                             Driver.CODE_MAPPER_PREFIX + self.config["mapper"]["zip"])
+        self.s3.Bucket(self.config["jobBucket"]).upload_file(self.config["reducer"]["zip"],
+                                                             Driver.CODE_REDUCER_PREFIX + self.config["reducer"]["zip"])
 
         # Mapper
         # xray_recorder.begin_subsegment('Create mapper Lambda function')
@@ -119,15 +108,12 @@ class Driver:
         # l_reducer.update_code_or_create_on_noexist()
         # xray_recorder.end_subsegment()  # Create reducer Lambda function
 
-        xray_recorder.begin_subsegment('Create executor Lambda function')
         l = lambda_manager.LambdaManager(self.lambda_client, self.s3_client, region,
                                          Driver.EXECUTOR_ZIP_PATH, Driver.JOB_ID,
                                          executor_lambda_name, Driver.EXECUTOR_HANDLER_PATH)
         l.update_code_or_create_on_noexist()
-        xray_recorder.end_subsegment()  # Create executor Lambda function
 
         # Coordinator
-        xray_recorder.begin_subsegment('Create reducer coordinator Lambda function')
         l_rc = lambda_manager.LambdaManager(self.lambda_client, self.s3_client, region,
                                             self.config["reducerCoordinator"]["zip"], Driver.JOB_ID,
                                             rc_lambda_name, self.config["reducerCoordinator"]["handler"])
@@ -138,12 +124,10 @@ class Driver:
 
         # create event source for coordinator
         l_rc.create_s3_eventsource_notification(job_bucket, Driver.TASK_MAPPER_PREFIX + "bin" + str(num_reducers) + "/")
-        xray_recorder.end_subsegment()  # Create reducer coordinator Lambda function
-        return l_mapper, l_reducer, l_rc
+        return l, l_rc
 
     # Write Jobdata to S3
     def _write_job_data(self, all_keys, n_mappers):
-        xray_recorder.begin_subsegment('Write job data to S3')
         j_key = Driver.JOB_ID + "/jobdata"
         data = json.dumps({
             "mapCount": n_mappers,
@@ -151,14 +135,11 @@ class Driver:
             "startTime": time.time()
         })
 
-        xray_recorder.current_subsegment().put_metadata("Job data: ", data, "Write job data to S3")
         # Write job data to S3
         access_s3.write_to_s3(self.config["jobBucket"], j_key, data, {})
-        xray_recorder.end_subsegment()
 
     def invoke_lambda(self, mapper_outputs, batches, m_id):
         bucket = self.config["bucket"]
-        xray_recorder.begin_segment('Invoke mapper Lambda')
         '''
         aws_lambda invoke function
         '''
@@ -167,13 +148,12 @@ class Driver:
 
         # batch = [k['Key'] for k in batches[m_id-1]]
         batch = [k.key for k in batches[m_id - 1]]
-        xray_recorder.current_segment().put_annotation("batch_for_mapper_" + str(m_id), str(batch))
         # print "invoking", m_id, len(batch)
         resp = self.lambda_client.invoke(
             FunctionName=executor_lambda_name,
             InvocationType='RequestResponse',
             Payload=json.dumps({
-                "taskCode": Driver.CODE_MAPPER_PREFIX + Driver.EXECUTOR_ZIP_PATH,
+                "taskCode": Driver.CODE_MAPPER_PREFIX,
                 "taskBucket": bucket,
                 "taskInfo": {
                     "bucket": bucket,
@@ -187,11 +167,9 @@ class Driver:
         out = eval(resp['Payload'].read())
         mapper_outputs.append(out)
         print("Mapper Output:", out)
-        xray_recorder.end_segment()
 
     def _invoke_mappers(self, n_mappers, batches):
         mapper_outputs = []
-        xray_recorder.begin_subsegment('Invoke mappers')
 
         concurrent_lambdas = self.config["concurrentLambdas"]
 
@@ -207,18 +185,14 @@ class Driver:
             nm = min(concurrent_lambdas, n_mappers)
             results = pool.map(invoke_lambda_partial, Ids[mappers_executed: mappers_executed + nm])
             mappers_executed += nm
-            xray_recorder.current_subsegment().put_metadata("Mapper lambdas executed: ", mappers_executed,
-                                                            "Invoke mappers")
 
         pool.close()
         pool.join()
 
         print("all the mappers finished")
-        xray_recorder.end_subsegment()
         return mapper_outputs
 
     def _calculate_cost(self, mapper_outputs):
-        xray_recorder.begin_subsegment('Calculate cost')
 
         total_lambda_secs = 0
         total_s3_get_ops = 0
@@ -278,19 +252,15 @@ class Driver:
         print("S3 Cost", s3_cost)
         print("Total Cost: ", lambda_cost + s3_cost)
         print("Total Lines:", total_lines)
-        xray_recorder.end_subsegment()  # Calculate cost
 
 
     def run(self):
-        self._setting()
-
-        xray_recorder.begin_segment('MapReduce Driver')
 
         # 1. Get all keys to be processed
         all_keys, n_mappers, batches = self._get_all_keys()
 
         # 2. Create the aws_lambda functions
-        l_mapper, l_reducer, l_rc = self._create_lambda(n_mappers)
+        l, l_rc = self._create_lambda(n_mappers)
         self._write_job_data(all_keys, n_mappers)
 
         ### Execute ###
@@ -298,17 +268,12 @@ class Driver:
         mapper_outputs = self._invoke_mappers(n_mappers, batches)
 
         # 4. Delete Mapper function
-        xray_recorder.begin_subsegment('Delete mappers')
-        l_mapper.delete_function()
-        xray_recorder.end_subsegment()  # Delete mappers
+        # l_mapper.delete_function()
 
         # 5. Calculate costs - Approx (since we are using exec time reported by our func and not billed ms)
         self._calculate_cost(mapper_outputs)
 
         # 6. Delete Reducer and its coordinator function
-        xray_recorder.begin_subsegment('Delete reducers')
-        l_reducer.delete_function()
+        # l_reducer.delete_function()
+        l.delete_function()
         l_rc.delete_function()
-        xray_recorder.end_subsegment()  # Delete reducers
-
-        xray_recorder.end_segment()  # MapReduce Driver
