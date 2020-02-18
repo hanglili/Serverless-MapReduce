@@ -27,7 +27,7 @@ def lambda_handler(event, _):
     # start_time = time.time()
 
     # Job Bucket. We just got a notification from this bucket
-    bucket = event['Records'][0]['s3']['bucket']['name']
+    job_bucket = event['Records'][0]['s3']['bucket']['name']
 
     # key = urllib.unquote_plus(event['Records'][0]['s3']['object']['key'].encode('utf8'))
 
@@ -35,6 +35,8 @@ def lambda_handler(event, _):
 
     job_id = config["jobId"]
     reduce_function_name = config["reducerFunction"]
+    output_bucket = config['outputBucket']
+    output_prefix = config['outputPrefix']
     # reduce_handler = config["reducerHandler"]
     num_reducers = config["reduceCount"]
 
@@ -44,7 +46,7 @@ def lambda_handler(event, _):
 
     # Get Mapper Finished Count
     # Get job files
-    files = s3_client.list_objects(Bucket=bucket, Prefix=prefix)["Contents"]
+    files = s3_client.list_objects(Bucket=job_bucket, Prefix=prefix)["Contents"]
 
     # Stateless Coordinator logic
     num_finished_mappers = len(files)
@@ -53,7 +55,7 @@ def lambda_handler(event, _):
     if map_count == num_finished_mappers:
 
         # All the mappers have finished, time to schedule the reducers
-        bins_of_keys = get_mapper_files(num_reducers, bucket, job_id)
+        bins_of_keys = get_mapper_files(num_reducers, job_bucket, job_id)
 
         for i in range(1, num_reducers + 1):
             cur_reducer_keys = [b['Key'] for b in bins_of_keys[i]]
@@ -63,9 +65,11 @@ def lambda_handler(event, _):
                 FunctionName=reduce_function_name,
                 InvocationType='Event',
                 Payload=json.dumps({
-                    "bucket": bucket,
+                    "bucket": job_bucket,
+                    "outputBucket": output_bucket,
+                    "outputPrefix": output_prefix,
                     "keys": cur_reducer_keys,
-                    "jobBucket": bucket,
+                    "jobBucket": job_bucket,
                     "jobId": job_id,
                     # "numReducers": num_reducers,
                     # "stepId": step_id,

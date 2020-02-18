@@ -1,6 +1,4 @@
 {
-    "bucket": "serverless-mapreduce-storage",
-    "prefix": "test_input_data/",
     "jobBucket": "serverless-mapreduce-storage",
     "region": "us-east-1",
     "lambdaMemory": 1536,

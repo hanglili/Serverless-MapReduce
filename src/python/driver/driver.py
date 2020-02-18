@@ -25,7 +25,7 @@ class Driver:
     def _get_all_keys(self):
 
         # init
-        bucket = self.config["bucket"]
+        bucket = self.static_job_info["bucket"]
         region = self.config["region"]
         lambda_memory = self.config["lambdaMemory"]
         concurrent_lambdas = self.config["concurrentLambdas"]
@@ -40,7 +40,7 @@ class Driver:
 
         # Fetch all the keys that match the prefix
         all_keys = []
-        for obj in self.s3.Bucket(bucket).objects.filter(Prefix=(self.config["prefix"])).all():
+        for obj in self.s3.Bucket(bucket).objects.filter(Prefix=(self.static_job_info["prefix"])).all():
             if not obj.key.endswith('/'):
                 print("The object is ", obj)
                 all_keys.append(obj)
@@ -117,7 +117,7 @@ class Driver:
         """
         aws_lambda invoke function
         """
-        bucket = self.config["bucket"]
+        bucket = self.static_job_info["bucket"]
         job_bucket = self.config["jobBucket"]
         job_id = self.static_job_info["jobId"]
         lambda_name_prefix = self.static_job_info["lambdaNamePrefix"]
@@ -182,10 +182,14 @@ class Driver:
         job_bucket = self.config["jobBucket"]
         lambda_memory = self.config["lambdaMemory"]
         job_id = self.static_job_info["jobId"]
+        output_bucket = job_bucket if self.static_job_info["outputBucket"] == "" else self.static_job_info["outputBucket"]
+        output_prefix = self.static_job_info["outputPrefix"]
+
+        reduce_output_full_prefix = \
+            "%s/%s" % (job_id, StaticVariables.REDUCE_OUTPUT_PREFIX) if output_prefix == "" else output_prefix
 
         while True:
-            reduce_output_full_prefix = "%s/%s" % (job_id, StaticVariables.REDUCE_OUTPUT_PREFIX)
-            response = self.s3_client.list_objects(Bucket=job_bucket, Prefix=reduce_output_full_prefix)
+            response = self.s3_client.list_objects(Bucket=output_bucket, Prefix=reduce_output_full_prefix)
             if "Contents" in response:
                 job_keys = response["Contents"]
                 print("Checking whether the job is completed ...")

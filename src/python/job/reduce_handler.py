@@ -27,6 +27,9 @@ def reduce_handler(reduce_function):
         reducer_id = event['reducerId']
         # step_id = event['stepId']
         # n_reducers = event['numReducers']
+        output_bucket = event['outputBucket']
+        output_prefix = \
+            "%s/%s" % (job_id, StaticVariables.REDUCE_OUTPUT_PREFIX) if event['outputPrefix'] == "" else event['outputPrefix']
 
         # aggr
         line_count = 0
@@ -72,7 +75,7 @@ def reduce_handler(reduce_function):
         processing_info = [len(reduce_keys), line_count, time_in_secs]
         print("Reducer process information: (number of keys processed, line count, processing time)\n", processing_info)
 
-        filename = "%s/%s%s" % (job_id, StaticVariables.REDUCE_OUTPUT_PREFIX, reducer_id)
+        filename = "%s%s" % (output_prefix, reducer_id)
 
         metadata = {
             "lineCount": '%s' % line_count,
@@ -80,7 +83,7 @@ def reduce_handler(reduce_function):
             "memoryUsage": '%s' % resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
         }
 
-        write_to_s3(job_bucket, filename, json.dumps(outputs), metadata)
+        write_to_s3(output_bucket, filename, json.dumps(outputs), metadata)
         return processing_info
 
     return lambda_handler
