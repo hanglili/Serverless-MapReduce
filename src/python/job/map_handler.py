@@ -3,13 +3,13 @@ import json
 import resource
 import time
 
-# create an S3 session
-s3 = boto3.resource('s3')
-s3_client = boto3.client('s3')
-
 from job.partition import partition
 from job.combine import combine_function
 from static.static_variables import StaticVariables
+
+# create an S3 session
+s3 = boto3.resource('s3')
+s3_client = boto3.client('s3')
 
 
 def write_to_s3(bucket, key, data, metadata):
@@ -28,6 +28,7 @@ def map_handler(map_function):
 
         config = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, "r").read())
         num_bins = config["reduceCount"]
+        use_combine = config["useCombine"]
 
         # aggr
         line_count = 0
@@ -49,27 +50,31 @@ def map_handler(map_function):
                 map_function(cur_line_outputs, cur_input_pair)
                 intermediate_data += cur_line_outputs
 
-        intermediate_data.sort(key=lambda x: x[0])
+        if use_combine:
+            intermediate_data.sort(key=lambda x: x[0])
 
-        cur_key = None
-        cur_values = []
-        outputs = []
-        for key, value in intermediate_data:
-            if cur_key == key:
-                cur_values.append(value)
-            else:
-                if cur_key is not None:
-                    cur_key_outputs = []
-                    combine_function(cur_key_outputs, (cur_key, cur_values))
-                    outputs += cur_key_outputs
+            cur_key = None
+            cur_values = []
+            outputs = []
+            for key, value in intermediate_data:
+                if cur_key == key:
+                    cur_values.append(value)
+                else:
+                    if cur_key is not None:
+                        cur_key_outputs = []
+                        combine_function(cur_key_outputs, (cur_key, cur_values))
+                        outputs += cur_key_outputs
 
-                cur_key = key
-                cur_values = [value]
+                    cur_key = key
+                    cur_values = [value]
 
-        if cur_key is not None:
-            cur_key_outputs = []
-            combine_function(cur_key_outputs, (cur_key, cur_values))
-            outputs += cur_key_outputs
+            if cur_key is not None:
+                cur_key_outputs = []
+                combine_function(cur_key_outputs, (cur_key, cur_values))
+                outputs += cur_key_outputs
+
+        else:
+            outputs = intermediate_data
 
         time_in_secs = (time.time() - start_time)
         # timeTaken = time_in_secs * 1000000000 # in 10^9

@@ -6,6 +6,7 @@ class StaticVariables:
     MAP_HANDLER_PATH = "job/map_handler.py"
     REDUCE_HANDLER_PATH = "job/reduce_handler.py"
     PARTITION_PATH = "job/partition.py"
+    REDUCE_PATH = "job/reduce.py"
     COMBINE_PATH = "job/combine.py"
     UTILS_INIT_PATH = "job/__init__.py"
     JOB_INIT_PATH = "utils/__init__.py"

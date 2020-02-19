@@ -39,6 +39,7 @@ def lambda_handler(event, _):
     output_prefix = config['outputPrefix']
     # reduce_handler = config["reducerHandler"]
     num_reducers = config["reduceCount"]
+    use_combine = config["useCombine"]
 
     map_count = int(os.environ.get("num_mappers"))
 
@@ -71,6 +72,7 @@ def lambda_handler(event, _):
                     "keys": cur_reducer_keys,
                     "jobBucket": job_bucket,
                     "jobId": job_id,
+                    "useCombine": use_combine,
                     # "numReducers": num_reducers,
                     # "stepId": step_id,
                     "reducerId": i

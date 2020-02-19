@@ -10,7 +10,6 @@ def reduce_function(outputs, intermediate_data):
     Users need to convert them to their respective types explicitly.
     NOTE: intermediate data type is the same as the output data type
     """
-    # TODO: Change revenue to [revenue]
     key, values = intermediate_data
 
     revenue_sum = 0
@@ -18,6 +17,6 @@ def reduce_function(outputs, intermediate_data):
         for value in values:
             revenue_sum += float(value)
 
-        outputs.append((key, revenue_sum))
+        outputs.append((key, [revenue_sum]))
     except Exception as e:
         print("type error: " + str(e))

@@ -11,7 +11,7 @@ def zip_lambda(filename, zip_name):
                     + glob.glob(StaticVariables.REDUCE_HANDLER_PATH) + glob.glob(StaticVariables.JOB_INIT_PATH)
                     + glob.glob(StaticVariables.UTILS_INIT_PATH) + glob.glob(StaticVariables.PARTITION_PATH)
                     + glob.glob(StaticVariables.COMBINE_PATH) + glob.glob(StaticVariables.STATIC_INIT_PATH)
-                    + glob.glob(StaticVariables.STATIC_VARIABLES_PATH))
+                    + glob.glob(StaticVariables.STATIC_VARIABLES_PATH) + glob.glob(StaticVariables.REDUCE_PATH))
 
 
 def zip_driver_lambda(zip_name):

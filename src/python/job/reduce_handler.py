@@ -27,6 +27,7 @@ def reduce_handler(reduce_function):
         reducer_id = event['reducerId']
         # step_id = event['stepId']
         # n_reducers = event['numReducers']
+        use_combine = event['useCombine']
         output_bucket = event['outputBucket']
         output_prefix = \
             "%s/%s" % (job_id, StaticVariables.REDUCE_OUTPUT_PREFIX) if event['outputPrefix'] == "" else event['outputPrefix']
@@ -53,7 +54,10 @@ def reduce_handler(reduce_function):
         outputs = []
         for key, value in intermediate_data:
             if cur_key == key:
-                cur_values.append(value)
+                if use_combine:
+                    cur_values += value
+                else:
+                    cur_values.append(value)
             else:
                 if cur_key is not None:
                     cur_key_outputs = []
@@ -61,7 +65,10 @@ def reduce_handler(reduce_function):
                     outputs += cur_key_outputs
 
                 cur_key = key
-                cur_values = [value]
+                if use_combine:
+                    cur_values = value
+                else:
+                    cur_values = [value]
 
         if cur_key is not None:
             cur_key_outputs = []
@@ -86,4 +93,5 @@ def reduce_handler(reduce_function):
         write_to_s3(output_bucket, filename, json.dumps(outputs), metadata)
         return processing_info
 
+    lambda_handler.__wrapped__ = reduce_function
     return lambda_handler
