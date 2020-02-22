@@ -14,8 +14,8 @@ export serverless_mapreduce_role=arn:aws:iam::$MY_ACCOUNT_ID:role/serverless_mr_
 sed -i "" "s/YOUR-BUCKET-NAME-HERE/$s3_bucket_name/" src/python/configuration/driver.json
 cat src/python/configuration/driver.json
 
-./xray_mac -o -n us-east-1 &
+#./xray_mac -o -n us-east-1 &
 
 # shellcheck disable=SC2164
 cd src/python/
-python3 main.py 1
+python3 main.py 0

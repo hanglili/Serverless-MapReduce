@@ -22,6 +22,7 @@ def test_s3():
     # else:
     s3_client = boto3.client('s3', aws_access_key_id='', aws_secret_access_key='', region_name='us-east-1',
                              endpoint_url='http://localhost:4572')
+    s3 = boto3.resource('s3',  endpoint_url='http://localhost:4572')
 
     key = 'testKey'
     data = json.dumps({
@@ -30,8 +31,10 @@ def test_s3():
         "startTime": 100
     })
     bucket_name = "serverless-mapreduce-storage"
-    s3_client.create_bucket(Bucket=bucket_name)
-    s3_client.put_object(Bucket=bucket_name, Key=key, Body=data, Metadata={})
+    # s3_client.create_bucket(Bucket=bucket_name)
+    s3.create_bucket(Bucket=bucket_name)
+    s3.Bucket(bucket_name).put_object(Key=key, Body=data, Metadata={})
+    # s3_client.put_object(Bucket=bucket_name, Key=key, Body=data, Metadata={})
     response = s3_client.get_object(Bucket=bucket_name, Key=key)
     content = response['Body'].read()
     print(content)
@@ -112,7 +115,7 @@ def test_lambda():
 
 if __name__ == "__main__":
     test_s3()
-    test_lambda()
+    # test_lambda()
     # if len(sys.argv) < 2:
     #     print("Wrong number of arguments.")
     # else:

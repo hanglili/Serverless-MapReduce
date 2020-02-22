@@ -5,9 +5,14 @@ import os
 from static.static_variables import StaticVariables
 
 # create an S3 and Lambda session
-s3 = boto3.resource('s3')
-s3_client = boto3.client('s3')
-lambda_client = boto3.client('lambda')
+# s3_client = boto3.client('s3')
+# lambda_client = boto3.client('lambda')
+s3_client = boto3.client('s3', aws_access_key_id='', aws_secret_access_key='',
+                         region_name=StaticVariables.DEFAULT_REGION,
+                         endpoint_url='http://%s:4572' % os.environ['LOCALSTACK_HOSTNAME'])
+lambda_client = boto3.client('lambda', aws_access_key_id='', aws_secret_access_key='',
+                             region_name=StaticVariables.DEFAULT_REGION,
+                             endpoint_url='http://%s:4574' % os.environ['LOCALSTACK_HOSTNAME'])
 
 
 def get_mapper_files(num_bins, bucket, job_id):
@@ -60,7 +65,7 @@ def lambda_handler(event, _):
 
         for i in range(1, num_reducers + 1):
             cur_reducer_keys = [b['Key'] for b in bins_of_keys[i]]
-
+            print("The reduce function name is", reduce_function_name)
             # invoke the reducers asynchronously
             response = lambda_client.invoke(
                 FunctionName=reduce_function_name,

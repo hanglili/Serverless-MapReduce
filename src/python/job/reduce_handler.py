@@ -2,17 +2,20 @@ import boto3
 import json
 import resource
 import time
+import os
 
 from static.static_variables import StaticVariables
 
 # create an S3 & Dynamo session
-s3 = boto3.resource('s3')
-s3_client = boto3.client('s3')
+s3_client = boto3.client('s3', aws_access_key_id='', aws_secret_access_key='',
+                         region_name=StaticVariables.DEFAULT_REGION,
+                         endpoint_url='http://%s:4572' % os.environ['LOCALSTACK_HOSTNAME'])
+# s3_client = boto3.client('s3')
 
 
 def write_to_s3(bucket, key, data, metadata):
     # Write to S3 Bucket
-    s3.Bucket(bucket).put_object(Key=key, Body=data, Metadata=metadata)
+    s3_client.put_object(Bucket=bucket, Key=key, Body=data, Metadata=metadata)
 
 
 def reduce_handler(reduce_function):
@@ -30,7 +33,8 @@ def reduce_handler(reduce_function):
         use_combine = event['useCombine']
         output_bucket = event['outputBucket']
         output_prefix = \
-            "%s/%s" % (job_id, StaticVariables.REDUCE_OUTPUT_PREFIX) if event['outputPrefix'] == "" else event['outputPrefix']
+            "%s/%s" % (job_id, StaticVariables.REDUCE_OUTPUT_PREFIX) if event['outputPrefix'] == "" \
+            else event['outputPrefix']
 
         # aggr
         line_count = 0

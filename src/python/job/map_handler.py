@@ -2,18 +2,21 @@ import boto3
 import json
 import resource
 import time
+import os
 
 from job.partition import partition
 from job.combine import combine_function
 from static.static_variables import StaticVariables
 
 # create an S3 session
-s3 = boto3.resource('s3')
-s3_client = boto3.client('s3')
+s3_client = boto3.client('s3', aws_access_key_id='', aws_secret_access_key='',
+                         region_name=StaticVariables.DEFAULT_REGION,
+                         endpoint_url='http://%s:4572' % os.environ['LOCALSTACK_HOSTNAME'])
+# s3_client = boto3.client('s3')
 
 
 def write_to_s3(bucket, key, data, metadata):
-    s3.Bucket(bucket).put_object(Key=key, Body=data, Metadata=metadata)
+    s3_client.put_object(Bucket=bucket, Key=key, Body=data, Metadata=metadata)
 
 
 def map_handler(map_function):

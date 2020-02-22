@@ -114,7 +114,7 @@ class LambdaManager(object):
         """
         Delete all Lambda log group and log streams for a given function
         """
-        log_client = boto3.client('logs')
+        log_client = boto3.client('logs', endpoint_url='http://localhost:4586')
         # response = log_client.describe_log_streams(logGroupName='/aws/aws_lambda/' + func_name)
         response = log_client.delete_log_group(logGroupName='/aws/aws_lambda/' + func_name)
         return response

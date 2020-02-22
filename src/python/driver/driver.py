@@ -10,19 +10,15 @@ from multiprocessing.dummy import Pool as ThreadPool
 from functools import partial
 from botocore.client import Config
 from static.static_variables import StaticVariables
-from moto import mock_s3
-from moto import mock_lambda
 
 
 class Driver:
-    @mock_s3
+
     def __init__(self, is_serverless=False):
-        s3_endpoint_url = os.environ.get('s3_endpoint_url')
-        self.s3 = boto3.resource('s3')
-        if s3_endpoint_url:
-            self.s3_client = boto3.client('s3', endpoint_url=s3_endpoint_url)
-        else:
-            self.s3_client = boto3.client('s3')
+        # self.s3 = boto3.resource('s3')
+        # self.s3_client = boto3.client('s3')
+        self.s3_client = boto3.client('s3', aws_access_key_id='', aws_secret_access_key='', region_name='us-east-1',
+                                      endpoint_url='http://localhost:4572')
         self.lambda_config = None
         self.lambda_client = None
         self.config = json.loads(open(StaticVariables.DRIVER_CONFIG_PATH, 'r').read())
@@ -30,7 +26,6 @@ class Driver:
         self.is_serverless = is_serverless
 
     # Get all keys to be processed
-    @mock_lambda
     def _get_all_keys(self):
 
         # init
@@ -45,12 +40,15 @@ class Driver:
         self.lambda_config = Config(read_timeout=lambda_read_timeout,
                                     max_pool_connections=boto_max_connections,
                                     region_name=region)
-        self.lambda_client = boto3.client('lambda', config=self.lambda_config)
+        self.lambda_client = boto3.client('lambda', aws_access_key_id='', aws_secret_access_key='',
+                                          region_name=StaticVariables.DEFAULT_REGION,
+                                          endpoint_url='http://localhost:4574', config=self.lambda_config)
 
         # Fetch all the keys that match the prefix
         all_keys = []
-        for obj in self.s3.Bucket(bucket).objects.filter(Prefix=(self.static_job_info["prefix"])).all():
-            if not obj.key.endswith('/'):
+        for obj in self.s3_client.list_objects(Bucket=bucket, Prefix=self.static_job_info["prefix"])['Contents']:
+        # for obj in self.s3.Bucket(bucket).objects.filter(Prefix=(self.static_job_info["prefix"])).all():
+            if not obj['Key'].endswith('/'):
                 print("The object is ", obj)
                 all_keys.append(obj)
 
@@ -101,7 +99,7 @@ class Driver:
         l_rc.update_code_or_create_on_no_exist(str(num_mappers))
 
         # Add permission to the coordinator
-        l_rc.add_lambda_permission(random.randint(1, 1000), job_bucket)
+        # l_rc.add_lambda_permission(random.randint(1, 1000), job_bucket)
 
         # create event source for coordinator
         last_bin_path = "%s/%sbin%s/" % (job_id, StaticVariables.MAP_OUTPUT_PREFIX, str(num_reducers))
@@ -132,7 +130,7 @@ class Driver:
         lambda_name_prefix = self.static_job_info["lambdaNamePrefix"]
         mapper_lambda_name = lambda_name_prefix + "-mapper-" + job_id
 
-        batch = [k.key for k in batches[m_id - 1]]
+        batch = [k['Key'] for k in batches[m_id - 1]]
         resp = self.lambda_client.invoke(
             FunctionName=mapper_lambda_name,
             InvocationType='RequestResponse',
@@ -210,7 +208,9 @@ class Driver:
                     for key in keys:
                         # Even though metadata processing time is written as processingTime, AWS does not accept
                         # uppercase letter metadata key
-                        reducer_lambda_time += float(self.s3.Object(job_bucket, key).metadata['processingtime'])
+                        reducer_lambda_time += float(self.s3_client.get_object(Bucket=job_bucket, Key=key)
+                                                     ['Metadata']['processingtime'])
+                        # reducer_lambda_time += float(self.s3.Object(job_bucket, key).metadata['processingtime'])
                     break
 
             time.sleep(5)
