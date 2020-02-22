@@ -2,6 +2,7 @@ import boto3
 import json
 import random
 import time
+import os
 
 from utils import access_s3, zip, lambda_utils
 from aws_lambda import lambda_manager
@@ -9,12 +10,19 @@ from multiprocessing.dummy import Pool as ThreadPool
 from functools import partial
 from botocore.client import Config
 from static.static_variables import StaticVariables
+from moto import mock_s3
+from moto import mock_lambda
 
 
 class Driver:
+    @mock_s3
     def __init__(self, is_serverless=False):
+        s3_endpoint_url = os.environ.get('s3_endpoint_url')
         self.s3 = boto3.resource('s3')
-        self.s3_client = boto3.client('s3')
+        if s3_endpoint_url:
+            self.s3_client = boto3.client('s3', endpoint_url=s3_endpoint_url)
+        else:
+            self.s3_client = boto3.client('s3')
         self.lambda_config = None
         self.lambda_client = None
         self.config = json.loads(open(StaticVariables.DRIVER_CONFIG_PATH, 'r').read())
@@ -22,6 +30,7 @@ class Driver:
         self.is_serverless = is_serverless
 
     # Get all keys to be processed
+    @mock_lambda
     def _get_all_keys(self):
 
         # init
