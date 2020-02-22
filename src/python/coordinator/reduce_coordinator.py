@@ -5,14 +5,17 @@ import os
 from static.static_variables import StaticVariables
 
 # create an S3 and Lambda session
-# s3_client = boto3.client('s3')
-# lambda_client = boto3.client('lambda')
-s3_client = boto3.client('s3', aws_access_key_id='', aws_secret_access_key='',
-                         region_name=StaticVariables.DEFAULT_REGION,
-                         endpoint_url='http://%s:4572' % os.environ['LOCALSTACK_HOSTNAME'])
-lambda_client = boto3.client('lambda', aws_access_key_id='', aws_secret_access_key='',
+static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
+if static_job_info['localTesting']:
+    s3_client = boto3.client('s3', aws_access_key_id='', aws_secret_access_key='',
                              region_name=StaticVariables.DEFAULT_REGION,
-                             endpoint_url='http://%s:4574' % os.environ['LOCALSTACK_HOSTNAME'])
+                             endpoint_url='http://%s:4572' % os.environ['LOCALSTACK_HOSTNAME'])
+    lambda_client = boto3.client('lambda', aws_access_key_id='', aws_secret_access_key='',
+                                 region_name=StaticVariables.DEFAULT_REGION,
+                                 endpoint_url='http://%s:4574' % os.environ['LOCALSTACK_HOSTNAME'])
+else:
+    s3_client = boto3.client('s3')
+    lambda_client = boto3.client('lambda')
 
 
 def get_mapper_files(num_bins, bucket, job_id):
@@ -36,15 +39,13 @@ def lambda_handler(event, _):
 
     # key = urllib.unquote_plus(event['Records'][0]['s3']['object']['key'].encode('utf8'))
 
-    config = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, "r").read())
-
-    job_id = config["jobId"]
-    reduce_function_name = config["reducerFunction"]
-    output_bucket = config['outputBucket']
-    output_prefix = config['outputPrefix']
-    # reduce_handler = config["reducerHandler"]
-    num_reducers = config["reduceCount"]
-    use_combine = config["useCombine"]
+    job_id = static_job_info["jobId"]
+    reduce_function_name = static_job_info["reducerFunction"]
+    output_bucket = static_job_info['outputBucket']
+    output_prefix = static_job_info['outputPrefix']
+    # reduce_handler = static_job_info["reducerHandler"]
+    num_reducers = static_job_info["reduceCount"]
+    use_combine = static_job_info["useCombine"]
 
     map_count = int(os.environ.get("num_mappers"))
 

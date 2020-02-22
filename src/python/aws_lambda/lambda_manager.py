@@ -1,5 +1,6 @@
 import boto3
 import os
+import json
 
 from static.static_variables import StaticVariables
 
@@ -114,7 +115,14 @@ class LambdaManager(object):
         """
         Delete all Lambda log group and log streams for a given function
         """
-        log_client = boto3.client('logs', endpoint_url='http://localhost:4586')
+        static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
+        if static_job_info['localTesting']:
+            log_client = boto3.client('logs', aws_access_key_id='', aws_secret_access_key='',
+                                      region_name=StaticVariables.DEFAULT_REGION,
+                                      endpoint_url='http://localhost:4586')
+        else:
+            log_client = boto3.client('logs')
+
         # response = log_client.describe_log_streams(logGroupName='/aws/aws_lambda/' + func_name)
         response = log_client.delete_log_group(logGroupName='/aws/aws_lambda/' + func_name)
         return response

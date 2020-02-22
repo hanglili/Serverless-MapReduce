@@ -9,10 +9,13 @@ from job.combine import combine_function
 from static.static_variables import StaticVariables
 
 # create an S3 session
-s3_client = boto3.client('s3', aws_access_key_id='', aws_secret_access_key='',
-                         region_name=StaticVariables.DEFAULT_REGION,
-                         endpoint_url='http://%s:4572' % os.environ['LOCALSTACK_HOSTNAME'])
-# s3_client = boto3.client('s3')
+static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
+if static_job_info['localTesting']:
+    s3_client = boto3.client('s3', aws_access_key_id='', aws_secret_access_key='',
+                             region_name=StaticVariables.DEFAULT_REGION,
+                             endpoint_url='http://%s:4572' % os.environ['LOCALSTACK_HOSTNAME'])
+else:
+    s3_client = boto3.client('s3')
 
 
 def write_to_s3(bucket, key, data, metadata):
@@ -29,9 +32,8 @@ def map_handler(map_function):
         job_id = event['jobId']
         mapper_id = event['mapperId']
 
-        config = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, "r").read())
-        num_bins = config["reduceCount"]
-        use_combine = config["useCombine"]
+        num_bins = static_job_info["reduceCount"]
+        use_combine = static_job_info["useCombine"]
 
         # aggr
         line_count = 0

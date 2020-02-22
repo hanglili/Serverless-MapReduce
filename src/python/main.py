@@ -7,10 +7,10 @@ from driver.serverless_driver_setup import ServerlessDriverSetup
 from static.static_variables import StaticVariables
 
 
-def set_up_input_data():
+def set_up_input_data(config):
+    print("Setting up input data")
     s3_client = boto3.client('s3', aws_access_key_id='', aws_secret_access_key='', region_name='us-east-1',
                              endpoint_url='http://localhost:4572')
-    config = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, "r").read())
     input_bucket = config["bucket"]
     prefix = config["prefix"]
     # job_bucket = config["jobBucket"]
@@ -21,18 +21,21 @@ def set_up_input_data():
     )
 
     s3_client.upload_file(Filename='../../input_data/testing_partitioned/input-1',
-                          Bucket=input_bucket, Key='testing_partitioned/input-1')
+                          Bucket=input_bucket, Key='%sinput-1' % prefix)
     s3_client.upload_file(Filename='../../input_data/testing_partitioned/input-2',
-                          Bucket=input_bucket, Key='testing_partitioned/input-2')
+                          Bucket=input_bucket, Key='%sinput-2' % prefix)
     s3_client.upload_file(Filename='../../input_data/testing_partitioned/input-4',
-                          Bucket=input_bucket, Key='testing_partitioned/input-4')
+                          Bucket=input_bucket, Key='%sinput-4' % prefix)
+    print("Finished setting up input data")
 
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Wrong number of arguments.")
     else:
-        set_up_input_data()
+        config = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, "r").read())
+        if config['localTesting']:
+            set_up_input_data(config)
         mode = sys.argv[1]
 
         if int(mode) == 0:

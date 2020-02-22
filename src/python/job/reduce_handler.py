@@ -7,10 +7,13 @@ import os
 from static.static_variables import StaticVariables
 
 # create an S3 & Dynamo session
-s3_client = boto3.client('s3', aws_access_key_id='', aws_secret_access_key='',
-                         region_name=StaticVariables.DEFAULT_REGION,
-                         endpoint_url='http://%s:4572' % os.environ['LOCALSTACK_HOSTNAME'])
-# s3_client = boto3.client('s3')
+static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
+if static_job_info['localTesting']:
+    s3_client = boto3.client('s3', aws_access_key_id='', aws_secret_access_key='',
+                             region_name=StaticVariables.DEFAULT_REGION,
+                             endpoint_url='http://%s:4572' % os.environ['LOCALSTACK_HOSTNAME'])
+else:
+    s3_client = boto3.client('s3')
 
 
 def write_to_s3(bucket, key, data, metadata):

@@ -15,15 +15,20 @@ from static.static_variables import StaticVariables
 class Driver:
 
     def __init__(self, is_serverless=False):
-        # self.s3 = boto3.resource('s3')
-        # self.s3_client = boto3.client('s3')
-        self.s3_client = boto3.client('s3', aws_access_key_id='', aws_secret_access_key='', region_name='us-east-1',
-                                      endpoint_url='http://localhost:4572')
-        self.lambda_config = None
-        self.lambda_client = None
         self.config = json.loads(open(StaticVariables.DRIVER_CONFIG_PATH, 'r').read())
         self.static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
         self.is_serverless = is_serverless
+        if self.static_job_info['localTesting']:
+            if not self.is_serverless:
+                endpoint_url = 'http://localhost:4572'
+            else:
+                endpoint_url = 'http://%s:4572' % os.environ['LOCALSTACK_HOSTNAME']
+            self.s3_client = boto3.client('s3', aws_access_key_id='', aws_secret_access_key='',
+                                          region_name=StaticVariables.DEFAULT_REGION, endpoint_url=endpoint_url)
+        else:
+            self.s3_client = boto3.client('s3')
+        self.lambda_config = None
+        self.lambda_client = None
 
     # Get all keys to be processed
     def _get_all_keys(self):
@@ -40,14 +45,21 @@ class Driver:
         self.lambda_config = Config(read_timeout=lambda_read_timeout,
                                     max_pool_connections=boto_max_connections,
                                     region_name=region)
-        self.lambda_client = boto3.client('lambda', aws_access_key_id='', aws_secret_access_key='',
-                                          region_name=StaticVariables.DEFAULT_REGION,
-                                          endpoint_url='http://localhost:4574', config=self.lambda_config)
+
+        if self.static_job_info['localTesting']:
+            if not self.is_serverless:
+                endpoint_url = 'http://localhost:4574'
+            else:
+                endpoint_url = 'http://%s:4574' % os.environ['LOCALSTACK_HOSTNAME']
+            self.lambda_client = boto3.client('lambda', aws_access_key_id='', aws_secret_access_key='',
+                                              region_name=StaticVariables.DEFAULT_REGION,
+                                              endpoint_url=endpoint_url, config=self.lambda_config)
+        else:
+            self.lambda_client = boto3.client('lambda', config=self.lambda_config)
 
         # Fetch all the keys that match the prefix
         all_keys = []
         for obj in self.s3_client.list_objects(Bucket=bucket, Prefix=self.static_job_info["prefix"])['Contents']:
-        # for obj in self.s3.Bucket(bucket).objects.filter(Prefix=(self.static_job_info["prefix"])).all():
             if not obj['Key'].endswith('/'):
                 print("The object is ", obj)
                 all_keys.append(obj)
