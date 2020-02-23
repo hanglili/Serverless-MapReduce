@@ -111,7 +111,8 @@ class Driver:
         l_rc.update_code_or_create_on_no_exist(str(num_mappers))
 
         # Add permission to the coordinator
-        # l_rc.add_lambda_permission(random.randint(1, 1000), job_bucket)
+        if not self.static_job_info['localTesting']:
+            l_rc.add_lambda_permission(random.randint(1, 1000), job_bucket)
 
         # create event source for coordinator
         last_bin_path = "%s/%sbin%s/" % (job_id, StaticVariables.MAP_OUTPUT_PREFIX, str(num_reducers))
@@ -130,7 +131,8 @@ class Driver:
         })
 
         # Write job data to S3
-        access_s3.write_to_s3(self.config["jobBucket"], j_key, data, {})
+        self.s3_client.put_object(Bucket=self.config["jobBucket"], Key=j_key, Body=data, Metadata={})
+        # access_s3.write_to_s3(self.config["jobBucket"], j_key, data, {})
 
     def invoke_lambda(self, mapper_outputs, batches, m_id):
         """
