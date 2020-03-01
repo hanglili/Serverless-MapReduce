@@ -29,14 +29,15 @@ def set_up_input_data(config):
     print("Finished setting up input data")
 
 
-if __name__ == "__main__":
-    if len(sys.argv) < 2:
+def init_job(args):
+    if len(args) < 2:
         print("Wrong number of arguments.")
     else:
         config = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, "r").read())
         if config['localTesting']:
             set_up_input_data(config)
-        mode = sys.argv[1]
+        mode = args[1]
+        print(mode)
 
         if int(mode) == 0:
             driver = Driver()
@@ -49,3 +50,7 @@ if __name__ == "__main__":
             if command == "invoke":
                 print("Driver invoked and starting job execution")
                 serverless_driver_setup.invoke()
+
+
+if __name__ == "__main__":
+    init_job(sys.argv)

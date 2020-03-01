@@ -108,5 +108,6 @@ def map_handler(map_function):
             write_to_s3(job_bucket, mapper_filename, json.dumps(output_partitions[i]), metadata)
 
         return processing_info
+    lambda_handler.__wrapped__ = map_function
 
     return lambda_handler
