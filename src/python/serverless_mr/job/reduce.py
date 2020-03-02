@@ -1,4 +1,4 @@
-from job.reduce_handler import reduce_handler
+from serverless_mr.job.reduce_handler import reduce_handler
 
 # Contents are values stored under one S3 key
 @reduce_handler

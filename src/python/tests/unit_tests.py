@@ -1,5 +1,5 @@
-from job.reduce import reduce_function
-from job.map import map_function
+from serverless_mr.job.reduce import reduce_function
+from serverless_mr.job.map import map_function
 from unittest import TestCase
 
 

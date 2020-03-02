@@ -4,12 +4,12 @@ import random
 import time
 import os
 
-from utils import access_s3, zip, lambda_utils
-from aws_lambda import lambda_manager
+from serverless_mr.utils import lambda_utils, zip
+from serverless_mr.aws_lambda import lambda_manager
 from multiprocessing.dummy import Pool as ThreadPool
 from functools import partial
 from botocore.client import Config
-from static.static_variables import StaticVariables
+from serverless_mr.static import StaticVariables
 
 
 class Driver:

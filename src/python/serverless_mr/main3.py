@@ -1,12 +1,5 @@
-import sys
-
-from driver.driver import Driver
-from driver.serverless_driver_setup import ServerlessDriverSetup
-
 from moto import mock_s3
-import boto3, botocore
 import json
-import os
 from localstack.utils.aws import aws_stack
 
 

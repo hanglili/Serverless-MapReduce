@@ -1,4 +1,4 @@
-from job.reduce import reduce_function
+from serverless_mr.job.reduce import reduce_function
 
 
 def combine_function(outputs, intermediate_data):

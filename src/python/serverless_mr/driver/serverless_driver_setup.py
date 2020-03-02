@@ -1,9 +1,9 @@
 import json
 import boto3
 
-from static.static_variables import StaticVariables
-from utils import zip
-from aws_lambda import lambda_manager
+from serverless_mr.static import StaticVariables
+from serverless_mr.utils import zip
+from serverless_mr.aws_lambda import lambda_manager
 from botocore.client import Config
 
 

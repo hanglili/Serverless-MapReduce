@@ -5,9 +5,9 @@ import time
 import os
 # import localstack.utils.aws
 
-from job.partition import partition
-from job.combine import combine_function
-from static.static_variables import StaticVariables
+from serverless_mr.job.partition import partition
+from serverless_mr.job.combine import combine_function
+from serverless_mr.static import StaticVariables
 
 # create an S3 session
 # s3 = boto3.resource('s3')

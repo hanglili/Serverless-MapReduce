@@ -4,9 +4,9 @@ import resource
 import time
 import os
 
-from job.partition import partition
-from job.combine import combine_function
-from static.static_variables import StaticVariables
+from serverless_mr.job.partition import partition
+from serverless_mr.job.combine import combine_function
+from serverless_mr.static import StaticVariables
 
 # create an S3 session
 static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())

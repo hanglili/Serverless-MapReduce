@@ -4,7 +4,7 @@ import resource
 import time
 import os
 
-from static.static_variables import StaticVariables
+from serverless_mr.static import StaticVariables
 
 # create an S3 & Dynamo session
 static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())

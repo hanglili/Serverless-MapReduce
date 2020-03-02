@@ -1,8 +1,8 @@
 import boto3
 import json
 
-from static.static_variables import StaticVariables
-from main import init_job
+from serverless_mr.static import StaticVariables
+from serverless_mr.main import init_job
 from unittest import TestCase
 
 

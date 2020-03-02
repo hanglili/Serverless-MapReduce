@@ -1,17 +1,9 @@
-import sys
-
-from driver.driver import Driver
-from driver.serverless_driver_setup import ServerlessDriverSetup
-
-from moto import mock_s3
-from moto import mock_lambda
-from aws_lambda import lambda_manager
-import boto3, botocore
-from utils import zip
+from serverless_mr.aws_lambda import lambda_manager
+import boto3
+from serverless_mr.utils import zip
 import json
 from botocore.client import Config
 import os
-from localstack.utils.aws import aws_stack
 
 
 def test_s3():

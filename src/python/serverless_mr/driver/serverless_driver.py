@@ -1,6 +1,6 @@
 import json
 
-from driver.driver import Driver
+from serverless_mr.driver.driver import Driver
 
 
 def lambda_handler(event, _):

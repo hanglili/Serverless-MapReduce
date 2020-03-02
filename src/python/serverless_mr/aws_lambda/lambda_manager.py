@@ -2,7 +2,7 @@ import boto3
 import os
 import json
 
-from static.static_variables import StaticVariables
+from serverless_mr.static import StaticVariables
 
 
 class LambdaManager(object):
