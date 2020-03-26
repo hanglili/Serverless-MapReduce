@@ -11,5 +11,5 @@
     "useCombine": false,
     "reducerHandler": "job/reduce.reduce_function",
     "reduceCount": 4,
-    "localTesting": true
+    "localTesting": false
 }
