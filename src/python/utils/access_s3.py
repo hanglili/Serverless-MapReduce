@@ -1,12 +1,13 @@
 import boto3
-import json
 
 from static.static_variables import StaticVariables
 
 
 def write_to_s3(bucket, key, data, metadata):
-    s3 = boto3.resource('s3')
-    s3.Bucket(bucket).put_object(Key=key, Body=data, Metadata=metadata)
+    s3_client = boto3.client('s3', aws_access_key_id='', aws_secret_access_key='',
+                             region_name=StaticVariables.DEFAULT_REGION, endpoint_url='http://localhost:4572')
+    # s3_client = boto3.client('s3')
+    s3_client.put_object(Bucket=bucket, Key=key, Body=data, Metadata=metadata)
 
 
 # def write_job_config(job_id, job_bucket, num_mappers, reducer_function, reduce_handler, reduce_count):

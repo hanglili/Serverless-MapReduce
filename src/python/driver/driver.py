@@ -2,6 +2,7 @@ import boto3
 import json
 import random
 import time
+import os
 
 from utils import access_s3, zip, lambda_utils
 from aws_lambda import lambda_manager
@@ -12,14 +13,22 @@ from static.static_variables import StaticVariables
 
 
 class Driver:
+
     def __init__(self, is_serverless=False):
-        self.s3 = boto3.resource('s3')
-        self.s3_client = boto3.client('s3')
-        self.lambda_config = None
-        self.lambda_client = None
         self.config = json.loads(open(StaticVariables.DRIVER_CONFIG_PATH, 'r').read())
         self.static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
         self.is_serverless = is_serverless
+        if self.static_job_info['localTesting']:
+            if not self.is_serverless:
+                endpoint_url = 'http://localhost:4572'
+            else:
+                endpoint_url = 'http://%s:4572' % os.environ['LOCALSTACK_HOSTNAME']
+            self.s3_client = boto3.client('s3', aws_access_key_id='', aws_secret_access_key='',
+                                          region_name=StaticVariables.DEFAULT_REGION, endpoint_url=endpoint_url)
+        else:
+            self.s3_client = boto3.client('s3')
+        self.lambda_config = None
+        self.lambda_client = None
 
     # Get all keys to be processed
     def _get_all_keys(self):
@@ -36,12 +45,22 @@ class Driver:
         self.lambda_config = Config(read_timeout=lambda_read_timeout,
                                     max_pool_connections=boto_max_connections,
                                     region_name=region)
-        self.lambda_client = boto3.client('lambda', config=self.lambda_config)
+
+        if self.static_job_info['localTesting']:
+            if not self.is_serverless:
+                endpoint_url = 'http://localhost:4574'
+            else:
+                endpoint_url = 'http://%s:4574' % os.environ['LOCALSTACK_HOSTNAME']
+            self.lambda_client = boto3.client('lambda', aws_access_key_id='', aws_secret_access_key='',
+                                              region_name=StaticVariables.DEFAULT_REGION,
+                                              endpoint_url=endpoint_url, config=self.lambda_config)
+        else:
+            self.lambda_client = boto3.client('lambda', config=self.lambda_config)
 
         # Fetch all the keys that match the prefix
         all_keys = []
-        for obj in self.s3.Bucket(bucket).objects.filter(Prefix=(self.static_job_info["prefix"])).all():
-            if not obj.key.endswith('/'):
+        for obj in self.s3_client.list_objects(Bucket=bucket, Prefix=self.static_job_info["prefix"])['Contents']:
+            if not obj['Key'].endswith('/'):
                 print("The object is ", obj)
                 all_keys.append(obj)
 
@@ -111,7 +130,8 @@ class Driver:
         })
 
         # Write job data to S3
-        access_s3.write_to_s3(self.config["jobBucket"], j_key, data, {})
+        self.s3_client.put_object(Bucket=self.config["jobBucket"], Key=j_key, Body=data, Metadata={})
+        # access_s3.write_to_s3(self.config["jobBucket"], j_key, data, {})
 
     def invoke_lambda(self, mapper_outputs, batches, m_id):
         """
@@ -123,7 +143,7 @@ class Driver:
         lambda_name_prefix = self.static_job_info["lambdaNamePrefix"]
         mapper_lambda_name = lambda_name_prefix + "-mapper-" + job_id
 
-        batch = [k.key for k in batches[m_id - 1]]
+        batch = [k['Key'] for k in batches[m_id - 1]]
         resp = self.lambda_client.invoke(
             FunctionName=mapper_lambda_name,
             InvocationType='RequestResponse',
@@ -201,7 +221,9 @@ class Driver:
                     for key in keys:
                         # Even though metadata processing time is written as processingTime, AWS does not accept
                         # uppercase letter metadata key
-                        reducer_lambda_time += float(self.s3.Object(job_bucket, key).metadata['processingtime'])
+                        reducer_lambda_time += float(self.s3_client.get_object(Bucket=job_bucket, Key=key)
+                                                     ['Metadata']['processingtime'])
+                        # reducer_lambda_time += float(self.s3.Object(job_bucket, key).metadata['processingtime'])
                     break
 
             time.sleep(5)

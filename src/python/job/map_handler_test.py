@@ -3,19 +3,20 @@ import json
 import resource
 import time
 import os
+# import localstack.utils.aws
 
 from job.partition import partition
 from job.combine import combine_function
 from static.static_variables import StaticVariables
 
 # create an S3 session
-static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
-if static_job_info['localTesting']:
-    s3_client = boto3.client('s3', aws_access_key_id='', aws_secret_access_key='',
-                             region_name=StaticVariables.DEFAULT_REGION,
-                             endpoint_url='http://%s:4572' % os.environ['LOCALSTACK_HOSTNAME'])
-else:
-    s3_client = boto3.client('s3')
+# s3 = boto3.resource('s3')
+# s3_client = boto3.client('s3')
+# s3_client = boto3.client('s3', endpoint_url='http://localhost:4572')
+# s3_client = localstack.utils.aws.aws_stack.connect_to_service('lambda')
+print('Using LocalStack endpoint %s' % os.environ['LOCALSTACK_HOSTNAME'])
+s3_client = boto3.client('s3', aws_access_key_id='', aws_secret_access_key='', region_name='us-east-1',
+                         endpoint_url='http://%s:4572' % os.environ['LOCALSTACK_HOSTNAME'])
 
 
 def write_to_s3(bucket, key, data, metadata):
@@ -24,16 +25,36 @@ def write_to_s3(bucket, key, data, metadata):
 
 def map_handler(map_function):
     def lambda_handler(event, _):
-        start_time = time.time()
+        # start_time = time.time()
+        #
+        # job_bucket = event['jobBucket']
+        # src_bucket = event['bucket']
+        # src_keys = event['keys']
+        # job_id = event['jobId']
+        # mapper_id = event['mapperId']
 
-        job_bucket = event['jobBucket']
-        src_bucket = event['bucket']
-        src_keys = event['keys']
-        job_id = event['jobId']
-        mapper_id = event['mapperId']
+        key = 'testKey4'
+        data = json.dumps({
+            "mapCount": 10,
+            "totalS3Files": 20,
+            "startTime": 10000
+        })
 
-        num_bins = static_job_info["reduceCount"]
-        use_combine = static_job_info["useCombine"]
+        src_bucket = "serverless-mapreduce-storage"
+        src_keys = "testKey"
+        # s3_client.put_object(Bucket=src_bucket, Key=key, Body=data, Metadata={})
+
+        config = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, "r").read())
+        num_bins = config["reduceCount"]
+        use_combine = config["useCombine"]
+
+        print("Genius is being executed")
+
+        response = s3_client.get_object(Bucket=src_bucket, Key=src_keys)
+        contents = response['Body'].read()
+        print("The contents of %s is %s" % (src_keys, contents))
+
+        return data
 
         # aggr
         line_count = 0
@@ -108,6 +129,5 @@ def map_handler(map_function):
             write_to_s3(job_bucket, mapper_filename, json.dumps(output_partitions[i]), metadata)
 
         return processing_info
-    lambda_handler.__wrapped__ = map_function
 
     return lambda_handler
