@@ -4,7 +4,7 @@ import json
 
 from serverless_mr.driver.driver import Driver
 from serverless_mr.driver.serverless_driver_setup import ServerlessDriverSetup
-from serverless_mr.static import StaticVariables
+from serverless_mr.static.static_variables import StaticVariables
 
 
 def set_up_input_data(config):
@@ -20,11 +20,11 @@ def set_up_input_data(config):
         Bucket=input_bucket,
     )
 
-    s3_client.upload_file(Filename='../../../input_data/testing_partitioned/input-1',
+    s3_client.upload_file(Filename='../../input_data/testing_partitioned/input-1',
                           Bucket=input_bucket, Key='%sinput-1' % prefix)
-    s3_client.upload_file(Filename='../../../input_data/testing_partitioned/input-2',
+    s3_client.upload_file(Filename='../../input_data/testing_partitioned/input-2',
                           Bucket=input_bucket, Key='%sinput-2' % prefix)
-    s3_client.upload_file(Filename='../../../input_data/testing_partitioned/input-4',
+    s3_client.upload_file(Filename='../../input_data/testing_partitioned/input-4',
                           Bucket=input_bucket, Key='%sinput-4' % prefix)
     print("Finished setting up input data")
 

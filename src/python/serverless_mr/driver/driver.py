@@ -9,7 +9,7 @@ from serverless_mr.aws_lambda import lambda_manager
 from multiprocessing.dummy import Pool as ThreadPool
 from functools import partial
 from botocore.client import Config
-from serverless_mr.static import StaticVariables
+from serverless_mr.static.static_variables import StaticVariables
 
 
 class Driver:

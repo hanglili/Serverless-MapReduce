@@ -1,0 +1,15 @@
+{
+    "jobId": "bl-release",
+    "lambdaNamePrefix": "BL",
+    "jobBucket": "serverless-mapreduce-storage",
+    "bucket": "serverless-mapreduce-storage",
+    "prefix": "testing_partitioned/",
+    "outputBucket": "serverless-mapreduce-storage",
+    "outputPrefix": "output/",
+    "reducerFunction": "BL-reducer-bl-release",
+    "driverFunction": "BL-driver-bl-release",
+    "useCombine": false,
+    "reducerHandler": "serverless_mr/job/reduce.reduce_function",
+    "reduceCount": 4,
+    "localTesting": true
+}

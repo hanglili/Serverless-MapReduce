@@ -1,6 +1,6 @@
 #!/Users/hanglili/Imperial/4Y/IndividualProject/serverless-mr/venv/bin/python
 
-# Author: 
+# Author:
 # Contact: grubert@users.sf.net
 # Copyright: This module has been placed in the public domain.
 

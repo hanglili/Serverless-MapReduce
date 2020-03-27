@@ -1,6 +1,6 @@
 import boto3
 
-from serverless_mr.static import StaticVariables
+from serverless_mr.static.static_variables import StaticVariables
 
 
 def write_to_s3(bucket, key, data, metadata):

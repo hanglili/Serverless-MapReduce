@@ -7,7 +7,7 @@ import os
 
 from serverless_mr.job.partition import partition
 from serverless_mr.job.combine import combine_function
-from serverless_mr.static import StaticVariables
+from serverless_mr.static.static_variables import StaticVariables
 
 # create an S3 session
 # s3 = boto3.resource('s3')

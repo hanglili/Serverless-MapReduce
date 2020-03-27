@@ -1,7 +1,7 @@
 import glob
 import subprocess
 
-from serverless_mr.static import StaticVariables
+from serverless_mr.static.static_variables import StaticVariables
 
 
 def zip_lambda(filename, zip_name):
