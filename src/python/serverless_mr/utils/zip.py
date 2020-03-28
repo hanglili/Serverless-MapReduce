@@ -20,4 +20,5 @@ def zip_lambda(filename, zip_name):
 
 def zip_driver_lambda(zip_name):
     # faster to zip with shell exec
-    subprocess.call(['zip', zip_name] + glob.glob("*") + glob.glob("*/*"))
+    project_name = "serverless_mr"
+    subprocess.call(['zip', zip_name] + glob.glob("%s/*" % project_name) + glob.glob("%s/*/*" % project_name))
