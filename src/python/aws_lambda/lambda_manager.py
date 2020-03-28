@@ -73,14 +73,17 @@ class LambdaManager(object):
             self.update_function()
 
     def add_lambda_permission(self, s_id, bucket):
-        response = self.lambda_client.add_permission(
-            Action='lambda:InvokeFunction',
-            FunctionName=self.function_name,
-            Principal='s3.amazonaws.com',
-            StatementId='%s' % s_id,
-            SourceArn='arn:aws:s3:::' + bucket
-        )
-        print(response)
+        try:
+            response = self.lambda_client.add_permission(
+                Action='lambda:InvokeFunction',
+                FunctionName=self.function_name,
+                Principal='s3.amazonaws.com',
+                StatementId='%s' % s_id,
+                SourceArn='arn:aws:s3:::' + bucket
+            )
+            print(response)
+        except Exception as e:
+            print("Failed to add permission to lambda:", e)
 
     def create_s3_event_source_notification(self, bucket, prefix):
         self.s3.put_bucket_notification_configuration(

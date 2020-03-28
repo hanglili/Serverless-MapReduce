@@ -133,3 +133,4 @@ dmypy.json
 
 input_data/
 *.zip
+src/python/__pycache__/
