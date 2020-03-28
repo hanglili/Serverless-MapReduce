@@ -9,7 +9,10 @@ from serverless_mr.job.combine import combine_function
 from serverless_mr.static.static_variables import StaticVariables
 
 # create an S3 session
+print("*******************************Hello*******************************")
+print("Finding configuration file: ", StaticVariables.STATIC_JOB_INFO_PATH)
 static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
+print("Finished finding configuration file")
 if static_job_info['localTesting']:
     s3_client = boto3.client('s3', aws_access_key_id='', aws_secret_access_key='',
                              region_name=StaticVariables.DEFAULT_REGION,

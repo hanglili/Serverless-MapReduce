@@ -1,10 +1,33 @@
 import sys
 import boto3
 import json
+import importlib.resources
+import os
+import shutil
 
 from serverless_mr.driver.driver import Driver
 from serverless_mr.driver.serverless_driver_setup import ServerlessDriverSetup
 from serverless_mr.static.static_variables import StaticVariables
+
+
+def find_filepath(package_name, filename):
+    with importlib.resources.path(package_name, filename) as path:
+        return str(path)
+
+
+def copy_config_files():
+    config_dirname = "configuration"
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    dst_dir = "%s/%s" % (dir_path, config_dirname)
+
+    if os.path.exists(dst_dir):
+        shutil.rmtree(dst_dir)
+    os.makedirs(dst_dir)
+
+    filenames = ["static-job-info.json", "driver.json"]
+    for filename in filenames:
+        path = find_filepath(config_dirname, filename)
+        shutil.copy2(path, dst_dir)
 
 
 def set_up_input_data(config):
@@ -33,6 +56,7 @@ def init_job(args):
     if len(args) < 2:
         print("Wrong number of arguments.")
     else:
+        copy_config_files()
         config = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, "r").read())
         if config['localTesting']:
             set_up_input_data(config)
@@ -50,6 +74,12 @@ def init_job(args):
             if command == "invoke":
                 print("Driver invoked and starting job execution")
                 serverless_driver_setup.invoke()
+
+        config_dirname = "configuration"
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        dst_dir = "%s/%s" % (dir_path, config_dirname)
+
+        shutil.rmtree(dst_dir)
 
 
 if __name__ == "__main__":
