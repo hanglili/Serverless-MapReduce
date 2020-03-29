@@ -6,9 +6,6 @@ from serverless_mr.static.static_variables import StaticVariables
 
 def zip_lambda(filename, zip_name):
     # faster to zip with shell exec
-    print("The static job info path is", StaticVariables.STATIC_JOB_INFO_PATH)
-    print("The globbed static job info path is", glob.glob(StaticVariables.STATIC_JOB_INFO_PATH))
-    print("The globbed filename path is", glob.glob(StaticVariables.LAMBDA_UTILS_PATH))
     subprocess.call(['zip', zip_name] + glob.glob(filename) + glob.glob(StaticVariables.STATIC_JOB_INFO_PATH)
                     + glob.glob(StaticVariables.CONFIGURATION_INIT_PATH)
                     + glob.glob(StaticVariables.LAMBDA_UTILS_PATH) + glob.glob(StaticVariables.MAP_HANDLER_PATH)

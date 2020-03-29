@@ -23,7 +23,8 @@ def find_filepath(package_name, filename):
 
 def delete_dir(dirname):
     dst_dir = "%s/%s" % (library_dir, dirname)
-    shutil.rmtree(dst_dir)
+    if os.path.exists(dst_dir):
+        shutil.rmtree(dst_dir)
 
 
 def delete_files(dirname, filenames):
@@ -44,6 +45,20 @@ def copy_files(dirname, dst_dirname, filenames):
             shutil.copy2(path, dst_dir)
 
 
+def set_up():
+    os.chdir(library_working_dir)
+    print("The current working directory is", os.getcwd())
+    config_dirname = "configuration"
+    copy_files(config_dirname, config_dirname, ["static-job-info.json", "driver.json"])
+    copy_files("user_job", "job", ["map.py", "reduce.py"])
+
+
+def tear_down():
+    config_dirname = "configuration"
+    delete_dir(config_dirname)
+    delete_files("job", ["map.py", "reduce.py"])
+
+
 def set_up_input_data(config):
     print("Setting up input data")
     s3_client = boto3.client('s3', aws_access_key_id='', aws_secret_access_key='', region_name='us-east-1',
@@ -57,11 +72,11 @@ def set_up_input_data(config):
         Bucket=input_bucket,
     )
 
-    s3_client.upload_file(Filename='../../input_data/testing_partitioned/input-1',
+    s3_client.upload_file(Filename='../../../input_data/testing_partitioned/input-1',
                           Bucket=input_bucket, Key='%sinput-1' % prefix)
-    s3_client.upload_file(Filename='../../input_data/testing_partitioned/input-2',
+    s3_client.upload_file(Filename='../../../input_data/testing_partitioned/input-2',
                           Bucket=input_bucket, Key='%sinput-2' % prefix)
-    s3_client.upload_file(Filename='../../input_data/testing_partitioned/input-4',
+    s3_client.upload_file(Filename='../../../input_data/testing_partitioned/input-4',
                           Bucket=input_bucket, Key='%sinput-4' % prefix)
     print("Finished setting up input data")
 
@@ -70,13 +85,12 @@ def init_job(args):
     if len(args) < 2:
         print("Wrong number of arguments.")
     else:
-        os.chdir(library_working_dir)
-        print("The current working directory is", os.getcwd())
-        config_dirname = "configuration"
-        copy_files(config_dirname, config_dirname, ["static-job-info.json", "driver.json"])
-        copy_files("user_job", "job", ["map.py", "reduce.py"])
-        config = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, "r").read())
+        set_up()
+        static_job_info_file = open(StaticVariables.STATIC_JOB_INFO_PATH, "r")
+        config = json.loads(static_job_info_file.read())
+        static_job_info_file.close()
         if config['localTesting']:
+            print("The project working directory is", project_working_dir)
             os.chdir(project_working_dir)
             set_up_input_data(config)
             os.chdir(library_working_dir)
@@ -97,9 +111,7 @@ def init_job(args):
                 print("Driver invoked and starting job execution")
                 serverless_driver_setup.invoke()
 
-
-        delete_dir(config_dirname)
-        delete_files("job", ["map.py", "reduce.py"])
+        tear_down()
 
 
 if __name__ == "__main__":

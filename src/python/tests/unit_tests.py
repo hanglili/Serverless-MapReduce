@@ -1,10 +1,24 @@
-from serverless_mr.job.reduce import reduce_function
-from serverless_mr.job.map import map_function
+import os
+
+from serverless_mr.main import set_up, tear_down
 from unittest import TestCase
 
 
 class Test(TestCase):
+    @classmethod
+    def setup_class(cls):
+        print('\r\nSetting up and executing the job')
+        set_up()
+        os.environ["LOCALSTACK_HOSTNAME"] = '127.0.0.1'
+
+    @classmethod
+    def teardown_class(cls):
+        print('\r\nTearing down the job')
+        tear_down()
+        del os.environ["LOCALSTACK_HOSTNAME"]
+
     def test_map_method(self):
+        from user_job.map import map_function
         input_pair = (1, '127.0.0.1, null, null, 10.2')
         outputs = []
         map_function.__wrapped__(outputs, input_pair)
@@ -13,6 +27,7 @@ class Test(TestCase):
         assert outputs[0] == ('127.0.0.1', 10.2), "test failed"
 
     def test_reduce_method(self):
+        from user_job.reduce import reduce_function
         input_pair = ('127.0.0.1', [10.0, 20.0, 30.0, 48.0])
         outputs = []
         reduce_function.__wrapped__(outputs, input_pair)
