@@ -50,13 +50,13 @@ def set_up():
     print("The current working directory is", os.getcwd())
     config_dirname = "configuration"
     copy_files(config_dirname, config_dirname, ["static-job-info.json", "driver.json"])
-    copy_files("user_job", "job", ["map.py", "reduce.py"])
+    copy_files("user_job", "job", ["map.py", "reduce.py", "partition.py"])
 
 
 def tear_down():
     config_dirname = "configuration"
     delete_dir(config_dirname)
-    delete_files("job", ["map.py", "reduce.py"])
+    delete_files("job", ["map.py", "reduce.py", "partition.py"])
 
 
 def set_up_input_data(config):
@@ -72,11 +72,11 @@ def set_up_input_data(config):
         Bucket=input_bucket,
     )
 
-    s3_client.upload_file(Filename='../../../input_data/testing_partitioned/input-1',
+    s3_client.upload_file(Filename='../../input_data/testing_partitioned/input-1',
                           Bucket=input_bucket, Key='%sinput-1' % prefix)
-    s3_client.upload_file(Filename='../../../input_data/testing_partitioned/input-2',
+    s3_client.upload_file(Filename='../../input_data/testing_partitioned/input-2',
                           Bucket=input_bucket, Key='%sinput-2' % prefix)
-    s3_client.upload_file(Filename='../../../input_data/testing_partitioned/input-4',
+    s3_client.upload_file(Filename='../../input_data/testing_partitioned/input-4',
                           Bucket=input_bucket, Key='%sinput-4' % prefix)
     print("Finished setting up input data")
 
