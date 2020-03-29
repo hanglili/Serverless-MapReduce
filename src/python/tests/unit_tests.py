@@ -6,13 +6,13 @@ from unittest import TestCase
 
 class Test(TestCase):
     @classmethod
-    def setup_class(cls):
+    def setUp(self):
         print('\r\nSetting up and executing the job')
         set_up()
         os.environ["LOCALSTACK_HOSTNAME"] = '127.0.0.1'
 
     @classmethod
-    def teardown_class(cls):
+    def tearDown(self):
         print('\r\nTearing down the job')
         tear_down()
         del os.environ["LOCALSTACK_HOSTNAME"]
