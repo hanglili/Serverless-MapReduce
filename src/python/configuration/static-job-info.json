@@ -9,7 +9,7 @@
     "reducerFunction": "BL-reducer-bl-release",
     "driverFunction": "BL-driver-bl-release",
     "useCombine": false,
-    "reducerHandler": "job/reduce.reduce_function",
+    "reducerHandler": "serverless_mr/job/reduce.reduce_function",
     "reduceCount": 4,
     "localTesting": true
 }

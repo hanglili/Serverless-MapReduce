@@ -7,23 +7,23 @@
     "botoMaxConnections": 1000,
     "numReducers": 4,
     "mapper": {
-        "name": "job/map.py",
-        "handler": "job/map.map_function",
-        "zip": "map.zip"
+        "name": "serverless_mr/job/map.py",
+        "handler": "serverless_mr/job/map.map_function",
+        "zip": "serverless_mr/map.zip"
     },
     "reducer": {
-        "name": "job/reduce.py",
-        "handler": "job/reduce.reduce_function",
-        "zip": "reduce.zip"
+        "name": "serverless_mr/job/reduce.py",
+        "handler": "serverless_mr/job/reduce.reduce_function",
+        "zip": "serverless_mr/reduce.zip"
     },
     "reducerCoordinator": {
-        "name": "coordinator/reduce_coordinator.py",
-        "handler": "coordinator/reduce_coordinator.lambda_handler",
-        "zip": "reduce_coordinator.zip"
+        "name": "serverless_mr/coordinator/reduce_coordinator.py",
+        "handler": "serverless_mr/coordinator/reduce_coordinator.lambda_handler",
+        "zip": "serverless_mr/reduce_coordinator.zip"
     },
     "driver": {
-        "name": "driver/serverless_driver.py",
-        "handler": "driver/serverless_driver.lambda_handler",
-        "zip": "serverless_driver.zip"
+        "name": "serverless_mr/driver/serverless_driver.py",
+        "handler": "serverless_mr/driver/serverless_driver.lambda_handler",
+        "zip": "serverless_mr/serverless_driver.zip"
     }
 }
