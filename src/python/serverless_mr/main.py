@@ -47,7 +47,6 @@ def copy_files(dirname, dst_dirname, filenames):
 
 def set_up():
     os.chdir(library_working_dir)
-    print("The current working directory is", os.getcwd())
     config_dirname = "configuration"
     copy_files(config_dirname, config_dirname, ["static-job-info.json", "driver.json"])
     copy_files("user_job", "job", ["map.py", "reduce.py", "partition.py"])
@@ -90,14 +89,11 @@ def init_job(args):
         config = json.loads(static_job_info_file.read())
         static_job_info_file.close()
         if config['localTesting']:
-            print("The project working directory is", project_working_dir)
             os.chdir(project_working_dir)
             set_up_input_data(config)
             os.chdir(library_working_dir)
         mode = args[1]
-        print(mode)
-
-        print("The current working directory is", os.getcwd())
+        print("The mode of run is", mode)
 
         if int(mode) == 0:
             driver = Driver()
