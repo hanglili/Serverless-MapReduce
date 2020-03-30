@@ -14,8 +14,12 @@ if static_job_info['localTesting']:
     s3_client = boto3.client('s3', aws_access_key_id='', aws_secret_access_key='',
                              region_name=StaticVariables.DEFAULT_REGION,
                              endpoint_url='http://%s:4572' % os.environ['LOCALSTACK_HOSTNAME'])
+    dynamodb_client = boto3.client('dynamodb', aws_access_key_id='', aws_secret_access_key='',
+                             region_name=StaticVariables.DEFAULT_REGION,
+                             endpoint_url='http://%s:4569' % os.environ['LOCALSTACK_HOSTNAME'])
 else:
     s3_client = boto3.client('s3')
+    dynamodb_client = boto3.client('dynamodb')
 
 
 def write_to_s3(bucket, key, data, metadata):
@@ -45,15 +49,28 @@ def map_handler(map_function):
 
         # Download and process all keys
         for key in src_keys:
-            response = s3_client.get_object(Bucket=src_bucket, Key=key)
-            contents = response['Body'].read()
-
-            for line in contents.decode("utf-8").split('\n')[:-1]:
+            # TODO: Currently hardcoding the attributes names to be id and lines, change to general names in the future.
+            response = dynamodb_client.scan(TableName=key, ProjectionExpression='line')
+            print(response['Items'])
+            for record in response['Items']:
+                line = record['line']['S']
                 line_count += 1
                 cur_input_pair = (key, line)
                 cur_line_outputs = []
                 map_function(cur_line_outputs, cur_input_pair)
                 intermediate_data += cur_line_outputs
+
+
+        # for key in src_keys:
+        #     response = s3_client .get_object(Bucket=src_bucket, Key=key)
+        #     contents = response['Body'].read()
+        #
+        #     for line in contents.decode("utf-8").split('\n')[:-1]:
+        #         line_count += 1
+        #         cur_input_pair = (key, line)
+        #         cur_line_outputs = []
+        #         map_function(cur_line_outputs, cur_input_pair)
+        #         intermediate_data += cur_line_outputs
 
         if use_combine:
             intermediate_data.sort(key=lambda x: x[0])

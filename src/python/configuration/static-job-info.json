@@ -3,7 +3,7 @@
     "lambdaNamePrefix": "BL",
     "jobBucket": "serverless-mapreduce-storage",
     "bucket": "serverless-mapreduce-storage",
-    "prefix": "testing_partitioned/",
+    "prefix": "testing_partitioned-",
     "outputBucket": "serverless-mapreduce-storage",
     "outputPrefix": "output/",
     "reducerFunction": "BL-reducer-bl-release",
