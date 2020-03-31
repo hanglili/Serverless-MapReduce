@@ -22,7 +22,7 @@ def get_mapper_files(num_bins, bucket, job_id):
     bins_of_keys = [[] for _ in range(num_bins + 1)]
 
     for i in range(1, num_bins + 1):
-        prefix = "%s/%sbin%s/" % (job_id, StaticVariables.MAP_OUTPUT_PREFIX, i)
+        prefix = "%s/%s/bin%s/" % (job_id, StaticVariables.MAP_OUTPUT_PREFIX, i)
         files = s3_client.list_objects(Bucket=bucket, Prefix=prefix)["Contents"]
         bins_of_keys[i] = files
 
@@ -46,7 +46,7 @@ def lambda_handler(event, _):
 
     map_count = int(os.environ.get("num_mappers"))
 
-    mapper_output_prefix = "%s/%sbin%s/" % (job_name, StaticVariables.MAP_OUTPUT_PREFIX, str(num_reducers))
+    mapper_output_prefix = "%s/%s/bin%s/" % (job_name, StaticVariables.MAP_OUTPUT_PREFIX, str(num_reducers))
 
     # Get Mapper Finished Count
     # Get job files

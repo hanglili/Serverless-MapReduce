@@ -4,7 +4,7 @@ import random
 import time
 import os
 
-from serverless_mr.utils import lambda_utils, zip
+from serverless_mr.utils import lambda_utils, zip, input_handler, output_handler
 from serverless_mr.aws_lambda import lambda_manager
 from multiprocessing.dummy import Pool as ThreadPool
 from functools import partial
@@ -34,6 +34,10 @@ class Driver:
             self.dynamodb_client = boto3.client('dynamodb')
         self.lambda_config = None
         self.lambda_client = None
+        self.cur_input_handler = input_handler.get_input_handler(self.static_job_info[StaticVariables.INPUT_SOURCE_TYPE_FN],
+                                                                 self.is_serverless)
+        self.cur_output_handler = output_handler.get_output_handler(self.static_job_info[StaticVariables.OUTPUT_SOURCE_TYPE_FN],
+                                                                    self.is_serverless)
 
     # Get all keys to be processed
     def _get_all_keys(self):
@@ -68,19 +72,7 @@ class Driver:
             self.lambda_client = boto3.client('lambda', config=self.lambda_config)
 
         # Fetch all the keys that match the prefix
-        all_keys = []
-        # print(self.dynamodb_client.list_tables())
-        # for obj in self.dynamodb_client.list_tables()['TableNames']:
-        #     print("The object is", obj)
-        #     response = self.dynamodb_client.describe_table(TableName=obj)
-        #     size = response['Table']['ItemCount']
-        #     all_keys.append({'Key': obj, 'Size': int(size)})
-
-        for obj in self.s3_client.list_objects(Bucket=input_source,
-                                               Prefix=self.static_job_info[StaticVariables.INPUT_PREFIX_FN])['Contents']:
-            if not obj['Key'].endswith('/'):
-                print("The object is ", obj)
-                all_keys.append(obj)
+        all_keys = self.cur_input_handler.get_all_input_keys()
 
         print("The number of keys: ", len(all_keys))
         bsize = lambda_utils.compute_batch_size(all_keys, lambda_memory, concurrent_lambdas)
@@ -139,7 +131,7 @@ class Driver:
         l_rc.add_lambda_permission(random.randint(1, 1000), shuffling_bucket)
 
         # create event source for coordinator
-        last_bin_path = "%s/%sbin%s/" % (job_name, StaticVariables.MAP_OUTPUT_PREFIX, str(num_reducers))
+        last_bin_path = "%s/%s/bin%s/" % (job_name, StaticVariables.MAP_OUTPUT_PREFIX, str(num_reducers))
         l_rc.create_s3_event_source_notification(shuffling_bucket, last_bin_path)
         return l_mapper, l_reducer, l_rc
 
@@ -219,88 +211,30 @@ class Driver:
         # Get all reducer keys
 
         # Total execution time for reducers
-        reducer_lambda_time = 0
-        shuffling_bucket = self.static_job_info[StaticVariables.SHUFFLING_BUCKET_FN]
         lambda_memory = self.config[StaticVariables.LAMBDA_MEMORY_PROVISIONED_FN] \
             if StaticVariables.LAMBDA_MEMORY_PROVISIONED_FN in self.config else StaticVariables.DEFAULT_LAMBDA_MEMORY_LIMIT
-        job_name = self.static_job_info[StaticVariables.JOB_NAME_FN]
-        output_source = shuffling_bucket \
-            if StaticVariables.OUTPUT_SOURCE_FN not in self.static_job_info else self.static_job_info[StaticVariables.OUTPUT_SOURCE_FN]
 
-        reduce_output_full_prefix = "%s/%s" % (job_name, StaticVariables.REDUCE_OUTPUT_PREFIX) \
-            if StaticVariables.OUTPUT_PREFIX_FN not in self.static_job_info else self.static_job_info[StaticVariables.OUTPUT_PREFIX_FN]
-        # reduce_output_full_prefix = "output-"
-        # metadata_table_name = 'metadata'
-        #
-        # while True:
-        #     existing_tables = self.dynamodb_client.list_tables()['TableNames']
-        #     if metadata_table_name in existing_tables:
-        #         response = self.dynamodb_client.scan(TableName=metadata_table_name, ProjectionExpression='id, metadata')
-        #         if "Items" in response:
-        #             print("The response items table is", response['Items'])
-        #             job_keys = []
-        #             job_metadata = []
-        #
-        #             for record in response['Items']:
-        #                 job_keys.append(record['id']['S'])
-        #                 job_metadata.append(json.loads(record['metadata']['S']))
-        #             print("Checking whether the job is completed ...")
-        #             # check job done
-        #             if len(job_keys) == self.static_info_file[StaticVariables.NUM_REDUCER_FN]:
-        #                 print("Job Complete")
-        #                 # total_s3_size = sum([jk["Size"] for jk in job_keys])
-        #                 total_s3_size = 0
-        #                 for job_metadatum in job_metadata:
-        #                     # Even though metadata processing time is written as processingTime, AWS does not accept
-        #                     # uppercase letter metadata key
-        #                     print("The job_metadatum is", job_metadatum)
-        #                     reducer_lambda_time += float(job_metadatum['processingTime'])
-        #                     total_s3_size += float(job_metadatum['lineCount'])
-        #                     # reducer_lambda_time += float(self.dynamodb_client.get_object(Bucket=job_bucket, Key=key)
-        #                     #                              ['Metadata']['processingtime'])
-        #                     # reducer_lambda_time += float(self.s3.Object(job_bucket, key).metadata['processingtime'])
-        #                 break
-        #
-        #         time.sleep(5)
+        metadata_table_name = 'metadata'
 
-        # reducer_lambda_time = 0
-        # job_bucket = self.config["jobBucket"]
-        # lambda_memory = self.config["lambdaMemory"]
-        # job_id = self.static_job_info["jobId"]
-        # output_bucket = job_bucket if self.static_job_info["outputBucket"] == "" else self.static_job_info["outputBucket"]
-        # output_prefix = self.static_job_info["outputPrefix"]
-        #
-        # reduce_output_full_prefix = \
-        #     "%s/%s" % (job_id, StaticVariables.REDUCE_OUTPUT_PREFIX) if output_prefix == "" else output_prefix
-        #
-        #
         while True:
-            response = self.s3_client.list_objects(Bucket=output_source, Prefix=reduce_output_full_prefix)
-            if "Contents" in response:
-                job_keys = response["Contents"]
-                print("Checking whether the job is completed ...")
-                # check job done
-                if len(job_keys) == self.static_job_info[StaticVariables.NUM_REDUCER_FN]:
-                    print("Job Complete")
-                    keys = [jk["Key"] for jk in job_keys]
-                    total_s3_size = sum([jk["Size"] for jk in job_keys])
-                    for key in keys:
-                        # Even though metadata processing time is written as processingTime, AWS does not accept
-                        # uppercase letter metadata key
-                        reducer_lambda_time += float(self.s3_client.get_object(Bucket=shuffling_bucket, Key=key)
-                                                     ['Metadata']['processingtime'])
-                        # reducer_lambda_time += float(self.s3.Object(job_bucket, key).metadata['processingtime'])
+            print("Checking whether the job is completed...")
+            response, string_index = self.cur_output_handler.list_objects_for_checking_finish()
+            if string_index in response:
+                reducer_lambda_time, total_s3_size, len_job_keys = self.cur_output_handler.check_job_finish(response,
+                                                                                                            string_index)
+                if reducer_lambda_time > -1:
                     break
-
             time.sleep(5)
+
+        print("Job Complete")
 
         # S3 Storage cost - Account for mappers only; This cost is neglibile anyways since S3
         # costs 3 cents/GB/month
         s3_storage_hour_cost = 1 * 0.0000521574022522109 * (total_s3_size / 1024.0 / 1024.0 / 1024.0)  # cost per GB/hr
-        s3_put_cost = len(job_keys) * 0.005 / 1000
+        s3_put_cost = len_job_keys * 0.005 / 1000
 
         # S3 GET # $0.004/10000
-        total_s3_get_ops += len(job_keys)
+        total_s3_get_ops += len_job_keys
         s3_get_cost = total_s3_get_ops * 0.004 / 10000
 
         # Total Lambda costs

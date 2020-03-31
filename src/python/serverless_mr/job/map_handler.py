@@ -7,23 +7,7 @@ import os
 from serverless_mr.job.partition import partition
 from serverless_mr.job.combine import combine_function
 from serverless_mr.static.static_variables import StaticVariables
-
-# create an S3 session
-static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
-if static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
-    s3_client = boto3.client('s3', aws_access_key_id='', aws_secret_access_key='',
-                             region_name=StaticVariables.DEFAULT_REGION,
-                             endpoint_url='http://%s:4572' % os.environ['LOCALSTACK_HOSTNAME'])
-    dynamodb_client = boto3.client('dynamodb', aws_access_key_id='', aws_secret_access_key='',
-                             region_name=StaticVariables.DEFAULT_REGION,
-                             endpoint_url='http://%s:4569' % os.environ['LOCALSTACK_HOSTNAME'])
-else:
-    s3_client = boto3.client('s3')
-    dynamodb_client = boto3.client('dynamodb')
-
-
-def write_to_s3(bucket, key, data, metadata):
-    s3_client.put_object(Bucket=bucket, Key=key, Body=data, Metadata=metadata)
+from serverless_mr.utils import input_handler
 
 
 def map_handler(map_function):
@@ -33,8 +17,16 @@ def map_handler(map_function):
         src_keys = event['keys']
         mapper_id = event['mapperId']
 
+        # create an S3 session
+        static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
+        if static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
+            s3_client = boto3.client('s3', aws_access_key_id='', aws_secret_access_key='',
+                                     region_name=StaticVariables.DEFAULT_REGION,
+                                     endpoint_url='http://%s:4572' % os.environ['LOCALSTACK_HOSTNAME'])
+        else:
+            s3_client = boto3.client('s3')
+
         shuffling_bucket = static_job_info[StaticVariables.SHUFFLING_BUCKET_FN]
-        input_source = static_job_info[StaticVariables.INPUT_SOURCE_FN]
         job_name = static_job_info[StaticVariables.JOB_NAME_FN]
         num_bins = static_job_info[StaticVariables.NUM_REDUCER_FN]
         use_combine = static_job_info[StaticVariables.USE_COMBINE_FLAG_FN]
@@ -46,26 +38,13 @@ def map_handler(map_function):
         # INPUT CSV => OUTPUT JSON
 
         intermediate_data = []
-
+        cur_input_handler = input_handler.get_input_handler(static_job_info[StaticVariables.INPUT_SOURCE_TYPE_FN],
+                                                            in_lambda=True)
         # Download and process all keys
-        # for key in src_keys:
-        #     # TODO: Currently hardcoding the attributes names to be id and lines, change to general names in the future.
-        #     response = dynamodb_client.scan(TableName=key, ProjectionExpression='line')
-        #     print(response['Items'])
-        #     for record in response['Items']:
-        #         line = record['line']['S']
-        #         line_count += 1
-        #         cur_input_pair = (key, line)
-        #         cur_line_outputs = []
-        #         map_function(cur_line_outputs, cur_input_pair)
-        #         intermediate_data += cur_line_outputs
-
-
         for key in src_keys:
-            response = s3_client .get_object(Bucket=input_source, Key=key)
-            contents = response['Body'].read()
+            lines = cur_input_handler.read_records_from_input_key(key)
 
-            for line in contents.decode("utf-8").split('\n')[:-1]:
+            for line in lines:
                 line_count += 1
                 cur_input_pair = (key, line)
                 cur_line_outputs = []
@@ -121,8 +100,9 @@ def map_handler(map_function):
 
         for i in range(1, num_bins + 1):
             partition_id = "bin%s" % i
-            mapper_filename = "%s/%s%s/%s" % (job_name, StaticVariables.MAP_OUTPUT_PREFIX, partition_id, mapper_id)
-            write_to_s3(shuffling_bucket, mapper_filename, json.dumps(output_partitions[i]), metadata)
+            mapper_filename = "%s/%s/%s/%s" % (job_name, StaticVariables.MAP_OUTPUT_PREFIX, partition_id, mapper_id)
+            s3_client.put_object(Bucket=shuffling_bucket, Key=mapper_filename,
+                                 Body=json.dumps(output_partitions[i]), Metadata=metadata)
 
         return processing_info
     lambda_handler.__wrapped__ = map_function
