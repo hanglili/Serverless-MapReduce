@@ -58,39 +58,38 @@ def tear_down():
     delete_files("job", ["map.py", "reduce.py", "partition.py"])
 
 
-# def set_up_input_data(config):
-#     print("Setting up input data")
-#     s3_client = boto3.client('s3', aws_access_key_id='', aws_secret_access_key='', region_name='us-east-1',
-#                              endpoint_url='http://localhost:4572')
-#     input_bucket = config["bucket"]
-#     prefix = config["prefix"]
-#     # job_bucket = config["jobBucket"]
-#     s3_client.create_bucket(Bucket=input_bucket)
-#     s3_client.put_bucket_acl(
-#         ACL='public-read-write',
-#         Bucket=input_bucket,
-#     )
-#
-#     s3_client.upload_file(Filename='../../input_data/testing_partitioned/input-1',
-#                           Bucket=input_bucket, Key='%sinput-1' % prefix)
-#     s3_client.upload_file(Filename='../../input_data/testing_partitioned/input-2',
-#                           Bucket=input_bucket, Key='%sinput-2' % prefix)
-#     s3_client.upload_file(Filename='../../input_data/testing_partitioned/input-4',
-#                           Bucket=input_bucket, Key='%sinput-4' % prefix)
-#     print("Finished setting up input data")
+def set_up_input_data(config):
+    print("Setting up input data")
+    s3_client = boto3.client('s3', aws_access_key_id='', aws_secret_access_key='', region_name='us-east-1',
+                             endpoint_url='http://localhost:4572')
+    input_bucket = config[StaticVariables.INPUT_SOURCE_FN]
+    prefix = config[StaticVariables.INPUT_PREFIX_FN]
+
+    s3_client.create_bucket(Bucket=input_bucket)
+    s3_client.put_bucket_acl(
+        ACL='public-read-write',
+        Bucket=input_bucket,
+    )
+
+    s3_client.upload_file(Filename='../../input_data/testing_partitioned/input-1',
+                          Bucket=input_bucket, Key='%sinput-1' % prefix)
+    s3_client.upload_file(Filename='../../input_data/testing_partitioned/input-2',
+                          Bucket=input_bucket, Key='%sinput-2' % prefix)
+    s3_client.upload_file(Filename='../../input_data/testing_partitioned/input-4',
+                          Bucket=input_bucket, Key='%sinput-4' % prefix)
+    print("Finished setting up input data")
 
 
 def set_up_job_bucket(config):
     print("Setting up job bucket")
     s3_client = boto3.client('s3', aws_access_key_id='', aws_secret_access_key='', region_name='us-east-1',
                              endpoint_url='http://localhost:4572')
-    # input_bucket = config["bucket"]
-    job_bucket = config["jobBucket"]
+    shuffling_bucket = config[StaticVariables.SHUFFLING_BUCKET_FN]
     # TODO: Check if the bucket exists first
-    s3_client.create_bucket(Bucket=job_bucket)
+    s3_client.create_bucket(Bucket=shuffling_bucket)
     s3_client.put_bucket_acl(
         ACL='public-read-write',
-        Bucket=job_bucket,
+        Bucket=shuffling_bucket,
     )
 
 
@@ -135,8 +134,7 @@ def set_up_input_data(config):
     print("Setting up input data")
     client = boto3.client('dynamodb', aws_access_key_id='', aws_secret_access_key='', region_name='us-east-1',
                              endpoint_url='http://localhost:4569')
-    # input_bucket = config["bucket"]
-    prefix = config["prefix"]
+    prefix = config[StaticVariables.INPUT_PREFIX_FN]
     create_dynamo_table(client, '%sinput-1' % prefix)
     create_dynamo_table(client, '%sinput-2' % prefix)
     create_dynamo_table(client, '%sinput-4' % prefix)
@@ -159,13 +157,15 @@ def init_job(args):
     else:
         set_up()
         static_job_info_file = open(StaticVariables.STATIC_JOB_INFO_PATH, "r")
-        config = json.loads(static_job_info_file.read())
+        static_job_info = json.loads(static_job_info_file.read())
         static_job_info_file.close()
-        set_up_job_bucket(config)
-        if config['localTesting']:
+
+        set_up_job_bucket(static_job_info)
+        if static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
             os.chdir(project_working_dir)
-            set_up_input_data(config)
+            set_up_input_data(static_job_info)
             os.chdir(library_working_dir)
+
         mode = args[1]
         print("The mode of run is", mode)
 

@@ -1,6 +1,6 @@
 class StaticVariables:
 
-    # constants
+    # File locations
     # STATIC_JOB_INFO_PATH = find_filepath("configuration", "static-job-info.json")
     STATIC_JOB_INFO_PATH = "serverless_mr/configuration/static-job-info.json"
     # CONFIGURATION_INIT_PATH = find_filepath("configuration", "__init__.py")
@@ -22,6 +22,44 @@ class StaticVariables:
     STATIC_VARIABLES_PATH = "serverless_mr/static/static_variables.py"
     STATIC_INIT_PATH = "serverless_mr/static/__init__.py"
 
+
+    # Constants
     DEFAULT_REGION = "us-east-1"
-    LAMBDA_MEMORY_LIMIT = 1536
-    LAMBDA_TIMEOUT = 300
+    DEFAULT_LAMBDA_MEMORY_LIMIT = 1536
+    DEFAULT_LAMBDA_TIMEOUT = 300
+    DEFAULT_LAMBDA_READ_TIMEOUT = 300
+    DEFAULT_BOTO_MAX_CONNECTIONS = 1000
+    DEFAULT_NUM_CONCURRENT_LAMBDAS = 1000
+
+
+    # Naming of config files (FN stands for field name)
+    # driver.json
+    REGION_FN = "region"
+    LAMBDA_MEMORY_PROVISIONED_FN = "lambdaMemoryProvisioned"
+    NUM_CONCURRENT_LAMBDAS_FN = "concurrentLambdas"
+    LAMBDA_READ_TIMEOUT_FN = "lambdaReadTimeout"
+    BOTO_MAX_CONNECTIONS_FN = "botoMaxConnections"
+    MAPPER_FN = "mapper"
+    REDUCER_FN = "reducer"
+    REDUCER_COORDINATOR_FN = "reducerCoordinator"
+    DRIVER_FN = "driver"
+    LOCATION_FN = "location"
+    HANDLER_FN = "handler"
+    ZIP_FN = "zip"
+
+    # static-job-info-.json
+    JOB_NAME_FN = "jobName"
+    LAMBDA_NAME_PREFIX_FN = "lambdaNamePrefix"
+    INPUT_SOURCE_FN = "inputSource"
+    INPUT_PREFIX_FN = "inputPrefix"
+    OUTPUT_SOURCE_FN = "outputSource"
+    OUTPUT_PREFIX_FN = "outputPrefix"
+    REDUCER_LAMBDA_NAME_FN = "reducerLambdaName"
+    DRIVER_LAMBDA_NAME_FN = "driverLambdaName"
+    USE_COMBINE_FLAG_FN = "useCombine"
+    REDUCE_HANDLER_FN = "reduceHandler"
+    LOCAL_TESTING_FLAG_FN = "localTesting"
+
+    # static-job-info-.json and driver.json
+    SHUFFLING_BUCKET_FN = "shufflingBucket"
+    NUM_REDUCER_FN = "numReducers"

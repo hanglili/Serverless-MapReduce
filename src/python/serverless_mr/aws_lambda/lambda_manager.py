@@ -7,9 +7,9 @@ from serverless_mr.static.static_variables import StaticVariables
 
 class LambdaManager(object):
     def __init__(self, lambda_client, s3, region, code_path, job_id, filename, handler,
-                 memory_limit=StaticVariables.LAMBDA_MEMORY_LIMIT):
+                 memory_limit=StaticVariables.DEFAULT_LAMBDA_MEMORY_LIMIT):
         self.lambda_client = lambda_client
-        self.region = StaticVariables.DEFAULT_REGION if region is None else region
+        self.region = region
         self.s3 = s3
         self.code_file = code_path
         self.job_id = job_id
@@ -17,7 +17,7 @@ class LambdaManager(object):
         self.handler = handler
         self.role = os.environ.get("serverless_mapreduce_role")
         self.memory = memory_limit
-        self.timeout = StaticVariables.LAMBDA_TIMEOUT
+        self.timeout = StaticVariables.DEFAULT_LAMBDA_TIMEOUT
         self.function_arn = None  # set after creation
 
     # TracingConfig parameter switches X-Ray tracing on/off.
@@ -119,7 +119,7 @@ class LambdaManager(object):
         Delete all Lambda log group and log streams for a given function
         """
         static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
-        if static_job_info['localTesting']:
+        if static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
             log_client = boto3.client('logs', aws_access_key_id='', aws_secret_access_key='',
                                       region_name=StaticVariables.DEFAULT_REGION,
                                       endpoint_url='http://localhost:4586')

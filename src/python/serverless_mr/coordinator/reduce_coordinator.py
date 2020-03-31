@@ -6,7 +6,7 @@ from serverless_mr.static.static_variables import StaticVariables
 
 # create an S3 and Lambda session
 static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
-if static_job_info['localTesting']:
+if static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
     s3_client = boto3.client('s3', aws_access_key_id='', aws_secret_access_key='',
                              region_name=StaticVariables.DEFAULT_REGION,
                              endpoint_url='http://%s:4572' % os.environ['LOCALSTACK_HOSTNAME'])
@@ -35,25 +35,26 @@ def lambda_handler(event, _):
     # start_time = time.time()
 
     # Job Bucket. We just got a notification from this bucket
-    job_bucket = event['Records'][0]['s3']['bucket']['name']
+    shuffling_bucket = event['Records'][0]['s3']['bucket']['name']
 
     # key = urllib.unquote_plus(event['Records'][0]['s3']['object']['key'].encode('utf8'))
 
-    job_id = static_job_info["jobId"]
-    reduce_function_name = static_job_info["reducerFunction"]
-    output_bucket = static_job_info['outputBucket']
-    output_prefix = static_job_info['outputPrefix']
+    job_name = static_job_info[StaticVariables.JOB_NAME_FN]
+    reduce_lambda_name = static_job_info[StaticVariables.REDUCER_LAMBDA_NAME_FN]
+    # TODO: Not necessary?
+    output_source = static_job_info[StaticVariables.OUTPUT_SOURCE_FN]
+    output_prefix = static_job_info[StaticVariables.OUTPUT_PREFIX_FN]
     # reduce_handler = static_job_info["reducerHandler"]
-    num_reducers = static_job_info["reduceCount"]
-    use_combine = static_job_info["useCombine"]
+    num_reducers = static_job_info[StaticVariables.NUM_REDUCER_FN]
+    use_combine = static_job_info[StaticVariables.USE_COMBINE_FLAG_FN]
 
     map_count = int(os.environ.get("num_mappers"))
 
-    prefix = "%s/%sbin%s/" % (job_id, StaticVariables.MAP_OUTPUT_PREFIX, str(num_reducers))
+    mapper_output_prefix = "%s/%sbin%s/" % (job_name, StaticVariables.MAP_OUTPUT_PREFIX, str(num_reducers))
 
     # Get Mapper Finished Count
     # Get job files
-    files = s3_client.list_objects(Bucket=job_bucket, Prefix=prefix)["Contents"]
+    files = s3_client.list_objects(Bucket=shuffling_bucket, Prefix=mapper_output_prefix)["Contents"]
 
     # Stateless Coordinator logic
     num_finished_mappers = len(files)
@@ -62,22 +63,22 @@ def lambda_handler(event, _):
     if map_count == num_finished_mappers:
 
         # All the mappers have finished, time to schedule the reducers
-        bins_of_keys = get_mapper_files(num_reducers, job_bucket, job_id)
+        bins_of_keys = get_mapper_files(num_reducers, shuffling_bucket, job_name)
 
         for i in range(1, num_reducers + 1):
             cur_reducer_keys = [b['Key'] for b in bins_of_keys[i]]
-            print("The reduce function name is", reduce_function_name)
+            print("The reduce function name is", reduce_lambda_name)
             # invoke the reducers asynchronously
             response = lambda_client.invoke(
-                FunctionName=reduce_function_name,
+                FunctionName=reduce_lambda_name,
                 InvocationType='Event',
                 Payload=json.dumps({
-                    "bucket": job_bucket,
-                    "outputBucket": output_bucket,
+                    "bucket": shuffling_bucket,
+                    "outputBucket": output_source,
                     "outputPrefix": output_prefix,
                     "keys": cur_reducer_keys,
-                    "jobBucket": job_bucket,
-                    "jobId": job_id,
+                    "jobBucket": shuffling_bucket,
+                    "jobId": job_name,
                     "useCombine": use_combine,
                     # "numReducers": num_reducers,
                     # "stepId": step_id,

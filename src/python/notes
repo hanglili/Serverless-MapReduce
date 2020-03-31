@@ -1,0 +1,4 @@
+CONFIG FILES:
+static-job-info.json:
+"outputSource": "serverless-mapreduce-storage", // Optional
+"outputPrefix": "output/", // Optional

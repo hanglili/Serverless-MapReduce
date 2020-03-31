@@ -8,7 +8,7 @@ from serverless_mr.static.static_variables import StaticVariables
 
 # create an S3 & Dynamo session
 static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
-if static_job_info['localTesting']:
+if static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
     s3_client = boto3.client('s3', aws_access_key_id='', aws_secret_access_key='',
                              region_name=StaticVariables.DEFAULT_REGION,
                              endpoint_url='http://%s:4572' % os.environ['LOCALSTACK_HOSTNAME'])
