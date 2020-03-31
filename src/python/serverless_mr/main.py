@@ -130,25 +130,25 @@ def put_items(client, table_name, filepath):
 
 
 # DynamoDB table is config["bucket"]?
-def set_up_input_data(config):
-    print("Setting up input data")
-    client = boto3.client('dynamodb', aws_access_key_id='', aws_secret_access_key='', region_name='us-east-1',
-                             endpoint_url='http://localhost:4569')
-    prefix = config[StaticVariables.INPUT_PREFIX_FN]
-    create_dynamo_table(client, '%sinput-1' % prefix)
-    create_dynamo_table(client, '%sinput-2' % prefix)
-    create_dynamo_table(client, '%sinput-4' % prefix)
-    put_items(client, ('%sinput-1' % prefix), '../../input_data/testing_partitioned/input-5')
-    put_items(client, ('%sinput-2' % prefix), '../../input_data/testing_partitioned/input-6')
-    # put_items(client, ('%sinput-4' % prefix), '../../input_data/testing_partitioned/input-4')
-    print("Finished setting up input data")
-    response = client.get_item(
-        Key={
-            'id': {'N': '1'}
-        },
-        TableName=('%sinput-2' % prefix)
-    )
-    print(response['Item'])
+# def set_up_input_data(config):
+#     print("Setting up input data")
+#     client = boto3.client('dynamodb', aws_access_key_id='', aws_secret_access_key='', region_name='us-east-1',
+#                              endpoint_url='http://localhost:4569')
+#     prefix = config[StaticVariables.INPUT_PREFIX_FN]
+#     create_dynamo_table(client, '%sinput-1' % prefix)
+#     create_dynamo_table(client, '%sinput-2' % prefix)
+#     create_dynamo_table(client, '%sinput-4' % prefix)
+#     put_items(client, ('%sinput-1' % prefix), '../../input_data/testing_partitioned/input-5')
+#     put_items(client, ('%sinput-2' % prefix), '../../input_data/testing_partitioned/input-6')
+#     # put_items(client, ('%sinput-4' % prefix), '../../input_data/testing_partitioned/input-4')
+#     print("Finished setting up input data")
+#     response = client.get_item(
+#         Key={
+#             'id': {'N': '1'}
+#         },
+#         TableName=('%sinput-2' % prefix)
+#     )
+#     print(response['Item'])
 
 
 def init_job(args):

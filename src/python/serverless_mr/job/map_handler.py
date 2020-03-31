@@ -30,12 +30,12 @@ def map_handler(map_function):
     def lambda_handler(event, _):
         start_time = time.time()
 
-        job_bucket = event['jobBucket']
-        src_bucket = event['bucket']
         src_keys = event['keys']
-        job_id = event['jobId']
         mapper_id = event['mapperId']
 
+        shuffling_bucket = static_job_info[StaticVariables.SHUFFLING_BUCKET_FN]
+        input_source = static_job_info[StaticVariables.INPUT_SOURCE_FN]
+        job_name = static_job_info[StaticVariables.JOB_NAME_FN]
         num_bins = static_job_info[StaticVariables.NUM_REDUCER_FN]
         use_combine = static_job_info[StaticVariables.USE_COMBINE_FLAG_FN]
 
@@ -48,29 +48,29 @@ def map_handler(map_function):
         intermediate_data = []
 
         # Download and process all keys
-        for key in src_keys:
-            # TODO: Currently hardcoding the attributes names to be id and lines, change to general names in the future.
-            response = dynamodb_client.scan(TableName=key, ProjectionExpression='line')
-            print(response['Items'])
-            for record in response['Items']:
-                line = record['line']['S']
-                line_count += 1
-                cur_input_pair = (key, line)
-                cur_line_outputs = []
-                map_function(cur_line_outputs, cur_input_pair)
-                intermediate_data += cur_line_outputs
-
-
         # for key in src_keys:
-        #     response = s3_client .get_object(Bucket=src_bucket, Key=key)
-        #     contents = response['Body'].read()
-        #
-        #     for line in contents.decode("utf-8").split('\n')[:-1]:
+        #     # TODO: Currently hardcoding the attributes names to be id and lines, change to general names in the future.
+        #     response = dynamodb_client.scan(TableName=key, ProjectionExpression='line')
+        #     print(response['Items'])
+        #     for record in response['Items']:
+        #         line = record['line']['S']
         #         line_count += 1
         #         cur_input_pair = (key, line)
         #         cur_line_outputs = []
         #         map_function(cur_line_outputs, cur_input_pair)
         #         intermediate_data += cur_line_outputs
+
+
+        for key in src_keys:
+            response = s3_client .get_object(Bucket=input_source, Key=key)
+            contents = response['Body'].read()
+
+            for line in contents.decode("utf-8").split('\n')[:-1]:
+                line_count += 1
+                cur_input_pair = (key, line)
+                cur_line_outputs = []
+                map_function(cur_line_outputs, cur_input_pair)
+                intermediate_data += cur_line_outputs
 
         if use_combine:
             intermediate_data.sort(key=lambda x: x[0])
@@ -121,8 +121,8 @@ def map_handler(map_function):
 
         for i in range(1, num_bins + 1):
             partition_id = "bin%s" % i
-            mapper_filename = "%s/%s%s/%s" % (job_id, StaticVariables.MAP_OUTPUT_PREFIX, partition_id, mapper_id)
-            write_to_s3(job_bucket, mapper_filename, json.dumps(output_partitions[i]), metadata)
+            mapper_filename = "%s/%s%s/%s" % (job_name, StaticVariables.MAP_OUTPUT_PREFIX, partition_id, mapper_id)
+            write_to_s3(shuffling_bucket, mapper_filename, json.dumps(output_partitions[i]), metadata)
 
         return processing_info
     lambda_handler.__wrapped__ = map_function

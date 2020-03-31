@@ -3,7 +3,7 @@
     "lambdaNamePrefix": "BL",
     "shufflingBucket": "serverless-mapreduce-storage",
     "inputSource": "serverless-mapreduce-storage",
-    "inputPrefix": "testing_partitioned-",
+    "inputPrefix": "testing_partitioned/",
     "outputSource": "serverless-mapreduce-storage",
     "outputPrefix": "output/",
     "reducerLambdaName": "BL-reducer-bl-release",

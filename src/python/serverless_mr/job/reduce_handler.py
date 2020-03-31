@@ -77,21 +77,18 @@ def write_to_dynamodb(key, data, metadata):
 
 def reduce_handler(reduce_function):
     def lambda_handler(event, _):
-
         start_time = time.time()
 
-        job_bucket = event['jobBucket']
-        # bucket = event['bucket']
         reduce_keys = event['keys']
-        job_id = event['jobId']
         reducer_id = event['reducerId']
-        # step_id = event['stepId']
-        # n_reducers = event['numReducers']
-        use_combine = event['useCombine']
-        output_bucket = event['outputBucket']
-        output_prefix = \
-            "%s/%s" % (job_id, StaticVariables.REDUCE_OUTPUT_PREFIX) if event['outputPrefix'] == "" \
-            else event['outputPrefix']
+
+        shuffling_bucket = static_job_info[StaticVariables.SHUFFLING_BUCKET_FN]
+        job_name = static_job_info[StaticVariables.JOB_NAME_FN]
+        use_combine = static_job_info[StaticVariables.USE_COMBINE_FLAG_FN]
+        output_source = shuffling_bucket \
+            if StaticVariables.OUTPUT_SOURCE_FN not in static_job_info else static_job_info[StaticVariables.OUTPUT_SOURCE_FN]
+        reduce_output_full_prefix = "%s/%s" % (job_name, StaticVariables.REDUCE_OUTPUT_PREFIX) \
+            if StaticVariables.OUTPUT_PREFIX_FN not in static_job_info else static_job_info[StaticVariables.OUTPUT_PREFIX_FN]
 
         # aggr
         line_count = 0
@@ -101,7 +98,7 @@ def reduce_handler(reduce_function):
 
         # Download and process all keys
         for key in reduce_keys:
-            response = s3_client.get_object(Bucket=job_bucket, Key=key)
+            response = s3_client.get_object(Bucket=shuffling_bucket, Key=key)
             contents = response['Body'].read()
 
             for key_value in json.loads(contents):
@@ -149,13 +146,13 @@ def reduce_handler(reduce_function):
             "memoryUsage": '%s' % resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
         }
 
-        # filename = "%s%s" % (output_prefix, reducer_id)
+        filename = "%s%s" % (reduce_output_full_prefix, reducer_id)
+
+        write_to_s3(output_source, filename, json.dumps(outputs), metadata)
+
+        # filename = "output-%s" % reducer_id
         #
-        # write_to_s3(output_bucket, filename, json.dumps(outputs), metadata)
-
-        filename = "output-%s" % reducer_id
-
-        write_to_dynamodb(filename, outputs, json.dumps(metadata))
+        # write_to_dynamodb(filename, outputs, json.dumps(metadata))
         return processing_info
 
     lambda_handler.__wrapped__ = reduce_function

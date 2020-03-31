@@ -41,10 +41,6 @@ def lambda_handler(event, _):
 
     job_name = static_job_info[StaticVariables.JOB_NAME_FN]
     reduce_lambda_name = static_job_info[StaticVariables.REDUCER_LAMBDA_NAME_FN]
-    # TODO: Not necessary?
-    output_source = static_job_info[StaticVariables.OUTPUT_SOURCE_FN]
-    output_prefix = static_job_info[StaticVariables.OUTPUT_PREFIX_FN]
-    # reduce_handler = static_job_info["reducerHandler"]
     num_reducers = static_job_info[StaticVariables.NUM_REDUCER_FN]
     use_combine = static_job_info[StaticVariables.USE_COMBINE_FLAG_FN]
 
@@ -73,15 +69,7 @@ def lambda_handler(event, _):
                 FunctionName=reduce_lambda_name,
                 InvocationType='Event',
                 Payload=json.dumps({
-                    "bucket": shuffling_bucket,
-                    "outputBucket": output_source,
-                    "outputPrefix": output_prefix,
                     "keys": cur_reducer_keys,
-                    "jobBucket": shuffling_bucket,
-                    "jobId": job_name,
-                    "useCombine": use_combine,
-                    # "numReducers": num_reducers,
-                    # "stepId": step_id,
                     "reducerId": i
                 })
             )
