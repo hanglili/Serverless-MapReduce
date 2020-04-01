@@ -9,7 +9,7 @@ from pathlib import Path
 from serverless_mr.driver.driver import Driver
 from serverless_mr.driver.serverless_driver_setup import ServerlessDriverSetup
 from serverless_mr.static.static_variables import StaticVariables
-
+from serverless_mr.utils import input_handler
 
 project_working_dir = os.getcwd()
 library_dir = Path(os.path.dirname(os.path.realpath(__file__)))
@@ -58,26 +58,18 @@ def tear_down():
     delete_files("job", ["map.py", "reduce.py", "partition.py"])
 
 
-def set_up_input_data(config):
-    print("Setting up input data")
+def set_up_shuffling_bucket(static_job_info):
+    print("Setting up shuffling bucket")
     s3_client = boto3.client('s3', aws_access_key_id='', aws_secret_access_key='', region_name='us-east-1',
                              endpoint_url='http://localhost:4572')
-    input_bucket = config["bucket"]
-    prefix = config["prefix"]
-    # job_bucket = config["jobBucket"]
-    s3_client.create_bucket(Bucket=input_bucket)
+    shuffling_bucket = static_job_info[StaticVariables.SHUFFLING_BUCKET_FN]
+    # TODO: Check if the bucket exists first
+    s3_client.create_bucket(Bucket=shuffling_bucket)
     s3_client.put_bucket_acl(
         ACL='public-read-write',
-        Bucket=input_bucket,
+        Bucket=shuffling_bucket,
     )
-
-    s3_client.upload_file(Filename='../../input_data/testing_partitioned/input-1',
-                          Bucket=input_bucket, Key='%sinput-1' % prefix)
-    s3_client.upload_file(Filename='../../input_data/testing_partitioned/input-2',
-                          Bucket=input_bucket, Key='%sinput-2' % prefix)
-    s3_client.upload_file(Filename='../../input_data/testing_partitioned/input-4',
-                          Bucket=input_bucket, Key='%sinput-4' % prefix)
-    print("Finished setting up input data")
+    print("Finished setting up shuffling bucket")
 
 
 def init_job(args):
@@ -86,12 +78,22 @@ def init_job(args):
     else:
         set_up()
         static_job_info_file = open(StaticVariables.STATIC_JOB_INFO_PATH, "r")
-        config = json.loads(static_job_info_file.read())
+        static_job_info = json.loads(static_job_info_file.read())
         static_job_info_file.close()
-        if config['localTesting']:
+
+        set_up_shuffling_bucket(static_job_info)
+        if static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
             os.chdir(project_working_dir)
-            set_up_input_data(config)
+
+            s3_file_paths = ['../../input_data/testing_partitioned/input-1',
+                             '../../input_data/testing_partitioned/input-2',
+                             '../../input_data/testing_partitioned/input-4']
+            dynamodb_file_paths = ['../../input_data/testing_partitioned/input-5', '../../input_data/testing_partitioned/input-6']
+            cur_input_handler = input_handler.get_input_handler(static_job_info[StaticVariables.INPUT_SOURCE_TYPE_FN])
+            cur_input_handler.set_up_local_input_data(dynamodb_file_paths)
+
             os.chdir(library_working_dir)
+
         mode = args[1]
         print("The mode of run is", mode)
 

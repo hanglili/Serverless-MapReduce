@@ -126,3 +126,27 @@ print("Command output:\n---\n{}\n---".format(result.stdout.decode('UTF-8')))
 #     # # collect all tracing samples
 #     # sampling_rules = {"version": 1, "default": {"fixed_target": 1, "rate": 1}}
 #     # xray_recorder.configure(sampling_rules=sampling_rules)
+
+
+# access_s3.py
+# def write_to_s3(bucket, key, data, metadata):
+#     s3_client = boto3.client('s3', aws_access_key_id='', aws_secret_access_key='',
+#                              region_name=StaticVariables.DEFAULT_REGION, endpoint_url='http://localhost:4572')
+#     # s3_client = boto3.client('s3')
+#     s3_client.put_object(Bucket=bucket, Key=key, Body=data, Metadata=metadata)
+
+
+# def write_job_config(job_id, job_bucket, num_mappers, reducer_function, reduce_handler, reduce_count):
+#     filename = StaticVariables.JOB_INFO_LAMBDA_PATH
+#     with open(filename, 'w') as f:
+#         data = json.dumps({
+#             # "jobId": job_id,
+#             # "jobBucket": job_bucket,
+#             "mapCount": num_mappers,
+#             # "reducerFunction": reducer_function,
+#             # "reducerHandler": reduce_handler,
+#             # "reduceCount": reduce_count
+#         }, indent=4)
+#         f.write(data)
+
+# reducer_lambda_time += float(self.s3.Object(job_bucket, key).metadata['processingtime'])

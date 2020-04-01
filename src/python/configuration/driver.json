@@ -1,28 +1,21 @@
 {
-    "jobBucket": "serverless-mapreduce-storage",
-    "region": "us-east-1",
-    "lambdaMemory": 1536,
-    "concurrentLambdas": 1000,
-    "lambdaReadTimeout": 300,
-    "botoMaxConnections": 1000,
-    "numReducers": 4,
     "mapper": {
-        "name": "serverless_mr/job/map.py",
+        "location": "serverless_mr/job/map.py",
         "handler": "serverless_mr/job/map.map_function",
         "zip": "serverless_mr/map.zip"
     },
     "reducer": {
-        "name": "serverless_mr/job/reduce.py",
+        "location": "serverless_mr/job/reduce.py",
         "handler": "serverless_mr/job/reduce.reduce_function",
         "zip": "serverless_mr/reduce.zip"
     },
     "reducerCoordinator": {
-        "name": "serverless_mr/coordinator/reduce_coordinator.py",
+        "location": "serverless_mr/coordinator/reduce_coordinator.py",
         "handler": "serverless_mr/coordinator/reduce_coordinator.lambda_handler",
         "zip": "serverless_mr/reduce_coordinator.zip"
     },
     "driver": {
-        "name": "serverless_mr/driver/serverless_driver.py",
+        "location": "serverless_mr/driver/serverless_driver.py",
         "handler": "serverless_mr/driver/serverless_driver.lambda_handler",
         "zip": "serverless_mr/serverless_driver.zip"
     }

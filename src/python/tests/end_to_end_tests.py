@@ -31,8 +31,8 @@ class Test(TestCase):
 
         # Output
         output_bin = 3
-        output_prefix = self.static_job_info['outputPrefix']
-        output_bucket = self.static_job_info['outputBucket']
+        output_prefix = self.static_job_info[StaticVariables.OUTPUT_PREFIX_FN]
+        output_bucket = self.static_job_info[StaticVariables.OUTPUT_SOURCE_FN]
         output_filepath = "%s%s" % (output_prefix, str(output_bin))
         response = self.s3_client.get_object(Bucket=output_bucket, Key=output_filepath)
         contents = response['Body'].read()
