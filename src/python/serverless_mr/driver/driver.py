@@ -272,3 +272,6 @@ class Driver:
         # 6. Delete Reducer and its coordinator function
         l_reducer.delete_function()
         l_rc.delete_function()
+
+        # 7. View one of the reducer results
+        # print(self.cur_output_handler.get_output(3))

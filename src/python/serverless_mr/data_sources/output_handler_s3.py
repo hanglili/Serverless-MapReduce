@@ -57,3 +57,20 @@ class OutputHandlerS3:
                                              ['Metadata']['processingtime'])
             return reducer_lambda_time, total_s3_size, len(job_keys)
         return -1, -1, -1
+
+    def get_output(self, reducer_id):
+        output_source = self.static_job_info[StaticVariables.SHUFFLING_BUCKET_FN] \
+            if StaticVariables.OUTPUT_SOURCE_FN not in self.static_job_info \
+            else self.static_job_info[StaticVariables.OUTPUT_SOURCE_FN]
+
+        job_name = self.static_job_info[StaticVariables.JOB_NAME_FN]
+        reduce_output_full_prefix = "%s/%s" % (job_name, StaticVariables.REDUCE_OUTPUT_PREFIX_S3) \
+            if StaticVariables.OUTPUT_PREFIX_FN not in self.static_job_info \
+            else self.static_job_info[StaticVariables.OUTPUT_PREFIX_FN]
+
+        output_file_name = "%s/%s" % (reduce_output_full_prefix, reducer_id)
+
+        response = self.client.get_object(Bucket=output_source, Key=output_file_name)
+        contents = response['Body'].read()
+
+        return contents.decode("utf-8").split(',')

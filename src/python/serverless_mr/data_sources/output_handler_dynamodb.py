@@ -105,3 +105,19 @@ class OutputHandlerDynamoDB:
             return reducer_lambda_time, total_s3_size, len(job_keys)
 
         return -1, -1, -1
+
+    def get_output(self, reducer_id):
+        job_name = self.static_job_info[StaticVariables.JOB_NAME_FN]
+        reduce_output_full_prefix = "%s-%s" % (job_name, StaticVariables.REDUCE_OUTPUT_PREFIX_DYNAMODB) \
+            if StaticVariables.OUTPUT_PREFIX_FN not in self.static_job_info \
+            else self.static_job_info[StaticVariables.OUTPUT_PREFIX_FN]
+
+        output_table_name = "%s-%s" % (reduce_output_full_prefix, reducer_id)
+
+        outputs = []
+        response = self.client.scan(TableName=output_table_name)
+        for record in response['Items']:
+            output = (record['id']['S'], record['line']['S'])
+            outputs.append(output)
+
+        return outputs
