@@ -25,6 +25,8 @@ class StaticVariables:
     MAP_OUTPUT_PREFIX = "task/mapper"
     REDUCE_OUTPUT_PREFIX_S3 = "task/reducer"
     REDUCE_OUTPUT_PREFIX_DYNAMODB = "task-reducer"
+    MAPPER_PHASE_STATE_DYNAMODB_TABLE_NAME = "mapper-phase-state"
+    MAPPER_PHASE_STATE_PATH = "serverless_mr/utils/map_phase_state.py"
 
 
     # Constants

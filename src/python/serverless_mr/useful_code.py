@@ -150,3 +150,15 @@ print("Command output:\n---\n{}\n---".format(result.stdout.decode('UTF-8')))
 #         f.write(data)
 
 # reducer_lambda_time += float(self.s3.Object(job_bucket, key).metadata['processingtime'])
+
+# map_phase_state.py
+# response = self.client.update_item(
+#     TableName=table_name,
+#     Key={
+#         'id': {'N': str(MapPhaseState.DUMMY_ID)}
+#     },
+#     UpdateExpression="ADD #counter :increment",
+#     ExpressionAttributeNames={'#counter': 'num_completed_mappers'},
+#     ExpressionAttributeValues={':increment': {'N': '1'}},
+#     ReturnValues="UPDATED_NEW"
+# )

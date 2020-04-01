@@ -87,10 +87,11 @@ def init_job(args):
 
             s3_file_paths = ['../../input_data/testing_partitioned/input-1',
                              '../../input_data/testing_partitioned/input-2',
+                             '../../input_data/testing_partitioned/input-3',
                              '../../input_data/testing_partitioned/input-4']
             dynamodb_file_paths = ['../../input_data/testing_partitioned/input-5', '../../input_data/testing_partitioned/input-6']
             cur_input_handler = input_handler.get_input_handler(static_job_info[StaticVariables.INPUT_SOURCE_TYPE_FN])
-            cur_input_handler.set_up_local_input_data(dynamodb_file_paths)
+            cur_input_handler.set_up_local_input_data(s3_file_paths)
 
             os.chdir(library_working_dir)
 

@@ -5,7 +5,7 @@
     "inputSourceType": "s3",
     "inputSource": "serverless-mapreduce-storage",
     "inputPrefix": "testing_partitioned",
-    "outputSourceType": "dynamodb",
+    "outputSourceType": "s3",
     "outputSource": "serverless-mapreduce-storage",
     "outputPrefix": "output",
     "reducerLambdaName": "BL-reducer-bl-release",
