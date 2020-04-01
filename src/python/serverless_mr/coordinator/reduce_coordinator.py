@@ -46,16 +46,6 @@ def lambda_handler(event, _):
 
     map_count = int(os.environ.get("num_mappers"))
 
-    # mapper_output_prefix = "%s/%s/bin%s/" % (job_name, StaticVariables.MAP_OUTPUT_PREFIX, str(num_reducers))
-    #
-    # # Get Mapper Finished Count
-    # # Get job files
-    # files = s3_client.list_objects(Bucket=shuffling_bucket, Prefix=mapper_output_prefix)["Contents"]
-    #
-    # # Stateless Coordinator logic
-    # num_finished_mappers = len(files)
-    # print("Number of mappers completed: ", num_finished_mappers)
-
     cur_map_phase_state = map_phase_state.MapPhaseState(in_lambda=True)
     response = cur_map_phase_state.increment_num_completed_mapper(StaticVariables.MAPPER_PHASE_STATE_DYNAMODB_TABLE_NAME)
     num_finished_mappers = int(response["Attributes"]["num_completed_mappers"]["N"])

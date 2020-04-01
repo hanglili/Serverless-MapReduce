@@ -52,7 +52,7 @@ class MapPhaseState:
         print("Map Phase state table created successfully")
 
     def initialise_state_table(self, table_name):
-        response = self.client.put_item(
+        self.client.put_item(
             TableName=table_name,
             Item={
                 'id': {'N': str(MapPhaseState.DUMMY_ID)},
@@ -63,16 +63,6 @@ class MapPhaseState:
         print("Map Phase state table initialised successfully")
 
     def increment_num_completed_mapper(self, table_name):
-        # response = self.client.update_item(
-        #     TableName=table_name,
-        #     Key={
-        #         'id': {'N': str(MapPhaseState.DUMMY_ID)}
-        #     },
-        #     UpdateExpression="ADD #counter :increment",
-        #     ExpressionAttributeNames={'#counter': 'num_completed_mappers'},
-        #     ExpressionAttributeValues={':increment': {'N': '1'}},
-        #     ReturnValues="UPDATED_NEW"
-        # )
         response = self.client.update_item(
             TableName=table_name,
             Key={
