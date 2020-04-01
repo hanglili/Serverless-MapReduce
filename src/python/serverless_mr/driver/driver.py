@@ -4,7 +4,7 @@ import random
 import time
 import os
 
-from serverless_mr.utils import lambda_utils, zip, input_handler, output_handler
+from serverless_mr.utils import lambda_utils, zip, input_handler, output_handler, map_phase_state
 from serverless_mr.aws_lambda import lambda_manager
 from multiprocessing.dummy import Pool as ThreadPool
 from functools import partial
@@ -38,6 +38,12 @@ class Driver:
                                                                  self.is_serverless)
         self.cur_output_handler = output_handler.get_output_handler(self.static_job_info[StaticVariables.OUTPUT_SOURCE_TYPE_FN],
                                                                     self.is_serverless)
+        self.map_phase_state = map_phase_state.MapPhaseState(self.is_serverless)
+        self._initialise_map_phase_state()
+
+    def _initialise_map_phase_state(self):
+        self.map_phase_state.create_state_table(StaticVariables.MAPPER_PHASE_STATE_DYNAMODB_TABLE_NAME)
+        self.map_phase_state.initialise_state_table(StaticVariables.MAPPER_PHASE_STATE_DYNAMODB_TABLE_NAME)
 
     # Get all keys to be processed
     def _get_all_keys(self):

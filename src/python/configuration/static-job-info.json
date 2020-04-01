@@ -2,7 +2,7 @@
     "jobName": "bl-release",
     "lambdaNamePrefix": "BL",
     "shufflingBucket": "serverless-mapreduce-storage",
-    "inputSourceType": "s3",
+    "inputSourceType": "dynamodb",
     "inputSource": "serverless-mapreduce-storage",
     "inputPrefix": "testing_partitioned",
     "outputSourceType": "dynamodb",
