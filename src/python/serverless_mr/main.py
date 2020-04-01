@@ -63,7 +63,6 @@ def set_up_shuffling_bucket(static_job_info):
     s3_client = boto3.client('s3', aws_access_key_id='', aws_secret_access_key='', region_name='us-east-1',
                              endpoint_url='http://localhost:4572')
     shuffling_bucket = static_job_info[StaticVariables.SHUFFLING_BUCKET_FN]
-    # TODO: Check if the bucket exists first
     s3_client.create_bucket(Bucket=shuffling_bucket)
     s3_client.put_bucket_acl(
         ACL='public-read-write',
@@ -91,7 +90,7 @@ def init_job(args):
                              '../../input_data/testing_partitioned/input-4']
             dynamodb_file_paths = ['../../input_data/testing_partitioned/input-5', '../../input_data/testing_partitioned/input-6']
             cur_input_handler = input_handler.get_input_handler(static_job_info[StaticVariables.INPUT_SOURCE_TYPE_FN])
-            cur_input_handler.set_up_local_input_data(s3_file_paths)
+            cur_input_handler.set_up_local_input_data(dynamodb_file_paths)
 
             os.chdir(library_working_dir)
 

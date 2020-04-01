@@ -20,8 +20,6 @@ class ServerlessDriverSetup:
 
     # Serverless set up
     def register_driver(self):
-        # init
-        # bucket = self.config["bucket"]
         region = self.config[StaticVariables.REGION_FN] \
             if StaticVariables.REGION_FN in self.config else StaticVariables.DEFAULT_REGION
         # lambda_memory = self.config["lambdaMemory"]
@@ -30,8 +28,6 @@ class ServerlessDriverSetup:
             if StaticVariables.LAMBDA_READ_TIMEOUT_FN in self.config else StaticVariables.DEFAULT_LAMBDA_READ_TIMEOUT
         boto_max_connections = self.config[StaticVariables.BOTO_MAX_CONNECTIONS_FN] \
             if StaticVariables.BOTO_MAX_CONNECTIONS_FN in self.config else StaticVariables.DEFAULT_BOTO_MAX_CONNECTIONS
-        # job_bucket = self.config["jobBucket"]
-        # num_reducers = self.config["numReducers"]
 
         driver_lambda_name = self.static_job_info[StaticVariables.DRIVER_LAMBDA_NAME_FN]
         job_name = self.static_job_info[StaticVariables.JOB_NAME_FN]
@@ -59,7 +55,6 @@ class ServerlessDriverSetup:
         l_driver.update_code_or_create_on_no_exist()
 
     def invoke(self):
-        # init
         region = self.config[StaticVariables.REGION_FN] \
             if StaticVariables.REGION_FN in self.config else StaticVariables.DEFAULT_REGION
         lambda_read_timeout = self.config[StaticVariables.LAMBDA_READ_TIMEOUT_FN] \

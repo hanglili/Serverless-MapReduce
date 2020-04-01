@@ -21,15 +21,15 @@ class InputHandlerDynamoDB:
             self.client = boto3.client('dynamodb')
 
     @staticmethod
-    def create_table(client, table_name):
+    def create_table(client, table_name, input_key_name):
          client.create_table(
             AttributeDefinitions=[{
-                'AttributeName': 'id',
-                'AttributeType': 'N'
+                'AttributeName': input_key_name,
+                'AttributeType': 'S'
             }],
             TableName=table_name,
             KeySchema=[{
-                'AttributeName': 'id',
+                'AttributeName': input_key_name,
                 'KeyType': 'HASH'
             }],
             ProvisionedThroughput={
@@ -39,7 +39,7 @@ class InputHandlerDynamoDB:
         )
 
     @staticmethod
-    def put_items(client, table_name, filepath):
+    def put_items(client, table_name, filepath, input_key_name, input_column_name):
         with open(filepath) as fp:
             line = fp.readline()
             id_cnt = 1
@@ -47,8 +47,8 @@ class InputHandlerDynamoDB:
                 response = client.put_item(
                     TableName=table_name,
                     Item={
-                        'id': {'N': str(id_cnt)},
-                        'line': {'S': line.strip()}
+                        input_key_name: {'S': str(id_cnt)},
+                        input_column_name: {'S': line.strip()}
                     }
                 )
                 line = fp.readline()
@@ -56,22 +56,16 @@ class InputHandlerDynamoDB:
 
     # DynamoDB table is config["bucket"]?
     def set_up_local_input_data(self, input_file_paths):
-        print("Setting up local input data")
         prefix = self.static_job_info[StaticVariables.INPUT_PREFIX_FN]
+        input_key_name = self.static_job_info[StaticVariables.INPUT_KEY_NAME_DYNAMODB]
+        input_column_name = self.static_job_info[StaticVariables.INPUT_COLUMN_NAME_DYNAMODB]
         for i in range(len(input_file_paths)):
             input_filepath = input_file_paths[i]
             table_name = '%s-input-%s' % (prefix, str(i + 1))
-            InputHandlerDynamoDB.create_table(self.client, table_name)
-            InputHandlerDynamoDB.put_items(self.client, table_name, input_filepath)
+            InputHandlerDynamoDB.create_table(self.client, table_name, input_key_name)
+            InputHandlerDynamoDB.put_items(self.client, table_name, input_filepath, input_key_name, input_column_name)
 
-        print("Finished setting up local input data")
-        response = self.client.get_item(
-            Key={
-                'id': {'N': '1'}
-            },
-            TableName=('%s-input-2' % prefix)
-        )
-        print(response['Item'])
+        print("Set up local input data successfully")
 
     def get_all_input_keys(self):
         # Returns all input keys to be processed: a list of format obj where obj is a map of {'Key': ..., 'Size': ...}
@@ -88,11 +82,11 @@ class InputHandlerDynamoDB:
 
     def read_records_from_input_key(self, input_key):
         lines = []
-        # TODO: Currently hardcoding the attributes names to be id and lines, change to user-provided names in the future.
-        response = self.client.scan(TableName=input_key, ProjectionExpression='line')
+        input_column_name = self.static_job_info[StaticVariables.INPUT_COLUMN_NAME_DYNAMODB]
+        response = self.client.scan(TableName=input_key, ProjectionExpression=input_column_name)
         print(response['Items'])
         for record in response['Items']:
-            line = record['line']['S']
+            line = record[input_column_name]['S']
             lines.append(line)
 
         return lines

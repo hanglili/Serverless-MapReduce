@@ -69,3 +69,9 @@ class StaticVariables:
     USE_COMBINE_FLAG_FN = "useCombine"
     REDUCE_HANDLER_FN = "reduceHandler"
     LOCAL_TESTING_FLAG_FN = "localTesting"
+
+    # specific to DynamoDB
+    INPUT_KEY_NAME_DYNAMODB = "inputKeyNameDynamoDB"
+    INPUT_COLUMN_NAME_DYNAMODB = "inputColumnNameDynamoDB"
+    OUTPUT_KEY_NAME_DYNAMODB = "outputKeyNameDynamoDB"
+    OUTPUT_COLUMN_NAME_DYNAMODB = "outputColumnNameDynamoDB"

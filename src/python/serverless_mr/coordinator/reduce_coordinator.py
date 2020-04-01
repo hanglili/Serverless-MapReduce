@@ -38,7 +38,6 @@ def lambda_handler(event, _):
     # Job Bucket. We just got a notification from this bucket
     shuffling_bucket = event['Records'][0]['s3']['bucket']['name']
 
-    # key = urllib.unquote_plus(event['Records'][0]['s3']['object']['key'].encode('utf8'))
 
     job_name = static_job_info[StaticVariables.JOB_NAME_FN]
     reduce_lambda_name = static_job_info[StaticVariables.REDUCER_LAMBDA_NAME_FN]

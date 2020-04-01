@@ -21,7 +21,6 @@ class InputHandlerS3:
             self.client = boto3.client('s3')
 
     def set_up_local_input_data(self, input_file_paths):
-        print("Setting up local input data")
         input_bucket = self.static_job_info[StaticVariables.INPUT_SOURCE_FN]
         prefix = self.static_job_info[StaticVariables.INPUT_PREFIX_FN]
 
@@ -38,7 +37,7 @@ class InputHandlerS3:
                                     Bucket=input_bucket,
                                     Key=key)
 
-        print("Finished setting up local input data")
+        print("Set up local input data successfully")
 
     def get_all_input_keys(self):
         # Returns all input keys to be processed: a list of format obj where obj is a map of {'Key': ..., 'Size': ...}

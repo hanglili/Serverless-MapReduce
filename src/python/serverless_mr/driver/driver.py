@@ -47,9 +47,6 @@ class Driver:
 
     # Get all keys to be processed
     def _get_all_keys(self):
-
-        # init
-        input_source = self.static_job_info[StaticVariables.INPUT_SOURCE_FN]
         region = self.config[StaticVariables.REGION_FN] \
             if StaticVariables.REGION_FN in self.config else StaticVariables.DEFAULT_REGION
         lambda_memory = self.config[StaticVariables.LAMBDA_MEMORY_PROVISIONED_FN] \
@@ -91,7 +88,6 @@ class Driver:
 
     # Create the aws_lambda functions
     def _create_lambda(self, num_mappers):
-        # Lambda functions
         job_name = self.static_job_info[StaticVariables.JOB_NAME_FN]
         lambda_name_prefix = self.static_job_info[StaticVariables.LAMBDA_NAME_PREFIX_FN]
         mapper_lambda_name = lambda_name_prefix + "-mapper-" + job_name
@@ -143,7 +139,6 @@ class Driver:
 
     # Write Jobdata to S3
     def _write_job_data(self, all_keys, n_mappers):
-        # xray_recorder.begin_subsegment('Write job data to S3')
         job_name = self.static_job_info[StaticVariables.JOB_NAME_FN]
         j_key = "%s/%s" % (job_name, StaticVariables.JOB_DATA_S3_FILENAME)
         data = json.dumps({
@@ -152,14 +147,9 @@ class Driver:
             "startTime": time.time()
         })
 
-        # Write job data to S3
         self.s3_client.put_object(Bucket=self.static_job_info[StaticVariables.SHUFFLING_BUCKET_FN], Key=j_key, Body=data, Metadata={})
-        # access_s3.write_to_s3(self.config["jobBucket"], j_key, data, {})
 
     def invoke_lambda(self, mapper_outputs, batches, m_id):
-        """
-        aws_lambda invoke function
-        """
         job_name = self.static_job_info[StaticVariables.JOB_NAME_FN]
         lambda_name_prefix = self.static_job_info[StaticVariables.LAMBDA_NAME_PREFIX_FN]
         mapper_lambda_name = lambda_name_prefix + "-mapper-" + job_name
@@ -220,8 +210,6 @@ class Driver:
         lambda_memory = self.config[StaticVariables.LAMBDA_MEMORY_PROVISIONED_FN] \
             if StaticVariables.LAMBDA_MEMORY_PROVISIONED_FN in self.config else StaticVariables.DEFAULT_LAMBDA_MEMORY_LIMIT
 
-        metadata_table_name = 'metadata'
-
         while True:
             print("Checking whether the job is completed...")
             response, string_index = self.cur_output_handler.list_objects_for_checking_finish()
@@ -234,8 +222,7 @@ class Driver:
 
         print("Job Complete")
 
-        # S3 Storage cost - Account for mappers only; This cost is neglibile anyways since S3
-        # costs 3 cents/GB/month
+        # S3 Storage cost - Account for mappers only; This cost is negligible anyways since S3 costs 3 cents/GB/month
         s3_storage_hour_cost = 1 * 0.0000521574022522109 * (total_s3_size / 1024.0 / 1024.0 / 1024.0)  # cost per GB/hr
         s3_put_cost = len_job_keys * 0.005 / 1000
 
@@ -243,12 +230,10 @@ class Driver:
         total_s3_get_ops += len_job_keys
         s3_get_cost = total_s3_get_ops * 0.004 / 10000
 
-        # Total Lambda costs
         total_lambda_secs += reducer_lambda_time
         lambda_cost = total_lambda_secs * 0.00001667 * lambda_memory / 1024.0
         s3_cost = (s3_get_cost + s3_put_cost + s3_storage_hour_cost)
 
-        # Print costs
         print("Reducer L", reducer_lambda_time * 0.00001667 * lambda_memory / 1024.0)
         print("Lambda Cost", lambda_cost)
         print("S3 Storage Cost", s3_storage_hour_cost)
@@ -280,4 +265,4 @@ class Driver:
         l_rc.delete_function()
 
         # 7. View one of the reducer results
-        # print(self.cur_output_handler.get_output(3))
+        print(self.cur_output_handler.get_output(3))
