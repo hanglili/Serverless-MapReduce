@@ -82,16 +82,15 @@ def init_job(args):
 
         set_up_shuffling_bucket(static_job_info)
         if static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
-            os.chdir(project_working_dir)
-
             s3_file_paths = ['../../input_data/testing_partitioned/input-1',
                              '../../input_data/testing_partitioned/input-2',
                              '../../input_data/testing_partitioned/input-3',
                              '../../input_data/testing_partitioned/input-4']
             dynamodb_file_paths = ['../../input_data/testing_partitioned/input-5', '../../input_data/testing_partitioned/input-6']
             cur_input_handler = input_handler.get_input_handler(static_job_info[StaticVariables.INPUT_SOURCE_TYPE_FN])
-            cur_input_handler.set_up_local_input_data(dynamodb_file_paths)
 
+            os.chdir(project_working_dir)
+            cur_input_handler.set_up_local_input_data(dynamodb_file_paths)
             os.chdir(library_working_dir)
 
         mode = args[1]
