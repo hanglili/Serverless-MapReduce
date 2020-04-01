@@ -84,7 +84,6 @@ class InputHandlerDynamoDB:
         lines = []
         input_column_name = self.static_job_info[StaticVariables.INPUT_COLUMN_NAME_DYNAMODB]
         response = self.client.scan(TableName=input_key, ProjectionExpression=input_column_name)
-        print(response['Items'])
         for record in response['Items']:
             line = record[input_column_name]['S']
             lines.append(line)

@@ -12,10 +12,7 @@
     "outputPrefix": "output",
     "outputKeyNameDynamoDB": "ip",
     "outputColumnNameDynamoDB": "revenue",
-    "reducerLambdaName": "BL-reducer-bl-release",
-    "driverLambdaName": "BL-driver-bl-release",
     "useCombine": false,
-    "reduceHandler": "serverless_mr/job/reduce.reduce_function",
     "numReducers": 4,
     "localTesting": true
 }

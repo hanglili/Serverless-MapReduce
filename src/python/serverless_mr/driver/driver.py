@@ -90,9 +90,10 @@ class Driver:
     def _create_lambda(self, num_mappers):
         job_name = self.static_job_info[StaticVariables.JOB_NAME_FN]
         lambda_name_prefix = self.static_job_info[StaticVariables.LAMBDA_NAME_PREFIX_FN]
+
         mapper_lambda_name = lambda_name_prefix + "-mapper-" + job_name
         reducer_lambda_name = lambda_name_prefix + "-reducer-" + job_name
-        rc_lambda_name = lambda_name_prefix + "-rc-" + job_name
+        rc_lambda_name = lambda_name_prefix + "-reduce-coordinator-" + job_name
 
         shuffling_bucket = self.static_job_info[StaticVariables.SHUFFLING_BUCKET_FN]
         region = self.config[StaticVariables.REGION_FN] \

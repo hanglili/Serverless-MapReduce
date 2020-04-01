@@ -64,10 +64,7 @@ class StaticVariables:
     OUTPUT_SOURCE_TYPE_FN = "outputSourceType"
     OUTPUT_SOURCE_FN = "outputSource"
     OUTPUT_PREFIX_FN = "outputPrefix"
-    REDUCER_LAMBDA_NAME_FN = "reducerLambdaName"
-    DRIVER_LAMBDA_NAME_FN = "driverLambdaName"
     USE_COMBINE_FLAG_FN = "useCombine"
-    REDUCE_HANDLER_FN = "reduceHandler"
     LOCAL_TESTING_FLAG_FN = "localTesting"
 
     # specific to DynamoDB

@@ -22,15 +22,13 @@ class ServerlessDriverSetup:
     def register_driver(self):
         region = self.config[StaticVariables.REGION_FN] \
             if StaticVariables.REGION_FN in self.config else StaticVariables.DEFAULT_REGION
-        # lambda_memory = self.config["lambdaMemory"]
-        # concurrent_lambdas = self.config["concurrentLambdas"]
         lambda_read_timeout = self.config[StaticVariables.LAMBDA_READ_TIMEOUT_FN] \
             if StaticVariables.LAMBDA_READ_TIMEOUT_FN in self.config else StaticVariables.DEFAULT_LAMBDA_READ_TIMEOUT
         boto_max_connections = self.config[StaticVariables.BOTO_MAX_CONNECTIONS_FN] \
             if StaticVariables.BOTO_MAX_CONNECTIONS_FN in self.config else StaticVariables.DEFAULT_BOTO_MAX_CONNECTIONS
-
-        driver_lambda_name = self.static_job_info[StaticVariables.DRIVER_LAMBDA_NAME_FN]
         job_name = self.static_job_info[StaticVariables.JOB_NAME_FN]
+        lambda_name_prefix = self.static_job_info[StaticVariables.LAMBDA_NAME_PREFIX_FN]
+        driver_lambda_name = lambda_name_prefix + "-driver-" + job_name
 
         zip.zip_lambda(self.config[StaticVariables.MAPPER_FN][StaticVariables.LOCATION_FN],
                        self.config[StaticVariables.MAPPER_FN][StaticVariables.ZIP_FN])
@@ -61,8 +59,8 @@ class ServerlessDriverSetup:
             if StaticVariables.LAMBDA_READ_TIMEOUT_FN in self.config else StaticVariables.DEFAULT_LAMBDA_READ_TIMEOUT
         boto_max_connections = self.config[StaticVariables.BOTO_MAX_CONNECTIONS_FN] \
             if StaticVariables.BOTO_MAX_CONNECTIONS_FN in self.config else StaticVariables.DEFAULT_BOTO_MAX_CONNECTIONS
-
-        driver_lambda_name = self.static_job_info[StaticVariables.DRIVER_LAMBDA_NAME_FN]
+        driver_lambda_name = self.static_job_info[StaticVariables.LAMBDA_NAME_PREFIX_FN] \
+                             + "-driver-" + self.static_job_info[StaticVariables.JOB_NAME_FN]
 
         lambda_config = Config(read_timeout=lambda_read_timeout,
                                max_pool_connections=boto_max_connections,

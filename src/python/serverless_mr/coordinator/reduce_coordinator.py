@@ -40,7 +40,7 @@ def lambda_handler(event, _):
 
 
     job_name = static_job_info[StaticVariables.JOB_NAME_FN]
-    reduce_lambda_name = static_job_info[StaticVariables.REDUCER_LAMBDA_NAME_FN]
+    lambda_name_prefix = static_job_info[StaticVariables.LAMBDA_NAME_PREFIX_FN]
     num_reducers = static_job_info[StaticVariables.NUM_REDUCER_FN]
 
     map_count = int(os.environ.get("num_mappers"))
@@ -54,13 +54,13 @@ def lambda_handler(event, _):
 
         # All the mappers have finished, time to schedule the reducers
         bins_of_keys = get_mapper_files(num_reducers, shuffling_bucket, job_name)
+        reducer_lambda_name = lambda_name_prefix + "-reducer-" + job_name
 
         for i in range(1, num_reducers + 1):
             cur_reducer_keys = [b['Key'] for b in bins_of_keys[i]]
-            print("The reduce function name is", reduce_lambda_name)
             # invoke the reducers asynchronously
             response = lambda_client.invoke(
-                FunctionName=reduce_lambda_name,
+                FunctionName=reducer_lambda_name,
                 InvocationType='Event',
                 Payload=json.dumps({
                     "keys": cur_reducer_keys,
