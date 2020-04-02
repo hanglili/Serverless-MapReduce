@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="serverless-mr", # Replace with your own username
-    version="1.3.1",
+    version="1.3.2",
     author="Hang Li Li",
     author_email="hl4716@ic.ac.uk",
     description="Serverless Map Reduce",

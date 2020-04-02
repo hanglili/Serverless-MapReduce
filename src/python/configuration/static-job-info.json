@@ -2,17 +2,19 @@
     "jobName": "bl-release",
     "lambdaNamePrefix": "BL",
     "shufflingBucket": "serverless-mapreduce-storage",
-    "inputSourceType": "dynamodb",
+    "inputSourceType": "s3",
     "inputSource": "serverless-mapreduce-storage",
     "inputPrefix": "testing_partitioned",
     "inputKeyNameDynamoDB": "record_id",
     "inputColumnNameDynamoDB": "information",
-    "outputSourceType": "dynamodb",
+    "outputSourceType": "s3",
     "outputSource": "serverless-mapreduce-storage",
     "outputPrefix": "output",
     "outputKeyNameDynamoDB": "ip",
     "outputColumnNameDynamoDB": "revenue",
     "useCombine": false,
     "numReducers": 4,
-    "localTesting": true
+    "localTesting": true,
+    "localTestingInputPath": "../../input_data/testing_partitioned/s3/",
+    "serverlessDriver": true
 }

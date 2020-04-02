@@ -66,6 +66,8 @@ class StaticVariables:
     OUTPUT_PREFIX_FN = "outputPrefix"
     USE_COMBINE_FLAG_FN = "useCombine"
     LOCAL_TESTING_FLAG_FN = "localTesting"
+    LOCAL_TESTING_INPUT_PATH = "localTestingInputPath"
+    SERVERLESS_DRIVER_FLAG_FN = "serverlessDriver"
 
     # specific to DynamoDB
     INPUT_KEY_NAME_DYNAMODB = "inputKeyNameDynamoDB"

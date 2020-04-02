@@ -4,6 +4,7 @@ import json
 import importlib.resources
 import os
 import shutil
+import glob
 
 from pathlib import Path
 from serverless_mr.driver.driver import Driver
@@ -71,46 +72,40 @@ def set_up_shuffling_bucket(static_job_info):
     print("Finished setting up shuffling bucket")
 
 
-def init_job(args):
-    if len(args) < 2:
-        print("Wrong number of arguments.")
+def init_job():
+    set_up()
+    static_job_info_file = open(StaticVariables.STATIC_JOB_INFO_PATH, "r")
+    static_job_info = json.loads(static_job_info_file.read())
+    static_job_info_file.close()
+
+    set_up_shuffling_bucket(static_job_info)
+    if static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
+        cur_input_handler = input_handler.get_input_handler(static_job_info[StaticVariables.INPUT_SOURCE_TYPE_FN])
+
+        os.chdir(project_working_dir)
+        local_testing_input_path = static_job_info[StaticVariables.LOCAL_TESTING_INPUT_PATH]
+        local_file_paths = glob.glob(local_testing_input_path + "*")
+        print(local_file_paths)
+        cur_input_handler.set_up_local_input_data(local_file_paths)
+        os.chdir(library_working_dir)
+
+    is_serverless_driver = static_job_info[StaticVariables.SERVERLESS_DRIVER_FLAG_FN]
+
+    if is_serverless_driver:
+        serverless_driver_setup = ServerlessDriverSetup()
+        serverless_driver_setup.register_driver()
+        print("Driver Lambda function successfully registered")
+        command = input("Enter invoke to invoke and other keys to exit: ")
+        if command == "invoke":
+            print("Driver invoked and starting job execution")
+            serverless_driver_setup.invoke()
     else:
-        set_up()
-        static_job_info_file = open(StaticVariables.STATIC_JOB_INFO_PATH, "r")
-        static_job_info = json.loads(static_job_info_file.read())
-        static_job_info_file.close()
+        driver = Driver()
+        driver.run()
 
-        set_up_shuffling_bucket(static_job_info)
-        if static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
-            s3_file_paths = ['../../input_data/testing_partitioned/input-1',
-                             '../../input_data/testing_partitioned/input-2',
-                             '../../input_data/testing_partitioned/input-3',
-                             '../../input_data/testing_partitioned/input-4']
-            dynamodb_file_paths = ['../../input_data/testing_partitioned/input-5', '../../input_data/testing_partitioned/input-6']
-            cur_input_handler = input_handler.get_input_handler(static_job_info[StaticVariables.INPUT_SOURCE_TYPE_FN])
-
-            os.chdir(project_working_dir)
-            cur_input_handler.set_up_local_input_data(dynamodb_file_paths)
-            os.chdir(library_working_dir)
-
-        mode = args[1]
-        print("The mode of run is", mode)
-
-        if int(mode) == 0:
-            driver = Driver()
-            driver.run()
-        else:
-            serverless_driver_setup = ServerlessDriverSetup()
-            serverless_driver_setup.register_driver()
-            print("Driver Lambda function successfully registered")
-            command = input("Enter invoke to invoke and other keys to exit: ")
-            if command == "invoke":
-                print("Driver invoked and starting job execution")
-                serverless_driver_setup.invoke()
-
-        tear_down()
+    tear_down()
 
 
 if __name__ == "__main__":
-    init_job(sys.argv)
+    init_job()
 
