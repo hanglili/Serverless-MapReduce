@@ -21,7 +21,7 @@ frameworks have been automated. One such automated step is AWS services deployme
 
 ## Architecture
 Serverless-MR has been designed with the following architecture:
-![Architecture](images/Serverless-MR-job-timeline.svg?raw=true "")
+![Architecture](images/Serverless-MR-job-timeline.png?raw=true "")
 
 ## Key Features
 - It offers 2 modes of running any data processing jobs:
