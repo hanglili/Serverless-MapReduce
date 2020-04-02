@@ -14,7 +14,7 @@
     "outputColumnNameDynamoDB": "revenue",
     "useCombine": false,
     "numReducers": 4,
-    "localTesting": false,
+    "localTesting": true,
     "localTestingInputPath": "../../input_data/testing_partitioned/s3/",
     "serverlessDriver": true
 }
