@@ -1,6 +1,7 @@
 import boto3
 import json
 import os
+import time
 
 from serverless_mr.static.static_variables import StaticVariables
 
@@ -41,7 +42,12 @@ class OutputHandlerDynamoDB:
                 }
             )
         except client.exceptions.ResourceInUseException as e:
-            print("Metadata table has already been created")
+            print("%s table has already been created" % table_name)
+
+        response = client.describe_table(TableName=table_name)['Table']['TableStatus']
+        while response != 'ACTIVE':
+            time.sleep(1)
+            response = client.describe_table(TableName=table_name)['Table']['TableStatus']
 
     @staticmethod
     def put_items(client, table_name, data, output_key_name, output_column_name):
@@ -87,7 +93,9 @@ class OutputHandlerDynamoDB:
         existing_tables = self.client.list_tables()['TableNames']
         project_expression = '%s, %s' % (OutputHandlerDynamoDB.METADATA_TABLE_KEY_NAME,
                                          OutputHandlerDynamoDB.METADATA_TABLE_COLUMN_NAME)
-        if metadata_table_name in existing_tables:
+
+        if metadata_table_name in existing_tables\
+                and self.client.describe_table(TableName=metadata_table_name)['Table']['TableStatus'] == 'ACTIVE':
             response = self.client.scan(TableName=metadata_table_name, ProjectionExpression=project_expression)
             return response, "Items"
 

@@ -2,6 +2,7 @@ import boto3
 import json
 import os
 import decimal
+import time
 
 from serverless_mr.static.static_variables import StaticVariables
 
@@ -49,6 +50,13 @@ class MapPhaseState:
                 'WriteCapacityUnits': 10
             }
         )
+
+        # Wait until the created table becomes active
+        response = self.client.describe_table(TableName=table_name)['Table']['TableStatus']
+        while response != 'ACTIVE':
+            time.sleep(1)
+            response = self.client.describe_table(TableName=table_name)['Table']['TableStatus']
+
         print("Map Phase state table created successfully")
 
     def initialise_state_table(self, table_name):
@@ -61,6 +69,13 @@ class MapPhaseState:
         )
 
         print("Map Phase state table initialised successfully")
+
+    def delete_state_table(self, table_name):
+        self.client.delete_table(
+            TableName=table_name
+        )
+
+        print("Map Phase state table deleted successfully")
 
     def increment_num_completed_mapper(self, table_name):
         response = self.client.update_item(

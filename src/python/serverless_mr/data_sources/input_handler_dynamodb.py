@@ -1,6 +1,7 @@
 import boto3
 import json
 import os
+import time
 
 from serverless_mr.static.static_variables import StaticVariables
 
@@ -22,21 +23,29 @@ class InputHandlerDynamoDB:
 
     @staticmethod
     def create_table(client, table_name, input_key_name):
-         client.create_table(
+        client.create_table(
             AttributeDefinitions=[{
-                'AttributeName': input_key_name,
-                'AttributeType': 'S'
+            'AttributeName': input_key_name,
+            'AttributeType': 'S'
             }],
             TableName=table_name,
             KeySchema=[{
-                'AttributeName': input_key_name,
-                'KeyType': 'HASH'
+            'AttributeName': input_key_name,
+            'KeyType': 'HASH'
             }],
             ProvisionedThroughput={
-                'ReadCapacityUnits': 10,
-                'WriteCapacityUnits': 10
+            'ReadCapacityUnits': 10,
+            'WriteCapacityUnits': 10
             }
         )
+
+        # Wait until the created table becomes active
+
+        response = client.describe_table(TableName=table_name)['Table']['TableStatus']
+        while response != 'ACTIVE':
+            time.sleep(1)
+            response = client.describe_table(TableName=table_name)['Table']['TableStatus']
+
 
     @staticmethod
     def put_items(client, table_name, filepath, input_key_name, input_column_name):

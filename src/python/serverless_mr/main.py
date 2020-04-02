@@ -1,4 +1,3 @@
-import sys
 import boto3
 import json
 import importlib.resources
@@ -78,8 +77,8 @@ def init_job():
     static_job_info = json.loads(static_job_info_file.read())
     static_job_info_file.close()
 
-    set_up_shuffling_bucket(static_job_info)
     if static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
+        set_up_shuffling_bucket(static_job_info)
         cur_input_handler = input_handler.get_input_handler(static_job_info[StaticVariables.INPUT_SOURCE_TYPE_FN])
 
         os.chdir(project_working_dir)

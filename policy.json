@@ -64,6 +64,27 @@
             ]
         },
         {
+            "Sid": "Stmt1475879783001",
+            "Effect": "Allow",
+            "Action": [
+                "dynamodb:CreateTable",
+                "dynamodb:DeleteItem",
+                "dynamodb:DeleteTable",
+                "dynamodb:DescribeTable",
+                "dynamodb:GetItem",
+                "dynamodb:GetRecords",
+                "dynamodb:ListTables",
+                "dynamodb:PutItem",
+                "dynamodb:Query",
+                "dynamodb:Scan",
+                "dynamodb:UpdateItem",
+                "dynamodb:UpdateTable"
+            ],
+            "Resource": [
+                "*"
+            ]
+        },
+        {
             "Sid": "StmXrayAllow",
             "Effect": "Allow",
             "Action": [
@@ -91,7 +112,7 @@
                 "iam:GetRole",
                 "iam:PassRole"
             ],
-            "Resource": "arn:aws:iam::990092034516:role/*"
+            "Resource": "arn:aws:iam::259503590756:role/*"
         }
     ]
 }

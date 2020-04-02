@@ -267,3 +267,4 @@ class Driver:
 
         # 7. View one of the reducer results
         print(self.cur_output_handler.get_output(3))
+        self.map_phase_state.delete_state_table(StaticVariables.MAPPER_PHASE_STATE_DYNAMODB_TABLE_NAME)
