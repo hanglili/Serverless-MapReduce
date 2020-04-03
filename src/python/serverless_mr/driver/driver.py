@@ -3,6 +3,7 @@ import json
 import random
 import time
 import os
+import pickle
 
 from serverless_mr.utils import lambda_utils, zip, input_handler, output_handler, map_phase_state
 from serverless_mr.aws_lambda import lambda_manager
@@ -14,7 +15,7 @@ from serverless_mr.static.static_variables import StaticVariables
 
 class Driver:
 
-    def __init__(self, is_serverless=False):
+    def __init__(self, map_function, reduce_function, partition_function, is_serverless=False):
         self.config = json.loads(open(StaticVariables.DRIVER_CONFIG_PATH, 'r').read())
         self.static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
         self.is_serverless = is_serverless
@@ -40,6 +41,10 @@ class Driver:
                                                                     self.is_serverless)
         self.map_phase_state = map_phase_state.MapPhaseState(self.is_serverless)
         self._initialise_map_phase_state()
+
+        self.map_function = map_function
+        self.reduce_function = reduce_function
+        self.partition_function = partition_function
 
     def _initialise_map_phase_state(self):
         self.map_phase_state.create_state_table(StaticVariables.MAPPER_PHASE_STATE_DYNAMODB_TABLE_NAME)
@@ -99,6 +104,13 @@ class Driver:
         region = self.config[StaticVariables.REGION_FN] \
             if StaticVariables.REGION_FN in self.config else StaticVariables.DEFAULT_REGION
         num_reducers = self.static_job_info[StaticVariables.NUM_REDUCER_FN]
+
+        with open('serverless_mr/job/map.pkl', 'wb') as f:
+            pickle.dump(self.map_function, f)
+        with open('serverless_mr/job/reduce.pkl', 'wb') as f:
+            pickle.dump(self.reduce_function, f)
+        with open('serverless_mr/job/partition.pkl', 'wb') as f:
+            pickle.dump(self.partition_function, f)
 
         # Prepare Lambda functions if driver running in local machine
         if not self.is_serverless:
@@ -161,7 +173,10 @@ class Driver:
             InvocationType='RequestResponse',
             Payload=json.dumps({
                 "keys": batch,
-                "mapperId": m_id
+                "mapperId": m_id,
+                "function_pickle_path": "serverless_mr/job/map.pkl",
+                "reduce_function_pickle_path": "serverless_mr/job/reduce.pkl",
+                "partition_function_pickle_path": "serverless_mr/job/partition.pkl"
             })
         )
         out = eval(resp['Payload'].read())

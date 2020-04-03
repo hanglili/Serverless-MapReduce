@@ -16,6 +16,7 @@ def zip_lambda(filename, zip_name):
         + glob.glob(StaticVariables.STATIC_VARIABLES_PATH) + glob.glob(StaticVariables.REDUCE_PATH)
         + glob.glob(StaticVariables.INPUT_HANDLER_PATH) + glob.glob(StaticVariables.OUTPUT_HANDLER_PATH)
         + glob.glob(StaticVariables.DATA_SOURCES_GLOB_PATH) + glob.glob(StaticVariables.MAPPER_PHASE_STATE_PATH)
+        + glob.glob("user_job_3/*.py") + glob.glob("serverless_mr/job/*.pkl")
     )
 
 
