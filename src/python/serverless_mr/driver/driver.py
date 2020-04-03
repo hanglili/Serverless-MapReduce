@@ -13,9 +13,15 @@ from botocore.client import Config
 from serverless_mr.static.static_variables import StaticVariables
 
 
+def delete_files(dirname, filenames):
+    for filename in filenames:
+        dst_file = "%s/%s" % (dirname, filename)
+        if os.path.exists(dst_file):
+            os.remove(dst_file)
+
 class Driver:
 
-    def __init__(self, map_function, reduce_function, partition_function, is_serverless=False):
+    def __init__(self, map_function, reduce_function, partition_function, rel_function_paths, is_serverless=False):
         self.config = json.loads(open(StaticVariables.DRIVER_CONFIG_PATH, 'r').read())
         self.static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
         self.is_serverless = is_serverless
@@ -45,6 +51,7 @@ class Driver:
         self.map_function = map_function
         self.reduce_function = reduce_function
         self.partition_function = partition_function
+        self.rel_function_paths = rel_function_paths
 
     def _initialise_map_phase_state(self):
         self.map_phase_state.create_state_table(StaticVariables.MAPPER_PHASE_STATE_DYNAMODB_TABLE_NAME)
@@ -114,12 +121,9 @@ class Driver:
 
         # Prepare Lambda functions if driver running in local machine
         if not self.is_serverless:
-            zip.zip_lambda(self.config[StaticVariables.MAPPER_FN][StaticVariables.LOCATION_FN],
-                           self.config[StaticVariables.MAPPER_FN][StaticVariables.ZIP_FN])
-            zip.zip_lambda(self.config[StaticVariables.REDUCER_FN][StaticVariables.LOCATION_FN],
-                           self.config[StaticVariables.REDUCER_FN][StaticVariables.ZIP_FN])
-            zip.zip_lambda(self.config[StaticVariables.REDUCER_COORDINATOR_FN][StaticVariables.LOCATION_FN],
-                           self.config[StaticVariables.REDUCER_COORDINATOR_FN][StaticVariables.ZIP_FN])
+            zip.zip_lambda(self.rel_function_paths, self.config[StaticVariables.MAPPER_FN][StaticVariables.ZIP_FN])
+            zip.zip_lambda(self.rel_function_paths, self.config[StaticVariables.REDUCER_FN][StaticVariables.ZIP_FN])
+            zip.zip_lambda(self.rel_function_paths, self.config[StaticVariables.REDUCER_COORDINATOR_FN][StaticVariables.ZIP_FN])
 
         # Mapper
         l_mapper = lambda_manager.LambdaManager(self.lambda_client, self.s3_client, region,
@@ -283,3 +287,5 @@ class Driver:
         # 7. View one of the reducer results
         print(self.cur_output_handler.get_output(3))
         self.map_phase_state.delete_state_table(StaticVariables.MAPPER_PHASE_STATE_DYNAMODB_TABLE_NAME)
+
+        delete_files("serverless_mr/job", ["map.pkl", "reduce.pkl", "partition.pkl"])

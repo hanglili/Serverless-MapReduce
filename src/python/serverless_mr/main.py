@@ -70,7 +70,10 @@ def copy_job_function(function):
 
     dst_file = "%s/%s" % (library_working_dir, rel_filepath)
     if os.path.normpath(inspect_object) != os.path.normpath(dst_file):
+        os.makedirs(os.path.dirname(dst_file), exist_ok=True)
         shutil.copy2(rel_filepath, dst_file)
+
+    return rel_filepath
 
 
 def tear_down():
@@ -108,9 +111,10 @@ class ServerlessMR:
         self.partition_function = partition_function
 
     def run_job(self):
-        copy_job_function(self.map_function)
-        copy_job_function(self.reduce_function)
-        copy_job_function(self.partition_function)
+        rel_function_paths = []
+        rel_function_paths.append(copy_job_function(self.map_function))
+        rel_function_paths.append(copy_job_function(self.reduce_function))
+        rel_function_paths.append(copy_job_function(self.partition_function))
 
         set_up()
         static_job_info_file = open(StaticVariables.STATIC_JOB_INFO_PATH, "r")
@@ -139,7 +143,7 @@ class ServerlessMR:
                 print("Driver invoked and starting job execution")
                 serverless_driver_setup.invoke()
         else:
-            driver = Driver(self.map_function, self.reduce_function, self.partition_function)
+            driver = Driver(self.map_function, self.reduce_function, self.partition_function, rel_function_paths)
             driver.run()
 
         tear_down()
