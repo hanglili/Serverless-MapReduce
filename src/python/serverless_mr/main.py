@@ -101,16 +101,16 @@ class ServerlessMR:
         self.reduce_function = None
         self.partition_function = None
 
-    def set_map_function(self, map_function):
+    def map(self, map_function):
         self.map_function = map_function
 
-    def set_reduce_function(self, reduce_function):
+    def reduce(self, reduce_function):
         self.reduce_function = reduce_function
 
     def set_partition_function(self, partition_function):
         self.partition_function = partition_function
 
-    def run_job(self):
+    def run(self):
         rel_function_paths = []
         rel_function_paths.append(copy_job_function(self.map_function))
         rel_function_paths.append(copy_job_function(self.reduce_function))
@@ -147,7 +147,3 @@ class ServerlessMR:
             driver.run()
 
         tear_down()
-
-
-if __name__ == "__main__":
-    pass
