@@ -6,7 +6,6 @@ import os
 import pickle
 
 
-# from serverless_mr.job.combine import combine_function
 from serverless_mr.static.static_variables import StaticVariables
 from serverless_mr.utils import input_handler
 
@@ -54,15 +53,16 @@ def lambda_handler(event, _):
     cur_input_handler = input_handler.get_input_handler(static_job_info[StaticVariables.INPUT_SOURCE_TYPE_FN],
                                                         in_lambda=True)
     # Download and process all keys
-    for key in src_keys:
-        lines = cur_input_handler.read_records_from_input_key(key)
+    for input_key in src_keys:
+        input_value = cur_input_handler.read_records_from_input_key(input_key)
+        input_pair = (input_key, input_value)
+        map_function(intermediate_data, input_pair)
 
-        for line in lines:
+        # TODO: Line count can be used to verify correctness of the job. Can be removed if needed in the future.
+        if static_job_info[StaticVariables.INPUT_SOURCE_TYPE_FN] == "s3":
+            line_count += len(input_value.split('\n')) - 1
+        elif static_job_info[StaticVariables.INPUT_SOURCE_TYPE_FN] == "dynamodb":
             line_count += 1
-            cur_input_pair = (key, line)
-            cur_line_outputs = []
-            map_function(cur_line_outputs, cur_input_pair)
-            intermediate_data += cur_line_outputs
 
     if use_combine:
         intermediate_data.sort(key=lambda x: x[0])
@@ -70,8 +70,8 @@ def lambda_handler(event, _):
         cur_key = None
         cur_values = []
         outputs = []
-        for key, value in intermediate_data:
-            if cur_key == key:
+        for input_key, value in intermediate_data:
+            if cur_key == input_key:
                 cur_values.append(value)
             else:
                 if cur_key is not None:
@@ -79,7 +79,7 @@ def lambda_handler(event, _):
                     combine_function(cur_key_outputs, (cur_key, cur_values))
                     outputs += cur_key_outputs
 
-                cur_key = key
+                cur_key = input_key
                 cur_values = [value]
 
         if cur_key is not None:
@@ -106,10 +106,10 @@ def lambda_handler(event, _):
     # Partition ids are from 1 to n (inclusive).
     output_partitions = [[] for _ in range(num_bins + 1)]
 
-    for key, value in outputs:
-        partition_id = partition_function(key, num_bins) + 1
+    for input_key, value in outputs:
+        partition_id = partition_function(input_key, num_bins) + 1
         cur_partition = output_partitions[partition_id]
-        cur_partition.append(tuple((key, value)))
+        cur_partition.append(tuple((input_key, value)))
 
     for i in range(1, num_bins + 1):
         partition_id = "bin%s" % i

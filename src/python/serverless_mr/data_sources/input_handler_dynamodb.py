@@ -5,6 +5,8 @@ import time
 
 from serverless_mr.static.static_variables import StaticVariables
 
+id_cnt = 1
+
 
 class InputHandlerDynamoDB:
 
@@ -22,22 +24,55 @@ class InputHandlerDynamoDB:
             self.client = boto3.client('dynamodb')
 
     @staticmethod
-    def create_table(client, table_name, input_key_name):
-        client.create_table(
-            AttributeDefinitions=[{
-            'AttributeName': input_key_name,
-            'AttributeType': 'S'
-            }],
-            TableName=table_name,
-            KeySchema=[{
-            'AttributeName': input_key_name,
-            'KeyType': 'HASH'
-            }],
-            ProvisionedThroughput={
-            'ReadCapacityUnits': 10,
-            'WriteCapacityUnits': 10
-            }
-        )
+    def create_table(client, table_name, input_partition_key, input_sort_key):
+        if input_sort_key is None:
+            client.create_table(
+                AttributeDefinitions=[
+                    {
+                        'AttributeName': input_partition_key[0],
+                        'AttributeType': input_partition_key[1]
+                    }
+                ],
+                TableName=table_name,
+                KeySchema=[
+                    {
+                        'AttributeName': input_partition_key[0],
+                        'KeyType': 'HASH'
+                    }
+                ],
+                ProvisionedThroughput={
+                    'ReadCapacityUnits': 10,
+                    'WriteCapacityUnits': 10
+                }
+            )
+        else:
+            client.create_table(
+                AttributeDefinitions=[
+                    {
+                        'AttributeName': input_partition_key[0],
+                        'AttributeType': input_partition_key[1]
+                    },
+                    {
+                        'AttributeName': input_sort_key[0],
+                        'AttributeType': input_sort_key[1]
+                    }
+                ],
+                TableName=table_name,
+                KeySchema=[
+                    {
+                        'AttributeName': input_partition_key[0],
+                        'KeyType': 'HASH'
+                    },
+                    {
+                        'AttributeName': input_sort_key[0],
+                        'KeyType': 'RANGE'
+                    }
+                ],
+                ProvisionedThroughput={
+                    'ReadCapacityUnits': 10,
+                    'WriteCapacityUnits': 10
+                }
+            )
 
         # Wait until the created table becomes active
 
@@ -48,53 +83,118 @@ class InputHandlerDynamoDB:
 
 
     @staticmethod
-    def put_items(client, table_name, filepath, input_key_name, input_column_name):
+    def put_items(client, table_name, filepath, input_partition_key, input_sort_key, input_columns):
+        global id_cnt
         with open(filepath) as fp:
             line = fp.readline()
-            id_cnt = 1
             while line:
-                response = client.put_item(
-                    TableName=table_name,
-                    Item={
-                        input_key_name: {'S': str(id_cnt)},
-                        input_column_name: {'S': line.strip()}
+                items = {}
+                items[input_partition_key[0]] = {
+                    input_partition_key[1]: str(id_cnt)
+                }
+                if input_sort_key is not None:
+                    items[input_sort_key[0]] = {
+                        input_sort_key[1]: str(id_cnt)
                     }
+
+                column_values = line.rstrip().split(',')
+                assert len(column_values) == len(input_columns)
+
+                for i in range(len(input_columns)):
+                    input_column = input_columns[i]
+                    items[input_column[0]] = {
+                        input_column[1]: column_values[i]
+                    }
+
+                client.put_item(
+                    TableName=table_name,
+                    # For local testing, input_partition_key and input_sort_key are assumed to be same
+                    Item=items
                 )
                 line = fp.readline()
                 id_cnt += 1
 
-    # DynamoDB table is config["bucket"]?
-    def set_up_local_input_data(self, input_file_paths):
-        prefix = self.static_job_info[StaticVariables.INPUT_PREFIX_FN]
-        input_key_name = self.static_job_info[StaticVariables.INPUT_KEY_NAME_DYNAMODB]
-        input_column_name = self.static_job_info[StaticVariables.INPUT_COLUMN_NAME_DYNAMODB]
-        for i in range(len(input_file_paths)):
-            input_filepath = input_file_paths[i]
-            table_name = '%s-input-%s' % (prefix, str(i + 1))
-            InputHandlerDynamoDB.create_table(self.client, table_name, input_key_name)
-            InputHandlerDynamoDB.put_items(self.client, table_name, input_filepath, input_key_name, input_column_name)
+
+    def set_up_local_input_data(self, input_filepaths):
+        input_partition_key = self.static_job_info[StaticVariables.INPUT_PARTITION_KEY_DYNAMODB]
+        input_sort_key = self.static_job_info[StaticVariables.INPUT_SORT_KEY_DYNAMODB]
+        input_columns = self.static_job_info[StaticVariables.INPUT_COLUMNS_DYNAMODB]
+        input_table_name = self.static_job_info[StaticVariables.INPUT_SOURCE_FN]
+        InputHandlerDynamoDB.create_table(self.client, input_table_name, input_partition_key, input_sort_key)
+
+        for input_filepath in input_filepaths:
+            InputHandlerDynamoDB.put_items(self.client, input_table_name, input_filepath,
+                                           input_partition_key, input_sort_key, input_columns)
 
         print("Set up local input data successfully")
 
     def get_all_input_keys(self):
         # Returns all input keys to be processed: a list of format obj where obj is a map of {'Key': ..., 'Size': ...}
         all_keys = []
-        prefix = self.static_job_info[StaticVariables.INPUT_PREFIX_FN]
-        table_names = self.client.list_tables()['TableNames']
-        for table_name in table_names:
-            if table_name.startswith(prefix):
-                response = self.client.describe_table(TableName=table_name)
-                size = response['Table']['ItemCount']
-                all_keys.append({'Key': table_name, 'Size': int(size)})
+        input_table_name = self.static_job_info[StaticVariables.INPUT_SOURCE_FN]
+        response = self.client.describe_table(TableName=input_table_name)
+        number_of_records = response['Table']['ItemCount']
+        one_record_avg_size = response['Table']['TableSizeBytes'] / number_of_records
+
+        input_partition_key = self.static_job_info[StaticVariables.INPUT_PARTITION_KEY_DYNAMODB]
+        input_sort_key = self.static_job_info[StaticVariables.INPUT_SORT_KEY_DYNAMODB]
+
+        projection_expression = input_partition_key[0]
+        if input_sort_key is not None:
+            projection_expression += ",%s" % input_sort_key[0]
+
+        response = self.client.scan(TableName=input_table_name, ProjectionExpression=projection_expression)
+        for record in response['Items']:
+            record_key = {input_partition_key[0]: record[input_partition_key[0]][input_partition_key[1]]}
+            if input_sort_key is not None:
+                record_key[input_sort_key[0]] = record[input_sort_key[0]][input_sort_key[1]]
+
+            all_keys.append({'Key': record_key, 'Size': int(one_record_avg_size)})
 
         return all_keys
 
     def read_records_from_input_key(self, input_key):
-        lines = []
-        input_column_name = self.static_job_info[StaticVariables.INPUT_COLUMN_NAME_DYNAMODB]
-        response = self.client.scan(TableName=input_key, ProjectionExpression=input_column_name)
-        for record in response['Items']:
-            line = record[input_column_name]['S']
-            lines.append(line)
+        input_table_name = self.static_job_info[StaticVariables.INPUT_SOURCE_FN]
+        input_partition_key = self.static_job_info[StaticVariables.INPUT_PARTITION_KEY_DYNAMODB]
+        input_sort_key = self.static_job_info[StaticVariables.INPUT_SORT_KEY_DYNAMODB]
+        input_processing_columns = self.static_job_info[StaticVariables.INPUT_PROCESSING_COLUMNS_DYNAMODB]
 
-        return lines
+        input_processing_column_names = []
+        for input_processing_column in input_processing_columns:
+            input_processing_column_names.append(input_processing_column[0])
+
+        projection_expression = ",".join(input_processing_column_names)
+
+        input_partition_key_name = input_partition_key[0]
+        input_partition_key_type = input_partition_key[1]
+
+        if input_sort_key is None:
+            response = self.client.get_item(TableName=input_table_name,
+                                            Key={
+                                                input_partition_key_name: {
+                                                    input_partition_key_type: input_key[input_partition_key_name]
+                                                }
+                                            },
+                                            ProjectionExpression=projection_expression)
+        else:
+            input_sort_key_name = input_sort_key[0]
+            input_sort_key_type = input_sort_key[1]
+            response = self.client.get_item(TableName=input_table_name,
+                                            Key={
+                                                input_partition_key_name: {
+                                                    input_partition_key_type: input_key[input_partition_key_name]
+                                                },
+                                                input_sort_key_name: {
+                                                    input_sort_key_type: input_key[input_sort_key_name]
+                                                }
+                                            },
+                                            ProjectionExpression=projection_expression)
+
+        record_value = {}
+        for input_processing_column in input_processing_columns:
+            input_processing_column_name = input_processing_column[0]
+            input_processing_column_type = input_processing_column[1]
+            record_value[input_processing_column_name] = \
+                response['Item'][input_processing_column_name][input_processing_column_type]
+
+        return record_value
