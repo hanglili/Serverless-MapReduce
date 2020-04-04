@@ -46,6 +46,7 @@ class OutputHandlerS3:
 
     def check_job_finish(self, response, string_index):
         shuffling_bucket = self.static_job_info[StaticVariables.SHUFFLING_BUCKET_FN]
+        output_bucket = self.static_job_info[StaticVariables.OUTPUT_SOURCE_FN]
         job_name = self.static_job_info[StaticVariables.JOB_NAME_FN]
         reducer_lambda_time = 0
         reducer_ids = response[string_index]
@@ -53,11 +54,11 @@ class OutputHandlerS3:
             job_keys = self.client.list_objects(Bucket=shuffling_bucket, Prefix=job_name)["Contents"]
             total_s3_size = sum([job_key["Size"] for job_key in job_keys])
             for reducer_id in reducer_ids:
-                key = reducer_id["Key"]
                 # Even though metadata processing time is written as processingTime,
                 # AWS does not accept uppercase letter metadata key
-                reducer_lambda_time += float(self.client.get_object(Bucket=shuffling_bucket, Key=key)
+                reducer_lambda_time += float(self.client.get_object(Bucket=output_bucket, Key=reducer_id["Key"])
                                              ['Metadata']['processingtime'])
+                total_s3_size += reducer_id["Size"]
 
             return reducer_lambda_time, total_s3_size, len(job_keys)
         return -1, -1, -1

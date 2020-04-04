@@ -82,15 +82,14 @@ def tear_down():
     delete_files("job", ["map.py", "reduce.py", "partition.py"])
 
 
-def set_up_shuffling_bucket(static_job_info):
-    print("Setting up shuffling bucket")
+def set_up_local_input_bucket(local_input_bucket):
+    print("Setting up local input bucket")
     s3_client = boto3.client('s3', aws_access_key_id='', aws_secret_access_key='', region_name='us-east-1',
                              endpoint_url='http://localhost:4572')
-    shuffling_bucket = static_job_info[StaticVariables.SHUFFLING_BUCKET_FN]
-    s3_client.create_bucket(Bucket=shuffling_bucket)
+    s3_client.create_bucket(Bucket=local_input_bucket)
     s3_client.put_bucket_acl(
         ACL='public-read-write',
-        Bucket=shuffling_bucket,
+        Bucket=local_input_bucket,
     )
     print("Finished setting up shuffling bucket")
 
@@ -122,7 +121,7 @@ class ServerlessMR:
         static_job_info_file.close()
 
         if static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
-            set_up_shuffling_bucket(static_job_info)
+            set_up_local_input_bucket(static_job_info[StaticVariables.INPUT_SOURCE_FN])
             cur_input_handler = input_handler.get_input_handler(static_job_info[StaticVariables.INPUT_SOURCE_TYPE_FN])
 
             os.chdir(project_working_dir)

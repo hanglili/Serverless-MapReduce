@@ -10,7 +10,7 @@ def compute_batch_size(keys, lambda_memory, concurrent_lambdas):
     avg_object_size = size / len(keys)
     print("Dataset size: %s, nKeys: %s, avg object size: %s" % (size, len(keys), avg_object_size))
     if avg_object_size < max_mem_for_data and len(keys) < concurrent_lambdas:
-        b_size = 5
+        b_size = 1
     else:
         b_size = int(round(max_mem_for_data / avg_object_size))
     return b_size

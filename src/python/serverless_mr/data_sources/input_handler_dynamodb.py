@@ -117,7 +117,8 @@ class InputHandlerDynamoDB:
 
     def set_up_local_input_data(self, input_filepaths):
         input_partition_key = self.static_job_info[StaticVariables.INPUT_PARTITION_KEY_DYNAMODB]
-        input_sort_key = self.static_job_info[StaticVariables.INPUT_SORT_KEY_DYNAMODB]
+        input_sort_key = self.static_job_info[StaticVariables.INPUT_SORT_KEY_DYNAMODB] \
+            if StaticVariables.INPUT_SORT_KEY_DYNAMODB in self.static_job_info else None
         input_columns = self.static_job_info[StaticVariables.INPUT_COLUMNS_DYNAMODB]
         input_table_name = self.static_job_info[StaticVariables.INPUT_SOURCE_FN]
         InputHandlerDynamoDB.create_table(self.client, input_table_name, input_partition_key, input_sort_key)
@@ -137,7 +138,8 @@ class InputHandlerDynamoDB:
         one_record_avg_size = response['Table']['TableSizeBytes'] / number_of_records
 
         input_partition_key = self.static_job_info[StaticVariables.INPUT_PARTITION_KEY_DYNAMODB]
-        input_sort_key = self.static_job_info[StaticVariables.INPUT_SORT_KEY_DYNAMODB]
+        input_sort_key = self.static_job_info[StaticVariables.INPUT_SORT_KEY_DYNAMODB] \
+            if StaticVariables.INPUT_SORT_KEY_DYNAMODB in self.static_job_info else None
 
         projection_expression = input_partition_key[0]
         if input_sort_key is not None:
@@ -156,7 +158,8 @@ class InputHandlerDynamoDB:
     def read_records_from_input_key(self, input_key):
         input_table_name = self.static_job_info[StaticVariables.INPUT_SOURCE_FN]
         input_partition_key = self.static_job_info[StaticVariables.INPUT_PARTITION_KEY_DYNAMODB]
-        input_sort_key = self.static_job_info[StaticVariables.INPUT_SORT_KEY_DYNAMODB]
+        input_sort_key = self.static_job_info[StaticVariables.INPUT_SORT_KEY_DYNAMODB] \
+            if StaticVariables.INPUT_SORT_KEY_DYNAMODB in self.static_job_info else None
         input_processing_columns = self.static_job_info[StaticVariables.INPUT_PROCESSING_COLUMNS_DYNAMODB]
 
         input_processing_column_names = []

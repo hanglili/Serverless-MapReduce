@@ -47,6 +47,8 @@ class Driver:
                                                                     self.is_serverless)
         self.map_phase_state = map_phase_state.MapPhaseState(self.is_serverless)
         self._initialise_map_phase_state()
+        self.set_up_shuffling_bucket()
+        self.set_up_output_bucket()
 
         self.map_function = map_function
         self.reduce_function = reduce_function
@@ -289,3 +291,24 @@ class Driver:
         self.map_phase_state.delete_state_table(StaticVariables.MAPPER_PHASE_STATE_DYNAMODB_TABLE_NAME)
 
         delete_files("serverless_mr/job", ["map.pkl", "reduce.pkl", "partition.pkl"])
+
+    def set_up_shuffling_bucket(self):
+        print("Setting up shuffling bucket")
+        shuffling_bucket = self.static_job_info[StaticVariables.SHUFFLING_BUCKET_FN]
+        self.s3_client.create_bucket(Bucket=shuffling_bucket)
+        self.s3_client.put_bucket_acl(
+            ACL='public-read-write',
+            Bucket=shuffling_bucket,
+        )
+        print("Finished setting up shuffling bucket")
+
+    def set_up_output_bucket(self):
+        print("Setting up output bucket")
+        output_bucket = self.static_job_info[StaticVariables.OUTPUT_SOURCE_FN]
+        self.s3_client.create_bucket(Bucket=output_bucket)
+        self.s3_client.put_bucket_acl(
+            ACL='public-read-write',
+            Bucket=output_bucket,
+        )
+        print("Finished setting up shuffling bucket")
+
