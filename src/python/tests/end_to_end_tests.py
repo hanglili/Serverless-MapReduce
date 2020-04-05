@@ -3,7 +3,7 @@ import json
 import os
 
 from serverless_mr.static.static_variables import StaticVariables
-from serverless_mr.main import ServerlessMR, set_up, tear_down
+from serverless_mr.main import ServerlessMR
 from user_job_3.map import map_function
 from user_job_3.reduce import reduce_function
 from user_job_3.partition import partition
@@ -12,14 +12,15 @@ from unittest import TestCase
 
 class Test(TestCase):
 
+    static_job_info_path = "configuration/static-job-info.json"
+
     @classmethod
     def setUp(self):
         print('\r\nSetting up and executing the job')
-        set_up()
         self.s3_client = boto3.client('s3', aws_access_key_id='', aws_secret_access_key='',
                                  region_name=StaticVariables.DEFAULT_REGION,
                                  endpoint_url='http://localhost:4572')
-        static_job_info_file = open(StaticVariables.STATIC_JOB_INFO_PATH, 'r')
+        static_job_info_file = open(Test.static_job_info_path, 'r')
         self.static_job_info = json.loads(static_job_info_file.read())
         static_job_info_file.close()
         os.environ["serverless_mapreduce_role"] = 'dummy-role'
@@ -27,7 +28,6 @@ class Test(TestCase):
     @classmethod
     def tearDown(self):
         print('\r\nTearing down the job')
-        tear_down()
         del os.environ["serverless_mapreduce_role"]
 
     def test_that_lambda_returns_correct_message(self):
