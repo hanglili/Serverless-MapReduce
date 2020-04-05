@@ -102,12 +102,15 @@ class ServerlessMR:
 
     def map(self, map_function):
         self.map_function = map_function
+        return self
 
     def reduce(self, reduce_function):
         self.reduce_function = reduce_function
+        return self
 
     def set_partition_function(self, partition_function):
         self.partition_function = partition_function
+        return self
 
     def run(self):
         rel_function_paths = []
