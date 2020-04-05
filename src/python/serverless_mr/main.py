@@ -134,7 +134,8 @@ class ServerlessMR:
         is_serverless_driver = static_job_info[StaticVariables.SERVERLESS_DRIVER_FLAG_FN]
 
         if is_serverless_driver:
-            serverless_driver_setup = ServerlessDriverSetup()
+            serverless_driver_setup = ServerlessDriverSetup(self.map_function, self.reduce_function,
+                                                            self.partition_function, rel_function_paths)
             serverless_driver_setup.register_driver()
             print("Driver Lambda function successfully registered")
             command = input("Enter invoke to invoke and other keys to exit: ")

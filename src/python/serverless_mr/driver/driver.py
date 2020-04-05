@@ -114,18 +114,19 @@ class Driver:
             if StaticVariables.REGION_FN in self.config else StaticVariables.DEFAULT_REGION
         num_reducers = self.static_job_info[StaticVariables.NUM_REDUCER_FN]
 
-        with open('serverless_mr/job/map.pkl', 'wb') as f:
-            pickle.dump(self.map_function, f)
-        with open('serverless_mr/job/reduce.pkl', 'wb') as f:
-            pickle.dump(self.reduce_function, f)
-        with open('serverless_mr/job/partition.pkl', 'wb') as f:
-            pickle.dump(self.partition_function, f)
-
         # Prepare Lambda functions if driver running in local machine
         if not self.is_serverless:
+            with open('serverless_mr/job/map.pkl', 'wb') as f:
+                pickle.dump(self.map_function, f)
+            with open('serverless_mr/job/reduce.pkl', 'wb') as f:
+                pickle.dump(self.reduce_function, f)
+            with open('serverless_mr/job/partition.pkl', 'wb') as f:
+                pickle.dump(self.partition_function, f)
+
             zip.zip_lambda(self.rel_function_paths, self.config[StaticVariables.MAPPER_FN][StaticVariables.ZIP_FN])
             zip.zip_lambda(self.rel_function_paths, self.config[StaticVariables.REDUCER_FN][StaticVariables.ZIP_FN])
-            zip.zip_lambda(self.rel_function_paths, self.config[StaticVariables.REDUCER_COORDINATOR_FN][StaticVariables.ZIP_FN])
+            zip.zip_lambda(self.config[StaticVariables.REDUCER_COORDINATOR_FN][StaticVariables.LOCATION_FN],
+                           self.config[StaticVariables.REDUCER_COORDINATOR_FN][StaticVariables.ZIP_FN])
 
         # Mapper
         l_mapper = lambda_manager.LambdaManager(self.lambda_client, self.s3_client, region,
@@ -290,7 +291,8 @@ class Driver:
         print(self.cur_output_handler.get_output(3))
         self.map_phase_state.delete_state_table(StaticVariables.MAPPER_PHASE_STATE_DYNAMODB_TABLE_NAME)
 
-        delete_files("serverless_mr/job", ["map.pkl", "reduce.pkl", "partition.pkl"])
+        if not self.is_serverless:
+            delete_files("serverless_mr/job", ["map.pkl", "reduce.pkl", "partition.pkl"])
 
     def set_up_shuffling_bucket(self):
         print("Setting up shuffling bucket")

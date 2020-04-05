@@ -9,6 +9,10 @@ def zip_lambda(filenames, zip_name):
     for filename in filenames:
         globed_results += glob.glob(filename)
     # faster to zip with shell exec
+    print("***********************************************")
+    print("The filenames are", filenames)
+    print("The globed results are", globed_results)
+    print("***********************************************")
     subprocess.call(
         ['zip', zip_name] + globed_results + glob.glob(StaticVariables.STATIC_JOB_INFO_PATH)
         + glob.glob(StaticVariables.CONFIGURATION_INIT_PATH)

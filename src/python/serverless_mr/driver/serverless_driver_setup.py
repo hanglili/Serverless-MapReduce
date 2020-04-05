@@ -1,5 +1,6 @@
 import json
 import boto3
+import pickle
 
 from serverless_mr.static.static_variables import StaticVariables
 from serverless_mr.utils import zip
@@ -8,7 +9,7 @@ from botocore.client import Config
 
 
 class ServerlessDriverSetup:
-    def __init__(self):
+    def __init__(self, map_function, reduce_function, partition_function, rel_function_paths):
         self.config = json.loads(open(StaticVariables.DRIVER_CONFIG_PATH, 'r').read())
         self.static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
         if self.static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
@@ -39,13 +40,24 @@ class ServerlessDriverSetup:
         else:
             self.lambda_client = boto3.client('lambda', config=lambda_config)
 
+        self.map_function = map_function
+        self.reduce_function = reduce_function
+        self.partition_function = partition_function
+        self.rel_function_paths = rel_function_paths
+
     # Serverless set up
     def register_driver(self):
-        zip.zip_lambda(self.config[StaticVariables.MAPPER_FN][StaticVariables.LOCATION_FN],
-                       self.config[StaticVariables.MAPPER_FN][StaticVariables.ZIP_FN])
-        zip.zip_lambda(self.config[StaticVariables.REDUCER_FN][StaticVariables.LOCATION_FN],
-                       self.config[StaticVariables.REDUCER_FN][StaticVariables.ZIP_FN])
-        zip.zip_lambda(self.config[StaticVariables.REDUCER_COORDINATOR_FN][StaticVariables.LOCATION_FN],
+        with open('serverless_mr/job/map.pkl', 'wb') as f:
+            pickle.dump(self.map_function, f)
+        with open('serverless_mr/job/reduce.pkl', 'wb') as f:
+            pickle.dump(self.reduce_function, f)
+        with open('serverless_mr/job/partition.pkl', 'wb') as f:
+            pickle.dump(self.partition_function, f)
+
+        # Prepare Lambda functions
+        zip.zip_lambda(self.rel_function_paths, self.config[StaticVariables.MAPPER_FN][StaticVariables.ZIP_FN])
+        zip.zip_lambda(self.rel_function_paths, self.config[StaticVariables.REDUCER_FN][StaticVariables.ZIP_FN])
+        zip.zip_lambda([self.config[StaticVariables.REDUCER_COORDINATOR_FN][StaticVariables.LOCATION_FN]],
                        self.config[StaticVariables.REDUCER_COORDINATOR_FN][StaticVariables.ZIP_FN])
 
         zip.zip_driver_lambda(self.config[StaticVariables.DRIVER_FN][StaticVariables.ZIP_FN])

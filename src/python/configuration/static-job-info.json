@@ -20,5 +20,5 @@
     "numReducers": 4,
     "localTesting": true,
     "localTestingInputPath": "../../input_data/testing_partitioned/s3/",
-    "serverlessDriver": false
+    "serverlessDriver": true
 }
