@@ -1,11 +1,19 @@
 import json
 import boto3
 import pickle
+import os
 
 from serverless_mr.static.static_variables import StaticVariables
 from serverless_mr.utils import zip
 from serverless_mr.aws_lambda import lambda_manager
 from botocore.client import Config
+
+
+def delete_files(dirname, filenames):
+    for filename in filenames:
+        dst_file = "%s/%s" % (dirname, filename)
+        if os.path.exists(dst_file):
+            os.remove(dst_file)
 
 
 class ServerlessDriverSetup:
@@ -74,4 +82,6 @@ class ServerlessDriverSetup:
             InvocationType='RequestResponse',
             Payload=json.dumps({})
         )
+
         print("Finished executing this job: ", result)
+        delete_files("serverless_mr/job", ["map.pkl", "reduce.pkl", "partition.pkl"])

@@ -114,6 +114,7 @@ class ServerlessMR:
         rel_function_paths.append(copy_job_function(self.map_function))
         rel_function_paths.append(copy_job_function(self.reduce_function))
         rel_function_paths.append(copy_job_function(self.partition_function))
+        print("The relative paths are:", rel_function_paths)
 
         set_up()
         static_job_info_file = open(StaticVariables.STATIC_JOB_INFO_PATH, "r")
@@ -143,7 +144,8 @@ class ServerlessMR:
                 print("Driver invoked and starting job execution")
                 serverless_driver_setup.invoke()
         else:
-            driver = Driver(self.map_function, self.reduce_function, self.partition_function, rel_function_paths)
+            driver = Driver(map_function=self.map_function, reduce_function=self.reduce_function,
+                            partition_function=self.partition_function, rel_function_paths=rel_function_paths)
             driver.run()
 
         tear_down()

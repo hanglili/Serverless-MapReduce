@@ -9,13 +9,8 @@ def zip_lambda(filenames, zip_name):
     for filename in filenames:
         globed_results += glob.glob(filename)
     # faster to zip with shell exec
-    print("***********************************************")
-    print("The filenames are", filenames)
-    print("The globed results are", globed_results)
-    print("***********************************************")
     subprocess.call(
         ['zip', zip_name] + globed_results + glob.glob(StaticVariables.STATIC_JOB_INFO_PATH)
-        + glob.glob(StaticVariables.CONFIGURATION_INIT_PATH)
         + glob.glob(StaticVariables.LAMBDA_UTILS_PATH) + glob.glob(StaticVariables.MAP_HANDLER_PATH)
         + glob.glob(StaticVariables.REDUCE_HANDLER_PATH) + glob.glob(StaticVariables.JOB_INIT_PATH)
         + glob.glob(StaticVariables.UTILS_INIT_PATH) + glob.glob(StaticVariables.PARTITION_PATH)
@@ -23,7 +18,7 @@ def zip_lambda(filenames, zip_name):
         + glob.glob(StaticVariables.STATIC_VARIABLES_PATH) + glob.glob(StaticVariables.REDUCE_PATH)
         + glob.glob(StaticVariables.INPUT_HANDLER_PATH) + glob.glob(StaticVariables.OUTPUT_HANDLER_PATH)
         + glob.glob(StaticVariables.DATA_SOURCES_GLOB_PATH) + glob.glob(StaticVariables.MAPPER_PHASE_STATE_PATH)
-        + glob.glob("user_job_3/*.py") + glob.glob("serverless_mr/job/*.pkl")
+        + glob.glob(StaticVariables.CONFIGURATION_INIT_PATH) + glob.glob("serverless_mr/job/*.pkl")
     )
 
 

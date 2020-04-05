@@ -19,9 +19,11 @@ def delete_files(dirname, filenames):
         if os.path.exists(dst_file):
             os.remove(dst_file)
 
+
 class Driver:
 
-    def __init__(self, map_function, reduce_function, partition_function, rel_function_paths, is_serverless=False):
+    def __init__(self, map_function=None, reduce_function=None, partition_function=None,
+                 rel_function_paths=None, is_serverless=False):
         self.config = json.loads(open(StaticVariables.DRIVER_CONFIG_PATH, 'r').read())
         self.static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
         self.is_serverless = is_serverless
@@ -125,7 +127,7 @@ class Driver:
 
             zip.zip_lambda(self.rel_function_paths, self.config[StaticVariables.MAPPER_FN][StaticVariables.ZIP_FN])
             zip.zip_lambda(self.rel_function_paths, self.config[StaticVariables.REDUCER_FN][StaticVariables.ZIP_FN])
-            zip.zip_lambda(self.config[StaticVariables.REDUCER_COORDINATOR_FN][StaticVariables.LOCATION_FN],
+            zip.zip_lambda([self.config[StaticVariables.REDUCER_COORDINATOR_FN][StaticVariables.LOCATION_FN]],
                            self.config[StaticVariables.REDUCER_COORDINATOR_FN][StaticVariables.ZIP_FN])
 
         # Mapper

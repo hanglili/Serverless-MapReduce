@@ -3,7 +3,10 @@ import json
 import os
 
 from serverless_mr.static.static_variables import StaticVariables
-from serverless_mr.main import init_job, set_up, tear_down
+from serverless_mr.main import ServerlessMR, set_up, tear_down
+from user_job_3.map import map_function
+from user_job_3.reduce import reduce_function
+from user_job_3.partition import partition
 from unittest import TestCase
 
 
@@ -19,7 +22,7 @@ class Test(TestCase):
         static_job_info_file = open(StaticVariables.STATIC_JOB_INFO_PATH, 'r')
         self.static_job_info = json.loads(static_job_info_file.read())
         static_job_info_file.close()
-        os.environ["serverless_mapreduce_role"] = '123'
+        os.environ["serverless_mapreduce_role"] = 'dummy-role'
 
     @classmethod
     def tearDown(self):
@@ -29,7 +32,13 @@ class Test(TestCase):
 
     def test_that_lambda_returns_correct_message(self):
         # Execute the job
-        init_job()
+        serverless_mr = ServerlessMR()
+        serverless_mr.map(map_function)
+        serverless_mr.reduce(reduce_function)
+        serverless_mr.set_partition_function(partition)
+
+        serverless_mr.run()
+
         print("The job has finished")
 
         # Output
