@@ -32,7 +32,7 @@ class InputHandlerS3:
 
         for i in range(len(input_file_paths)):
             input_file_path = input_file_paths[i]
-            key = '%s-input-%s' % (prefix, str(i + 1))
+            key = '%s/input-%s' % (prefix, str(i + 1))
             self.client.upload_file(Filename=input_file_path,
                                     Bucket=input_bucket,
                                     Key=key)
@@ -55,4 +55,4 @@ class InputHandlerS3:
         response = self.client.get_object(Bucket=input_source, Key=input_key)
         contents = response['Body'].read()
 
-        return contents.decode("utf-8").split('\n')[:-1]
+        return contents.decode("utf-8")

@@ -70,7 +70,9 @@ class StaticVariables:
     SERVERLESS_DRIVER_FLAG_FN = "serverlessDriver"
 
     # specific to DynamoDB
-    INPUT_KEY_NAME_DYNAMODB = "inputKeyNameDynamoDB"
-    INPUT_COLUMN_NAME_DYNAMODB = "inputColumnNameDynamoDB"
-    OUTPUT_KEY_NAME_DYNAMODB = "outputKeyNameDynamoDB"
-    OUTPUT_COLUMN_NAME_DYNAMODB = "outputColumnNameDynamoDB"
+    INPUT_PARTITION_KEY_DYNAMODB = "inputPartitionKeyDynamoDB"
+    INPUT_SORT_KEY_DYNAMODB = "inputSortKeyDynamoDB" # Optional
+    INPUT_COLUMNS_DYNAMODB = "inputColumnsDynamoDB"
+    INPUT_PROCESSING_COLUMNS_DYNAMODB = "inputProcessingColumnsDynamoDB"
+    OUTPUT_PARTITION_KEY_DYNAMODB = "outputPartitionKeyDynamoDB"
+    OUTPUT_COLUMN_DYNAMODB = "outputColumnDynamoDB"

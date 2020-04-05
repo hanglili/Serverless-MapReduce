@@ -3,6 +3,7 @@ import json
 import random
 import time
 import os
+import pickle
 
 from serverless_mr.utils import lambda_utils, zip, input_handler, output_handler, map_phase_state
 from serverless_mr.aws_lambda import lambda_manager
@@ -12,9 +13,17 @@ from botocore.client import Config
 from serverless_mr.static.static_variables import StaticVariables
 
 
+def delete_files(dirname, filenames):
+    for filename in filenames:
+        dst_file = "%s/%s" % (dirname, filename)
+        if os.path.exists(dst_file):
+            os.remove(dst_file)
+
+
 class Driver:
 
-    def __init__(self, is_serverless=False):
+    def __init__(self, map_function=None, reduce_function=None, partition_function=None,
+                 rel_function_paths=None, is_serverless=False):
         self.config = json.loads(open(StaticVariables.DRIVER_CONFIG_PATH, 'r').read())
         self.static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
         self.is_serverless = is_serverless
@@ -40,6 +49,13 @@ class Driver:
                                                                     self.is_serverless)
         self.map_phase_state = map_phase_state.MapPhaseState(self.is_serverless)
         self._initialise_map_phase_state()
+        self.set_up_shuffling_bucket()
+        self.set_up_output_bucket()
+
+        self.map_function = map_function
+        self.reduce_function = reduce_function
+        self.partition_function = partition_function
+        self.rel_function_paths = rel_function_paths
 
     def _initialise_map_phase_state(self):
         self.map_phase_state.create_state_table(StaticVariables.MAPPER_PHASE_STATE_DYNAMODB_TABLE_NAME)
@@ -102,11 +118,16 @@ class Driver:
 
         # Prepare Lambda functions if driver running in local machine
         if not self.is_serverless:
-            zip.zip_lambda(self.config[StaticVariables.MAPPER_FN][StaticVariables.LOCATION_FN],
-                           self.config[StaticVariables.MAPPER_FN][StaticVariables.ZIP_FN])
-            zip.zip_lambda(self.config[StaticVariables.REDUCER_FN][StaticVariables.LOCATION_FN],
-                           self.config[StaticVariables.REDUCER_FN][StaticVariables.ZIP_FN])
-            zip.zip_lambda(self.config[StaticVariables.REDUCER_COORDINATOR_FN][StaticVariables.LOCATION_FN],
+            with open('serverless_mr/job/map.pkl', 'wb') as f:
+                pickle.dump(self.map_function, f)
+            with open('serverless_mr/job/reduce.pkl', 'wb') as f:
+                pickle.dump(self.reduce_function, f)
+            with open('serverless_mr/job/partition.pkl', 'wb') as f:
+                pickle.dump(self.partition_function, f)
+
+            zip.zip_lambda(self.rel_function_paths, self.config[StaticVariables.MAPPER_FN][StaticVariables.ZIP_FN])
+            zip.zip_lambda(self.rel_function_paths, self.config[StaticVariables.REDUCER_FN][StaticVariables.ZIP_FN])
+            zip.zip_lambda([self.config[StaticVariables.REDUCER_COORDINATOR_FN][StaticVariables.LOCATION_FN]],
                            self.config[StaticVariables.REDUCER_COORDINATOR_FN][StaticVariables.ZIP_FN])
 
         # Mapper
@@ -161,7 +182,10 @@ class Driver:
             InvocationType='RequestResponse',
             Payload=json.dumps({
                 "keys": batch,
-                "mapperId": m_id
+                "mapperId": m_id,
+                "function_pickle_path": "serverless_mr/job/map.pkl",
+                "reduce_function_pickle_path": "serverless_mr/job/reduce.pkl",
+                "partition_function_pickle_path": "serverless_mr/job/partition.pkl"
             })
         )
         out = eval(resp['Payload'].read())
@@ -268,3 +292,27 @@ class Driver:
         # 7. View one of the reducer results
         print(self.cur_output_handler.get_output(3))
         self.map_phase_state.delete_state_table(StaticVariables.MAPPER_PHASE_STATE_DYNAMODB_TABLE_NAME)
+
+        if not self.is_serverless:
+            delete_files("serverless_mr/job", ["map.pkl", "reduce.pkl", "partition.pkl"])
+
+    def set_up_shuffling_bucket(self):
+        print("Setting up shuffling bucket")
+        shuffling_bucket = self.static_job_info[StaticVariables.SHUFFLING_BUCKET_FN]
+        self.s3_client.create_bucket(Bucket=shuffling_bucket)
+        self.s3_client.put_bucket_acl(
+            ACL='public-read-write',
+            Bucket=shuffling_bucket,
+        )
+        print("Finished setting up shuffling bucket")
+
+    def set_up_output_bucket(self):
+        print("Setting up output bucket")
+        output_bucket = self.static_job_info[StaticVariables.OUTPUT_SOURCE_FN]
+        self.s3_client.create_bucket(Bucket=output_bucket)
+        self.s3_client.put_bucket_acl(
+            ACL='public-read-write',
+            Bucket=output_bucket,
+        )
+        print("Finished setting up shuffling bucket")
+

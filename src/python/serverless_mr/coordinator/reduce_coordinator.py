@@ -64,7 +64,8 @@ def lambda_handler(event, _):
                 InvocationType='Event',
                 Payload=json.dumps({
                     "keys": cur_reducer_keys,
-                    "reducerId": i
+                    "reducerId": i,
+                    "function_pickle_path": "serverless_mr/job/reduce.pkl"
                 })
             )
             print("Reducer invocation response: ", response)
