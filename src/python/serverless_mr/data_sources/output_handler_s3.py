@@ -44,13 +44,13 @@ class OutputHandlerS3:
 
         return self.client.list_objects(Bucket=output_source, Prefix=reduce_output_full_prefix), "Contents"
 
-    def check_job_finish(self, response, string_index):
+    def check_job_finish(self, response, string_index, num_final_dst_operators):
         shuffling_bucket = self.static_job_info[StaticVariables.SHUFFLING_BUCKET_FN]
         output_bucket = self.static_job_info[StaticVariables.OUTPUT_SOURCE_FN]
         job_name = self.static_job_info[StaticVariables.JOB_NAME_FN]
         reducer_lambda_time = 0
         reducer_ids = response[string_index]
-        if len(reducer_ids) == self.static_job_info[StaticVariables.NUM_REDUCER_FN]:
+        if len(reducer_ids) == num_final_dst_operators:
             job_keys = self.client.list_objects(Bucket=shuffling_bucket, Prefix=job_name)["Contents"]
             total_s3_size = sum([job_key["Size"] for job_key in job_keys])
             for reducer_id in reducer_ids:

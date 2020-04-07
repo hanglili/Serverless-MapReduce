@@ -5,12 +5,14 @@ import time
 import os
 import pickle
 
-from serverless_mr.utils import lambda_utils, zip, input_handler, output_handler, map_phase_state
+from serverless_mr.utils import lambda_utils, zip, input_handler, output_handler, stage_state
 from serverless_mr.aws_lambda import lambda_manager
 from multiprocessing.dummy import Pool as ThreadPool
 from functools import partial
 from botocore.client import Config
 from serverless_mr.static.static_variables import StaticVariables
+from serverless_mr.functions.map_shuffle_function import MapShuffleFunction
+from serverless_mr.functions.reduce_function import ReduceFunction
 
 
 def delete_files(dirname, filenames):
@@ -20,13 +22,30 @@ def delete_files(dirname, filenames):
             os.remove(dst_file)
 
 
+def delete_file(filename):
+    if os.path.exists(filename):
+        os.remove(filename)
+
+
 class Driver:
 
-    def __init__(self, map_function=None, reduce_function=None, partition_function=None,
-                 rel_function_paths=None, is_serverless=False):
+    def __init__(self, functions, is_serverless=False):
         self.config = json.loads(open(StaticVariables.DRIVER_CONFIG_PATH, 'r').read())
         self.static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
         self.is_serverless = is_serverless
+        self._set_aws_clients()
+        self._set_lambda_config_and_client()
+        self.cur_input_handler = input_handler.get_input_handler(self.static_job_info[StaticVariables.INPUT_SOURCE_TYPE_FN],
+                                                                 self.is_serverless)
+        self.cur_output_handler = output_handler.get_output_handler(self.static_job_info[StaticVariables.OUTPUT_SOURCE_TYPE_FN],
+                                                                    self.is_serverless)
+        self.functions = functions
+        self.map_phase_state = stage_state.StageState(self.is_serverless)
+        self._initialise_stage_state(len(self.functions))
+        self.set_up_shuffling_bucket()
+        self.set_up_output_bucket()
+
+    def _set_aws_clients(self):
         if self.static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
             if not self.is_serverless:
                 s3_endpoint_url = 'http://localhost:4572'
@@ -37,38 +56,15 @@ class Driver:
             self.s3_client = boto3.client('s3', aws_access_key_id='', aws_secret_access_key='',
                                           region_name=StaticVariables.DEFAULT_REGION, endpoint_url=s3_endpoint_url)
             self.dynamodb_client = boto3.client('dynamodb', aws_access_key_id='', aws_secret_access_key='',
-                                                region_name=StaticVariables.DEFAULT_REGION, endpoint_url=dynamodb_endpoint_url)
+                                                region_name=StaticVariables.DEFAULT_REGION,
+                                                endpoint_url=dynamodb_endpoint_url)
         else:
             self.s3_client = boto3.client('s3')
             self.dynamodb_client = boto3.client('dynamodb')
-        self.lambda_config = None
-        self.lambda_client = None
-        self.cur_input_handler = input_handler.get_input_handler(self.static_job_info[StaticVariables.INPUT_SOURCE_TYPE_FN],
-                                                                 self.is_serverless)
-        self.cur_output_handler = output_handler.get_output_handler(self.static_job_info[StaticVariables.OUTPUT_SOURCE_TYPE_FN],
-                                                                    self.is_serverless)
-        self.map_phase_state = map_phase_state.MapPhaseState(self.is_serverless)
-        self._initialise_map_phase_state()
-        self.set_up_shuffling_bucket()
-        self.set_up_output_bucket()
 
-        self.map_function = map_function
-        self.reduce_function = reduce_function
-        self.partition_function = partition_function
-        self.rel_function_paths = rel_function_paths
-
-    def _initialise_map_phase_state(self):
-        self.map_phase_state.create_state_table(StaticVariables.MAPPER_PHASE_STATE_DYNAMODB_TABLE_NAME)
-        self.map_phase_state.initialise_state_table(StaticVariables.MAPPER_PHASE_STATE_DYNAMODB_TABLE_NAME)
-
-    # Get all keys to be processed
-    def _get_all_keys(self):
+    def _set_lambda_config_and_client(self):
         region = self.config[StaticVariables.REGION_FN] \
             if StaticVariables.REGION_FN in self.config else StaticVariables.DEFAULT_REGION
-        lambda_memory = self.config[StaticVariables.LAMBDA_MEMORY_PROVISIONED_FN] \
-            if StaticVariables.LAMBDA_MEMORY_PROVISIONED_FN in self.config else StaticVariables.DEFAULT_LAMBDA_MEMORY_LIMIT
-        concurrent_lambdas = self.config[StaticVariables.NUM_CONCURRENT_LAMBDAS_FN] \
-            if StaticVariables.NUM_CONCURRENT_LAMBDAS_FN in self.config else StaticVariables.DEFAULT_NUM_CONCURRENT_LAMBDAS
         lambda_read_timeout = self.config[StaticVariables.LAMBDA_READ_TIMEOUT_FN] \
             if StaticVariables.LAMBDA_READ_TIMEOUT_FN in self.config else StaticVariables.DEFAULT_LAMBDA_READ_TIMEOUT
         boto_max_connections = self.config[StaticVariables.BOTO_MAX_CONNECTIONS_FN] \
@@ -90,6 +86,18 @@ class Driver:
         else:
             self.lambda_client = boto3.client('lambda', config=self.lambda_config)
 
+    def _initialise_stage_state(self, num_stages):
+        self.map_phase_state.create_state_table(StaticVariables.STAGE_STATE_DYNAMODB_TABLE_NAME)
+        self.map_phase_state.initialise_state_table(StaticVariables.STAGE_STATE_DYNAMODB_TABLE_NAME,
+                                                    num_stages)
+
+    # Get all keys to be processed
+    def _get_all_keys(self):
+        lambda_memory = self.config[StaticVariables.LAMBDA_MEMORY_PROVISIONED_FN] \
+            if StaticVariables.LAMBDA_MEMORY_PROVISIONED_FN in self.config else StaticVariables.DEFAULT_LAMBDA_MEMORY_LIMIT
+        concurrent_lambdas = self.config[StaticVariables.NUM_CONCURRENT_LAMBDAS_FN] \
+            if StaticVariables.NUM_CONCURRENT_LAMBDAS_FN in self.config else StaticVariables.DEFAULT_NUM_CONCURRENT_LAMBDAS
+
         # Fetch all the keys that match the prefix
         all_keys = self.cur_input_handler.get_all_input_keys()
 
@@ -102,62 +110,131 @@ class Driver:
 
         return all_keys, num_mappers, batches
 
+    def _create_coordinator_config_file(self, cur_function, num_src_operators, num_dst_operators,
+                                        invoking_lambda_name, function_pickle_path, partition_function_pickle_path="",
+                                        reduce_function_pickle_path=""):
+        config = {}
+        config["num_src_operators"] = num_src_operators
+        config["num_dst_operators"] = num_dst_operators
+        config["invoking_lambda_name"] = invoking_lambda_name
+        if isinstance(cur_function, ReduceFunction):
+            config["coordinator_type"] = 2
+        else:
+            config["coordinator_type"] = 1
+        config["function_pickle_path"] = function_pickle_path
+        config["reduce_function_pickle_path"] = reduce_function_pickle_path
+        config["partition_function_pickle_path"] = partition_function_pickle_path
+
+        return config
+
     # Create the aws_lambda functions
-    def _create_lambda(self, num_mappers):
+    def _create_lambdas(self, num_src_operators):
         job_name = self.static_job_info[StaticVariables.JOB_NAME_FN]
         lambda_name_prefix = self.static_job_info[StaticVariables.LAMBDA_NAME_PREFIX_FN]
-
-        mapper_lambda_name = lambda_name_prefix + "-mapper-" + job_name
-        reducer_lambda_name = lambda_name_prefix + "-reducer-" + job_name
-        rc_lambda_name = lambda_name_prefix + "-reduce-coordinator-" + job_name
-
         shuffling_bucket = self.static_job_info[StaticVariables.SHUFFLING_BUCKET_FN]
         region = self.config[StaticVariables.REGION_FN] \
             if StaticVariables.REGION_FN in self.config else StaticVariables.DEFAULT_REGION
-        num_reducers = self.static_job_info[StaticVariables.NUM_REDUCER_FN]
+        stage_id = 1
+        function_lambdas = []
+        coordinator_config = []
 
-        # Prepare Lambda functions if driver running in local machine
+        # The first function should be a map/map_shuffle function
+        for i in range(len(self.functions)):
+            cur_function = self.functions[i]
+            cur_function_zip_path = "serverless_mr/%s-%s.zip" % (cur_function.get_string(), stage_id)
+
+            # Prepare Lambda functions if driver running in local machine
+            if not self.is_serverless:
+                cur_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % (cur_function.get_string(), stage_id)
+                rel_function_paths = cur_function.get_rel_function_paths()
+                with open(cur_function_pickle_path, 'wb') as f:
+                    pickle.dump(cur_function.get_function(), f)
+                if isinstance(cur_function, MapShuffleFunction):
+                    partition_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % ("partition", stage_id)
+                    with open(partition_function_pickle_path, 'wb') as f:
+                        pickle.dump(cur_function.get_partition_function(), f)
+
+                    next_reduce_function = self.functions[i+1]
+                    reduce_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % \
+                                                  (next_reduce_function.get_string(), stage_id + 1)
+                    with open(reduce_function_pickle_path, 'wb') as f:
+                        pickle.dump(next_reduce_function.get_function(), f)
+                    rel_function_paths += next_reduce_function.get_rel_function_paths()
+
+                zip.zip_lambda(rel_function_paths, cur_function_zip_path)
+
+            cur_function_lambda_name = "%s-%s-%s-%s" % (job_name, lambda_name_prefix, cur_function.get_string(),
+                                                        stage_id)
+            cur_function_lambda = lambda_manager.LambdaManager(self.lambda_client, self.s3_client, region,
+                                                               cur_function_zip_path, job_name,
+                                                               cur_function_lambda_name,
+                                                               cur_function.get_handler_function_path())
+            if isinstance(cur_function, MapShuffleFunction):
+                assert i + 1 < len(self.functions) and isinstance(self.functions[i+1], ReduceFunction)
+                cur_function_lambda.update_code_or_create_on_no_exist(len(self.functions), stage_id=stage_id,
+                                                                      num_reducers=self.functions[i+1].get_num_reducers())
+            else:
+                cur_function_lambda.update_code_or_create_on_no_exist(len(self.functions), stage_id=stage_id)
+            function_lambdas.append(cur_function_lambda)
+            # delete_file(cur_function_zip_path)
+
+            # Coordinator
+            if i > 0 and not self.is_serverless:
+                cur_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % (cur_function.get_string(), stage_id)
+                if isinstance(cur_function, ReduceFunction):
+                    num_reducers = cur_function.get_num_reducers()
+                    coordinator_config.append(
+                        self._create_coordinator_config_file(cur_function, num_src_operators,
+                                                             num_reducers, cur_function_lambda_name,
+                                                             cur_function_pickle_path)
+                    )
+                    num_src_operators = num_reducers
+                elif isinstance(cur_function, MapShuffleFunction):
+                    next_reduce_function = self.functions[i + 1]
+                    partition_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % ("partition", stage_id)
+                    reduce_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % \
+                                                  (next_reduce_function.get_string(), stage_id + 1)
+                    coordinator_config.append(
+                        self._create_coordinator_config_file(cur_function, num_src_operators,
+                                                             num_src_operators, cur_function_lambda_name,
+                                                             cur_function_pickle_path, partition_function_pickle_path,
+                                                             reduce_function_pickle_path)
+                    )
+                else:
+                    coordinator_config.append(
+                        self._create_coordinator_config_file(cur_function, num_src_operators,
+                                                             num_src_operators, cur_function_lambda_name,
+                                                             cur_function_pickle_path)
+                    )
+
+            stage_id += 1
+
+        reduce_coordinator_zip_path = "serverless_mr/reduce-coordinator.zip"
         if not self.is_serverless:
-            with open('serverless_mr/job/map.pkl', 'wb') as f:
-                pickle.dump(self.map_function, f)
-            with open('serverless_mr/job/reduce.pkl', 'wb') as f:
-                pickle.dump(self.reduce_function, f)
-            with open('serverless_mr/job/partition.pkl', 'wb') as f:
-                pickle.dump(self.partition_function, f)
+            with open(StaticVariables.COORDINATOR_CONFIGURATION_PATH, 'w') as outfile:
+                json.dump(coordinator_config, outfile)
 
-            zip.zip_lambda(self.rel_function_paths, self.config[StaticVariables.MAPPER_FN][StaticVariables.ZIP_FN])
-            zip.zip_lambda(self.rel_function_paths, self.config[StaticVariables.REDUCER_FN][StaticVariables.ZIP_FN])
-            zip.zip_lambda([self.config[StaticVariables.REDUCER_COORDINATOR_FN][StaticVariables.LOCATION_FN]],
-                           self.config[StaticVariables.REDUCER_COORDINATOR_FN][StaticVariables.ZIP_FN])
+            zip.zip_lambda([StaticVariables.REDUCE_COORDINATOR_HANDLER_PATH], reduce_coordinator_zip_path)
 
-        # Mapper
-        l_mapper = lambda_manager.LambdaManager(self.lambda_client, self.s3_client, region,
-                                                self.config[StaticVariables.MAPPER_FN][StaticVariables.ZIP_FN],
-                                                job_name, mapper_lambda_name,
-                                                self.config[StaticVariables.MAPPER_FN][StaticVariables.HANDLER_FN])
-        l_mapper.update_code_or_create_on_no_exist()
+            # delete_file(StaticVariables.COORDINATOR_CONFIGURATION_PATH)
 
-        # Reducer
-        l_reducer = lambda_manager.LambdaManager(self.lambda_client, self.s3_client, region,
-                                                 self.config[StaticVariables.REDUCER_FN][StaticVariables.ZIP_FN], job_name,
-                                                 reducer_lambda_name,
-                                                 self.config[StaticVariables.REDUCER_FN][StaticVariables.HANDLER_FN])
-        l_reducer.update_code_or_create_on_no_exist()
+        cur_coordinator_lambda_name = "%s-%s-%s-%s" % (job_name, lambda_name_prefix, "reduce-coordinator",
+                                                       stage_id)
+        cur_coordinator_lambda = lambda_manager.LambdaManager(self.lambda_client, self.s3_client, region,
+                                                              reduce_coordinator_zip_path, job_name,
+                                                              cur_coordinator_lambda_name,
+                                                              StaticVariables.REDUCE_COORDINATOR_HANDLER_FUNCTION_PATH)
+        cur_coordinator_lambda.update_code_or_create_on_no_exist(len(self.functions))
+        cur_coordinator_lambda.add_lambda_permission(random.randint(1, 1000), shuffling_bucket)
+        shuffling_s3_path_prefix = "%s/" % job_name
+        cur_coordinator_lambda.create_s3_event_source_notification(shuffling_bucket, shuffling_s3_path_prefix)
+        function_lambdas.append(cur_coordinator_lambda)
 
-        # Coordinator
-        l_rc = lambda_manager.LambdaManager(self.lambda_client, self.s3_client, region,
-                                            self.config[StaticVariables.REDUCER_COORDINATOR_FN][StaticVariables.ZIP_FN],
-                                            job_name, rc_lambda_name,
-                                            self.config[StaticVariables.REDUCER_COORDINATOR_FN][StaticVariables.HANDLER_FN])
-        l_rc.update_code_or_create_on_no_exist(str(num_mappers))
+        if not self.is_serverless:
+            # delete_file(reduce_coordinator_zip_path)
+            pass
 
-        # Add permission to the coordinator
-        l_rc.add_lambda_permission(random.randint(1, 1000), shuffling_bucket)
-
-        # create event source for coordinator
-        last_bin_path = "%s/%s/bin%s/" % (job_name, StaticVariables.MAP_OUTPUT_PREFIX, str(num_reducers))
-        l_rc.create_s3_event_source_notification(shuffling_bucket, last_bin_path)
-        return l_mapper, l_reducer, l_rc
+        return function_lambdas, num_src_operators
 
     # Write Jobdata to S3
     def _write_job_data(self, all_keys, n_mappers):
@@ -171,23 +248,40 @@ class Driver:
 
         self.s3_client.put_object(Bucket=self.static_job_info[StaticVariables.SHUFFLING_BUCKET_FN], Key=j_key, Body=data, Metadata={})
 
-    def invoke_lambda(self, mapper_outputs, batches, m_id):
+    def invoke_lambda(self, mapper_outputs, batches, mapper_id):
         job_name = self.static_job_info[StaticVariables.JOB_NAME_FN]
         lambda_name_prefix = self.static_job_info[StaticVariables.LAMBDA_NAME_PREFIX_FN]
-        mapper_lambda_name = lambda_name_prefix + "-mapper-" + job_name
+        first_function = self.functions[0]
+        stage_id = 1
+        first_function_lambda_name = "%s-%s-%s-%s" % (job_name, lambda_name_prefix, first_function.get_string(),
+                                                      stage_id)
 
-        batch = [k['Key'] for k in batches[m_id - 1]]
-        resp = self.lambda_client.invoke(
-            FunctionName=mapper_lambda_name,
-            InvocationType='RequestResponse',
-            Payload=json.dumps({
-                "keys": batch,
-                "mapperId": m_id,
-                "function_pickle_path": "serverless_mr/job/map.pkl",
-                "reduce_function_pickle_path": "serverless_mr/job/reduce.pkl",
-                "partition_function_pickle_path": "serverless_mr/job/partition.pkl"
-            })
-        )
+        pickle_file_path = 'serverless_mr/job/%s-%s.pkl' % (first_function.get_string(), stage_id)
+        batch = [k['Key'] for k in batches[mapper_id - 1]]
+        if isinstance(first_function, MapShuffleFunction):
+            reduce_pickle_file_path = 'serverless_mr/job/%s-%s.pkl' % (self.functions[1].get_string(), stage_id+1)
+            partition_pickle_file_path = 'serverless_mr/job/%s-%s.pkl' % ("partition", stage_id)
+            resp = self.lambda_client.invoke(
+                FunctionName=first_function_lambda_name,
+                InvocationType='RequestResponse',
+                Payload=json.dumps({
+                    "keys": batch,
+                    "id": mapper_id,
+                    "function_pickle_path": pickle_file_path,
+                    "reduce_function_pickle_path": reduce_pickle_file_path,
+                    "partition_function_pickle_path": partition_pickle_file_path
+                })
+            )
+        else:
+            resp = self.lambda_client.invoke(
+                FunctionName=first_function_lambda_name,
+                InvocationType='RequestResponse',
+                Payload=json.dumps({
+                    "keys": batch,
+                    "id": mapper_id,
+                    "function_pickle_path": pickle_file_path
+                })
+            )
         out = eval(resp['Payload'].read())
         mapper_outputs.append(out)
         print("Mapper processing information: ", out)
@@ -216,7 +310,7 @@ class Driver:
         print("All the mappers have finished")
         return mapper_outputs
 
-    def _calculate_cost(self, mapper_outputs):
+    def _calculate_cost(self, mapper_outputs, num_final_dst_operators):
         total_lambda_secs = 0
         total_s3_get_ops = 0
         # total_s3_put_ops = 0
@@ -240,7 +334,8 @@ class Driver:
             response, string_index = self.cur_output_handler.list_objects_for_checking_finish()
             if string_index in response:
                 reducer_lambda_time, total_s3_size, len_job_keys = self.cur_output_handler.check_job_finish(response,
-                                                                                                            string_index)
+                                                                                                            string_index,
+                                                                                                            num_final_dst_operators)
                 if reducer_lambda_time > -1:
                     break
             time.sleep(5)
@@ -272,26 +367,23 @@ class Driver:
         all_keys, num_mappers, batches = self._get_all_keys()
 
         # 2. Create the aws_lambda functions
-        l_mapper, l_reducer, l_rc = self._create_lambda(num_mappers)
+        function_lambdas, num_final_dst_operators = self._create_lambdas(num_mappers)
         self._write_job_data(all_keys, num_mappers)
 
         # Execute
         # 3. Invoke Mappers and wait until they finish the execution
         mapper_outputs = self._invoke_mappers(num_mappers, batches)
 
-        # 4. Delete Mapper function
-        l_mapper.delete_function()
+        # 4. Calculate costs - Approx (since we are using exec time reported by our func and not billed ms)
+        self._calculate_cost(mapper_outputs, num_final_dst_operators)
 
-        # 5. Calculate costs - Approx (since we are using exec time reported by our func and not billed ms)
-        self._calculate_cost(mapper_outputs)
-
-        # 6. Delete Reducer and its coordinator function
-        l_reducer.delete_function()
-        l_rc.delete_function()
+        # 5. Delete the function lambdas
+        for function_lambda in function_lambdas:
+            function_lambda.delete_function()
 
         # 7. View one of the reducer results
         print(self.cur_output_handler.get_output(3))
-        self.map_phase_state.delete_state_table(StaticVariables.MAPPER_PHASE_STATE_DYNAMODB_TABLE_NAME)
+        self.map_phase_state.delete_state_table(StaticVariables.STAGE_STATE_DYNAMODB_TABLE_NAME)
 
         if not self.is_serverless:
             delete_files("serverless_mr/job", ["map.pkl", "reduce.pkl", "partition.pkl"])

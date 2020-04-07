@@ -18,8 +18,7 @@ class DecimalEncoder(json.JSONEncoder):
         return super(DecimalEncoder, self).default(o)
 
 
-class MapPhaseState:
-    DUMMY_ID = 0
+class StageState:
 
     def __init__(self, in_lambda):
         self.static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
@@ -37,12 +36,12 @@ class MapPhaseState:
     def create_state_table(self, table_name):
         self.client.create_table(
             AttributeDefinitions=[{
-                'AttributeName': 'id',
+                'AttributeName': 'stage_id',
                 'AttributeType': 'N'
             }],
             TableName=table_name,
             KeySchema=[{
-                'AttributeName': 'id',
+                'AttributeName': 'stage_id',
                 'KeyType': 'HASH'
             }],
             ProvisionedThroughput={
@@ -57,33 +56,42 @@ class MapPhaseState:
             time.sleep(1)
             response = self.client.describe_table(TableName=table_name)['Table']['TableStatus']
 
-        print("Map Phase state table created successfully")
+        print("Stage state table created successfully")
 
-    def initialise_state_table(self, table_name):
+    def initialise_state_table(self, table_name, num_stages):
+        for i in range(1, num_stages):
+            self.client.put_item(
+                TableName=table_name,
+                Item={
+                    'stage_id': {'N': str(i)},
+                    'num_completed_operators': {'N': str(0)}
+                }
+            )
+
+        # -1 stage_id stores the current stage id
         self.client.put_item(
             TableName=table_name,
             Item={
-                'id': {'N': str(MapPhaseState.DUMMY_ID)},
-                'num_completed_mappers': {'N': str(0)}
+                'stage_id': {'N': str(-1)},
+                'current_stage_id': {'N': str(1)}
             }
         )
-
-        print("Map Phase state table initialised successfully")
+        print("Stage state table initialised successfully")
 
     def delete_state_table(self, table_name):
         self.client.delete_table(
             TableName=table_name
         )
 
-        print("Map Phase state table deleted successfully")
+        print("Stage state table deleted successfully")
 
-    def increment_num_completed_mapper(self, table_name):
+    def increment_num_completed_operators(self, table_name, stage_id):
         response = self.client.update_item(
             TableName=table_name,
             Key={
-                'id': {'N': str(MapPhaseState.DUMMY_ID)}
+                'stage_id': {'N': str(stage_id)}
             },
-            UpdateExpression="set num_completed_mappers = num_completed_mappers + :val",
+            UpdateExpression="set num_completed_operators = num_completed_operators + :val",
             ExpressionAttributeValues={
                 ':val': {'N': str(1)}
             },
@@ -92,3 +100,28 @@ class MapPhaseState:
 
         print("Number of completed mappers incremented successfully")
         return response
+
+    def increment_current_stage_id(self, table_name):
+        response = self.client.update_item(
+            TableName=table_name,
+            Key={
+                'stage_id': {'N': str(-1)}
+            },
+            UpdateExpression="set current_stage_id = current_stage_id + :val",
+            ExpressionAttributeValues={
+                ':val': {'N': str(1)}
+            },
+            ReturnValues="UPDATED_NEW"
+        )
+
+        print("Current stage id incremented successfully")
+        return response
+
+    def read_current_stage_id(self, table_name):
+        projection_expression = "current_stage_id"
+        response = self.client.get_item(TableName=table_name,
+                                        Key={
+                                            'stage_id': { 'N': str(-1)}
+                                        },
+                                        ProjectionExpression=projection_expression)
+        return int(response['Item']['current_stage_id']['N'])

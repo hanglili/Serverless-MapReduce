@@ -155,8 +155,8 @@ class InputHandlerDynamoDB:
 
         return all_keys
 
-    def read_records_from_input_key(self, input_key):
-        input_table_name = self.static_job_info[StaticVariables.INPUT_SOURCE_FN]
+    def read_records_from_input_key(self, input_source, input_key):
+        input_table_name = input_source
         input_partition_key = self.static_job_info[StaticVariables.INPUT_PARTITION_KEY_DYNAMODB]
         input_sort_key = self.static_job_info[StaticVariables.INPUT_SORT_KEY_DYNAMODB] \
             if StaticVariables.INPUT_SORT_KEY_DYNAMODB in self.static_job_info else None

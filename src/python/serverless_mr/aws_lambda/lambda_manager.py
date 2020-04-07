@@ -22,7 +22,7 @@ class LambdaManager(object):
 
     # TracingConfig parameter switches X-Ray tracing on/off.
     # Change value to 'Mode':'PassThrough' to switch it off
-    def create_lambda_function(self, num_mappers):
+    def create_lambda_function(self, stage_id, total_num_stages, num_reducers):
         runtime = 'python3.7'
         response = self.lambda_client.create_function(
             FunctionName=self.function_name,
@@ -36,7 +36,9 @@ class LambdaManager(object):
             Environment={
                 'Variables': {
                     "serverless_mapreduce_role": self.role,
-                    "num_mappers": num_mappers
+                    "stage_id": str(stage_id),
+                    "total_num_stages": str(total_num_stages),
+                    "num_reducers": str(num_reducers)
                 }
             },
             MemorySize=self.memory,
@@ -61,12 +63,12 @@ class LambdaManager(object):
         self.function_arn = arn
         print(response)
 
-    def update_code_or_create_on_no_exist(self, num_mappers=""):
+    def update_code_or_create_on_no_exist(self, total_num_stages, stage_id=-1, num_reducers=-1):
         """
         Update if the function exists, else create function
         """
         try:
-            self.create_lambda_function(num_mappers)
+            self.create_lambda_function(stage_id, total_num_stages, num_reducers)
         except Exception as e:
             # parse (Function already exist)
             print("Failed to create lambda:", e)
@@ -86,6 +88,7 @@ class LambdaManager(object):
             print("Failed to add permission to lambda:", e)
 
     def create_s3_event_source_notification(self, bucket, prefix):
+        print("The function arn is %s, with bucket %s and prefix %s" % (self.function_arn, bucket, prefix))
         self.s3.put_bucket_notification_configuration(
             Bucket=bucket,
             NotificationConfiguration={

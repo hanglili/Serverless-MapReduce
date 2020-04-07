@@ -5,9 +5,12 @@ class StaticVariables:
     STATIC_JOB_INFO_PATH = "serverless_mr/configuration/static-job-info.json"
     # CONFIGURATION_INIT_PATH = find_filepath("configuration", "__init__.py")
     CONFIGURATION_INIT_PATH = "serverless_mr/configuration/__init__.py"
+    COORDINATOR_CONFIGURATION_PATH = "serverless_mr/configuration/coordinator-config.json"
     # JOB_INFO_LAMBDA_PATH = "/tmp/job-info.json"
     MAP_HANDLER_PATH = "serverless_mr/job/map_handler.py"
+    MAP_SHUFFLE_HANDLER_PATH = "serverless_mr/job/map_shuffle_handler.py"
     REDUCE_HANDLER_PATH = "serverless_mr/job/reduce_handler.py"
+    REDUCE_COORDINATOR_HANDLER_PATH = "serverless_mr/coordinator/reduce_coordinator.py"
     PARTITION_PATH = "serverless_mr/job/partition.py"
     REDUCE_PATH = "serverless_mr/job/reduce.py"
     COMBINE_PATH = "serverless_mr/job/combine.py"
@@ -22,12 +25,16 @@ class StaticVariables:
     JOB_DATA_S3_FILENAME = "jobdata"
     STATIC_VARIABLES_PATH = "serverless_mr/static/static_variables.py"
     STATIC_INIT_PATH = "serverless_mr/static/__init__.py"
-    MAP_OUTPUT_PREFIX = "task/mapper"
-    REDUCE_OUTPUT_PREFIX_S3 = "task/reducer"
-    REDUCE_OUTPUT_PREFIX_DYNAMODB = "task-reducer"
-    MAPPER_PHASE_STATE_DYNAMODB_TABLE_NAME = "mapper-phase-state"
-    MAPPER_PHASE_STATE_PATH = "serverless_mr/utils/map_phase_state.py"
+    OUTPUT_PREFIX = "stage"
+    REDUCE_OUTPUT_PREFIX_S3 = "stage"
+    STAGE_STATE_DYNAMODB_TABLE_NAME = "stage-state"
+    STAGE_STATE_PATH = "serverless_mr/utils/stage_state.py"
 
+    # Lambda handler paths
+    MAP_HANDLER_FUNCTION_PATH = "serverless_mr/job/map_handler.lambda_handler"
+    MAP_SHUFFLE_HANDLER_FUNCTION_PATH = "serverless_mr/job/map_shuffle_handler.lambda_handler"
+    REDUCE_HANDLER_FUNCTION_PATH = "serverless_mr/job/reduce_handler.lambda_handler"
+    REDUCE_COORDINATOR_HANDLER_FUNCTION_PATH = "serverless_mr/coordinator/reduce_coordinator.lambda_handler"
 
     # Constants
     DEFAULT_REGION = "us-east-1"

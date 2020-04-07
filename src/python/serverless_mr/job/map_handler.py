@@ -8,26 +8,19 @@ import pickle
 
 from serverless_mr.static.static_variables import StaticVariables
 from serverless_mr.utils import input_handler
+from serverless_mr.utils import output_handler
 
 
-# def map_handler(map_function):
 def lambda_handler(event, _):
+    print("**************Map****************")
     start_time = time.time()
 
     src_keys = event['keys']
-    mapper_id = event['mapperId']
+    mapper_id = event['id']
     map_function_pickle_path = event['function_pickle_path']
-    reduce_function_pickle_path = event['reduce_function_pickle_path']
-    partition_function_pickle_path = event['partition_function_pickle_path']
 
     with open(map_function_pickle_path, 'rb') as f:
         map_function = pickle.load(f)
-
-    with open(reduce_function_pickle_path, 'rb') as f:
-        combine_function = pickle.load(f)
-
-    with open(partition_function_pickle_path, 'rb') as f:
-        partition_function = pickle.load(f)
 
     # create an S3 session
     static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
@@ -40,8 +33,9 @@ def lambda_handler(event, _):
 
     shuffling_bucket = static_job_info[StaticVariables.SHUFFLING_BUCKET_FN]
     job_name = static_job_info[StaticVariables.JOB_NAME_FN]
-    num_bins = static_job_info[StaticVariables.NUM_REDUCER_FN]
-    use_combine = static_job_info[StaticVariables.USE_COMBINE_FLAG_FN]
+
+    stage_id = int(os.environ.get("stage_id"))
+    total_num_stages = int(os.environ.get("total_num_stages"))
 
     # aggr
     line_count = 0
@@ -50,45 +44,29 @@ def lambda_handler(event, _):
     # INPUT CSV => OUTPUT JSON
 
     intermediate_data = []
-    cur_input_handler = input_handler.get_input_handler(static_job_info[StaticVariables.INPUT_SOURCE_TYPE_FN],
-                                                        in_lambda=True)
-    # Download and process all keys
-    for input_key in src_keys:
-        input_value = cur_input_handler.read_records_from_input_key(input_key)
-        input_pair = (input_key, input_value)
-        map_function(intermediate_data, input_pair)
+    if stage_id == 1:
+        cur_input_handler = input_handler.get_input_handler(static_job_info[StaticVariables.INPUT_SOURCE_TYPE_FN],
+                                                            in_lambda=True)
+        input_source = static_job_info[StaticVariables.INPUT_SOURCE_FN]
+        for input_key in src_keys:
+            input_value = cur_input_handler.read_records_from_input_key(input_source, input_key)
+            input_pair = (input_key, input_value)
+            map_function(intermediate_data, input_pair)
 
-        # TODO: Line count can be used to verify correctness of the job. Can be removed if needed in the future.
-        if static_job_info[StaticVariables.INPUT_SOURCE_TYPE_FN] == "s3":
-            line_count += len(input_value.split('\n')) - 1
-        elif static_job_info[StaticVariables.INPUT_SOURCE_TYPE_FN] == "dynamodb":
-            line_count += 1
-
-    if use_combine:
-        intermediate_data.sort(key=lambda x: x[0])
-
-        cur_key = None
-        cur_values = []
-        outputs = []
-        for input_key, value in intermediate_data:
-            if cur_key == input_key:
-                cur_values.append(value)
-            else:
-                if cur_key is not None:
-                    cur_key_outputs = []
-                    combine_function(cur_key_outputs, (cur_key, cur_values))
-                    outputs += cur_key_outputs
-
-                cur_key = input_key
-                cur_values = [value]
-
-        if cur_key is not None:
-            cur_key_outputs = []
-            combine_function(cur_key_outputs, (cur_key, cur_values))
-            outputs += cur_key_outputs
-
+            # TODO: Line count can be used to verify correctness of the job. Can be removed if needed in the future.
+            if static_job_info[StaticVariables.INPUT_SOURCE_TYPE_FN] == "s3":
+                line_count += len(input_value.split('\n')) - 1
+            elif static_job_info[StaticVariables.INPUT_SOURCE_TYPE_FN] == "dynamodb":
+                line_count += 1
     else:
-        outputs = intermediate_data
+        for input_key in src_keys:
+            response = s3_client.get_object(Bucket=shuffling_bucket, Key=input_key)
+            contents = response['Body'].read()
+            input_value = json.loads(contents)
+            input_pair = (input_key, input_value)
+            map_function(intermediate_data, input_pair)
+
+    outputs = intermediate_data
 
     time_in_secs = (time.time() - start_time)
     # timeTaken = time_in_secs * 1000000000 # in 10^9
@@ -103,21 +81,16 @@ def lambda_handler(event, _):
         "memoryUsage": '%s' % resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
     }
 
-    # Partition ids are from 1 to n (inclusive).
-    output_partitions = [[] for _ in range(num_bins + 1)]
+    print("Map: outputs are", outputs[0:10])
 
-    for input_key, value in outputs:
-        partition_id = partition_function(input_key, num_bins) + 1
-        cur_partition = output_partitions[partition_id]
-        cur_partition.append(tuple((input_key, value)))
-
-    for i in range(1, num_bins + 1):
-        partition_id = "bin%s" % i
-        mapper_filename = "%s/%s/%s/%s" % (job_name, StaticVariables.MAP_OUTPUT_PREFIX, partition_id, mapper_id)
+    if stage_id == total_num_stages:
+        cur_output_handler = output_handler.get_output_handler(static_job_info[StaticVariables.OUTPUT_SOURCE_TYPE_FN],
+                                                               in_lambda=True)
+        cur_output_handler.write_output(mapper_id, outputs, metadata)
+    else:
+        mapper_filename = "%s/%s-%s/%s" % (job_name, StaticVariables.OUTPUT_PREFIX, stage_id, mapper_id)
         s3_client.put_object(Bucket=shuffling_bucket, Key=mapper_filename,
-                             Body=json.dumps(output_partitions[i]), Metadata=metadata)
+                             Body=json.dumps(outputs), Metadata=metadata)
 
     return processing_info
-    # lambda_handler.__wrapped__ = map_function
-    #
-    # return lambda_handler
+
