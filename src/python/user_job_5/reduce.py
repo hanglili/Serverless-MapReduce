@@ -13,6 +13,6 @@ def reduce_function(outputs, intermediate_data):
         for value in values:
             revenue_sum += float(value)
 
-        outputs.append((key, [revenue_sum]))
+        outputs.append(tuple((key, revenue_sum)))
     except Exception as e:
         print("type error: " + str(e))

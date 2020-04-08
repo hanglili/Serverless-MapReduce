@@ -58,10 +58,10 @@ def lambda_handler(event, _):
     outputs = []
     for key, value in intermediate_data:
         if cur_key == key:
-            if use_combine:
-                cur_values += value
-            else:
-                cur_values.append(value)
+            # if use_combine:
+            #     cur_values += value
+            # else:
+            cur_values.append(value)
         else:
             if cur_key is not None:
                 cur_key_outputs = []
@@ -69,10 +69,10 @@ def lambda_handler(event, _):
                 outputs += cur_key_outputs
 
             cur_key = key
-            if use_combine:
-                cur_values = value
-            else:
-                cur_values = [value]
+            # if use_combine:
+            #     cur_values = value
+            # else:
+            cur_values = [value]
 
     if cur_key is not None:
         cur_key_outputs = []

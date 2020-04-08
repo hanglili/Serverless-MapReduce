@@ -7,9 +7,9 @@ def remove_dots(outputs, input_pair):
     try:
         _, input_value = input_pair
 
-        for ip_revenue in input_value:
-            src_ip = ip_revenue[0].replace(".", "")
-            outputs.append(tuple((src_ip, ip_revenue[1])))
+        for ip, revenue in input_value:
+            src_ip = ip.replace(".", "")
+            outputs.append(tuple((src_ip, revenue)))
 
     except Exception as e:
         print("type error: " + str(e))

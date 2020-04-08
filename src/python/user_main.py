@@ -6,7 +6,6 @@ from user_job_5.reduce import reduce_function
 from user_job_5.partition import partition
 from user_job_5.map_3 import remove_dots
 from user_job_5.map_4 import truncate_to_four_chars
-from user_job_5.reduce_2 import reduce_function_2
 
 serverless_mr = ServerlessMR()
 # serverless_mr.map(extract_data).map_shuffle(truncate_decimals, partition)\
@@ -16,6 +15,6 @@ serverless_mr = ServerlessMR()
 # serverless_mr.map(extract_data).map_shuffle(truncate_decimals, partition).reduce(reduce_function, 4)
 serverless_mr.map(extract_data).map_shuffle(truncate_decimals, partition)\
     .reduce(reduce_function, 4).map(remove_dots).map_shuffle(truncate_to_four_chars, partition)\
-    .reduce(reduce_function_2, 4)
+    .reduce(reduce_function, 3)
 
 serverless_mr.run()
