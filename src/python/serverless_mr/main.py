@@ -8,6 +8,9 @@ import inspect
 
 from pathlib import Path
 from serverless_mr.driver.driver import Driver
+from serverless_mr.functions.map_function import MapFunction
+from serverless_mr.functions.map_shuffle_function import MapShuffleFunction
+from serverless_mr.functions.reduce_function import ReduceFunction
 from serverless_mr.driver.serverless_driver_setup import ServerlessDriverSetup
 from serverless_mr.static.static_variables import StaticVariables
 from serverless_mr.utils import input_handler
@@ -96,29 +99,26 @@ def set_up_local_input_bucket(local_input_bucket):
 class ServerlessMR:
 
     def __init__(self):
-        self.map_function = None
-        self.reduce_function = None
-        self.partition_function = None
+        self.functions = []
 
     def map(self, map_function):
-        self.map_function = map_function
+        rel_function_path = copy_job_function(map_function)
+        self.functions.append(MapFunction(map_function, rel_function_path))
         return self
 
-    def reduce(self, reduce_function):
-        self.reduce_function = reduce_function
+    def map_shuffle(self, map_function, partition_function):
+        rel_map_function_path = copy_job_function(map_function)
+        rel_partition_function_path = copy_job_function(partition_function)
+        self.functions.append(MapShuffleFunction(map_function, rel_map_function_path,
+                                                 partition_function, rel_partition_function_path))
         return self
 
-    def set_partition_function(self, partition_function):
-        self.partition_function = partition_function
+    def reduce(self, reduce_function, num_reducers):
+        rel_function_path = copy_job_function(reduce_function)
+        self.functions.append(ReduceFunction(reduce_function, rel_function_path, num_reducers))
         return self
 
     def run(self):
-        rel_function_paths = []
-        rel_function_paths.append(copy_job_function(self.map_function))
-        rel_function_paths.append(copy_job_function(self.reduce_function))
-        rel_function_paths.append(copy_job_function(self.partition_function))
-        print("The relative paths are:", rel_function_paths)
-
         set_up()
         static_job_info_file = open(StaticVariables.STATIC_JOB_INFO_PATH, "r")
         static_job_info = json.loads(static_job_info_file.read())
@@ -138,8 +138,7 @@ class ServerlessMR:
         is_serverless_driver = static_job_info[StaticVariables.SERVERLESS_DRIVER_FLAG_FN]
 
         if is_serverless_driver:
-            serverless_driver_setup = ServerlessDriverSetup(self.map_function, self.reduce_function,
-                                                            self.partition_function, rel_function_paths)
+            serverless_driver_setup = ServerlessDriverSetup(functions=self.functions)
             serverless_driver_setup.register_driver()
             print("Driver Lambda function successfully registered")
             command = input("Enter invoke to invoke and other keys to exit: ")
@@ -147,8 +146,7 @@ class ServerlessMR:
                 print("Driver invoked and starting job execution")
                 serverless_driver_setup.invoke()
         else:
-            driver = Driver(map_function=self.map_function, reduce_function=self.reduce_function,
-                            partition_function=self.partition_function, rel_function_paths=rel_function_paths)
+            driver = Driver(functions=self.functions)
             driver.run()
 
         tear_down()

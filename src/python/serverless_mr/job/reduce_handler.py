@@ -10,10 +10,11 @@ from serverless_mr.utils import output_handler
 
 
 def lambda_handler(event, _):
+    print("**************Reduce****************")
     start_time = time.time()
 
     reduce_keys = event['keys']
-    reducer_id = event['reducerId']
+    reducer_id = event['id']
     reduce_function_pickle_path = event['function_pickle_path']
 
     with open(reduce_function_pickle_path, 'rb') as f:
@@ -30,6 +31,10 @@ def lambda_handler(event, _):
 
     shuffling_bucket = static_job_info[StaticVariables.SHUFFLING_BUCKET_FN]
     use_combine = static_job_info[StaticVariables.USE_COMBINE_FLAG_FN]
+    job_name = static_job_info[StaticVariables.JOB_NAME_FN]
+
+    stage_id = int(os.environ.get("stage_id"))
+    total_num_stages = int(os.environ.get("total_num_stages"))
 
     # aggr
     line_count = 0
@@ -53,10 +58,10 @@ def lambda_handler(event, _):
     outputs = []
     for key, value in intermediate_data:
         if cur_key == key:
-            if use_combine:
-                cur_values += value
-            else:
-                cur_values.append(value)
+            # if use_combine:
+            #     cur_values += value
+            # else:
+            cur_values.append(value)
         else:
             if cur_key is not None:
                 cur_key_outputs = []
@@ -64,10 +69,10 @@ def lambda_handler(event, _):
                 outputs += cur_key_outputs
 
             cur_key = key
-            if use_combine:
-                cur_values = value
-            else:
-                cur_values = [value]
+            # if use_combine:
+            #     cur_values = value
+            # else:
+            cur_values = [value]
 
     if cur_key is not None:
         cur_key_outputs = []
@@ -87,8 +92,13 @@ def lambda_handler(event, _):
         "memoryUsage": '%s' % resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
     }
 
-    cur_output_handler = output_handler.get_output_handler(static_job_info[StaticVariables.OUTPUT_SOURCE_TYPE_FN],
-                                                          in_lambda=True)
-    cur_output_handler.write_output(reducer_id, outputs, metadata)
+    if stage_id == total_num_stages:
+        cur_output_handler = output_handler.get_output_handler(static_job_info[StaticVariables.OUTPUT_SOURCE_TYPE_FN],
+                                                               in_lambda=True)
+        cur_output_handler.write_output(reducer_id, outputs, metadata)
+    else:
+        mapper_filename = "%s/%s-%s/%s" % (job_name, StaticVariables.OUTPUT_PREFIX, stage_id, reducer_id)
+        s3_client.put_object(Bucket=shuffling_bucket, Key=mapper_filename,
+                             Body=json.dumps(outputs), Metadata=metadata)
 
     return processing_info

@@ -50,8 +50,7 @@ class InputHandlerS3:
 
         return all_keys
 
-    def read_records_from_input_key(self, input_key):
-        input_source = self.static_job_info[StaticVariables.INPUT_SOURCE_FN]
+    def read_records_from_input_key(self, input_source, input_key):
         response = self.client.get_object(Bucket=input_source, Key=input_key)
         contents = response['Body'].read()
 

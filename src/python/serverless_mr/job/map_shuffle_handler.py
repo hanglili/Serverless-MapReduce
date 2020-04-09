@@ -8,19 +8,26 @@ import pickle
 
 from serverless_mr.static.static_variables import StaticVariables
 from serverless_mr.utils import input_handler
-from serverless_mr.utils import output_handler
 
 
 def lambda_handler(event, _):
-    print("**************Map****************")
+    print("**************Map-Shuffle****************")
     start_time = time.time()
 
     src_keys = event['keys']
     mapper_id = event['id']
     map_function_pickle_path = event['function_pickle_path']
+    reduce_function_pickle_path = event['reduce_function_pickle_path']
+    partition_function_pickle_path = event['partition_function_pickle_path']
 
     with open(map_function_pickle_path, 'rb') as f:
         map_function = pickle.load(f)
+
+    with open(reduce_function_pickle_path, 'rb') as f:
+        combine_function = pickle.load(f)
+
+    with open(partition_function_pickle_path, 'rb') as f:
+        partition_function = pickle.load(f)
 
     # create an S3 session
     static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
@@ -33,9 +40,10 @@ def lambda_handler(event, _):
 
     shuffling_bucket = static_job_info[StaticVariables.SHUFFLING_BUCKET_FN]
     job_name = static_job_info[StaticVariables.JOB_NAME_FN]
+    use_combine = static_job_info[StaticVariables.USE_COMBINE_FLAG_FN]
 
     stage_id = int(os.environ.get("stage_id"))
-    total_num_stages = int(os.environ.get("total_num_stages"))
+    num_bins = int(os.environ.get("num_reducers"))
 
     # aggr
     line_count = 0
@@ -66,7 +74,32 @@ def lambda_handler(event, _):
             input_pair = (input_key, input_value)
             map_function(intermediate_data, input_pair)
 
-    outputs = intermediate_data
+    if use_combine:
+
+        intermediate_data.sort(key=lambda x: x[0])
+
+        cur_key = None
+        cur_values = []
+        outputs = []
+        for input_key, value in intermediate_data:
+            if cur_key == input_key:
+                cur_values.append(value)
+            else:
+                if cur_key is not None:
+                    cur_key_outputs = []
+                    combine_function(cur_key_outputs, (cur_key, cur_values))
+                    outputs += cur_key_outputs
+
+                cur_key = input_key
+                cur_values = [value]
+
+        if cur_key is not None:
+            cur_key_outputs = []
+            combine_function(cur_key_outputs, (cur_key, cur_values))
+            outputs += cur_key_outputs
+
+    else:
+        outputs = intermediate_data
 
     time_in_secs = (time.time() - start_time)
     # timeTaken = time_in_secs * 1000000000 # in 10^9
@@ -81,16 +114,20 @@ def lambda_handler(event, _):
         "memoryUsage": '%s' % resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
     }
 
-    print("Map: outputs are", outputs[0:10])
+    # Partition ids are from 1 to n (inclusive).
+    output_partitions = [[] for _ in range(num_bins + 1)]
 
-    if stage_id == total_num_stages:
-        cur_output_handler = output_handler.get_output_handler(static_job_info[StaticVariables.OUTPUT_SOURCE_TYPE_FN],
-                                                               in_lambda=True)
-        cur_output_handler.write_output(mapper_id, outputs, metadata)
-    else:
-        mapper_filename = "%s/%s-%s/%s" % (job_name, StaticVariables.OUTPUT_PREFIX, stage_id, mapper_id)
+    print("MapShuffle: outputs are", outputs[0:10])
+
+    for input_key, value in outputs:
+        partition_id = partition_function(input_key, num_bins) + 1
+        cur_partition = output_partitions[partition_id]
+        cur_partition.append(tuple((input_key, value)))
+
+    for i in range(1, num_bins + 1):
+        partition_id = "bin-%s" % i
+        mapper_filename = "%s/%s-%s/%s/%s" % (job_name, StaticVariables.OUTPUT_PREFIX, stage_id, partition_id, mapper_id)
         s3_client.put_object(Bucket=shuffling_bucket, Key=mapper_filename,
-                             Body=json.dumps(outputs), Metadata=metadata)
+                             Body=json.dumps(output_partitions[i]), Metadata=metadata)
 
     return processing_info
-

@@ -110,7 +110,7 @@ class OutputHandlerDynamoDB:
 
         return {}, "Items"
 
-    def check_job_finish(self, response, string_index):
+    def check_job_finish(self, response, string_index, num_final_dst_operators):
         reducer_ids = []
         reducer_metadata = []
         reducer_lambda_time = 0
@@ -119,7 +119,7 @@ class OutputHandlerDynamoDB:
             reducer_ids.append(record[OutputHandlerDynamoDB.METADATA_TABLE_KEY_NAME]['S'])
             reducer_metadata.append(json.loads(record[OutputHandlerDynamoDB.METADATA_TABLE_COLUMN_NAME]['S']))
 
-        if len(reducer_ids) == self.static_job_info[StaticVariables.NUM_REDUCER_FN]:
+        if len(reducer_ids) == num_final_dst_operators:
             shuffling_bucket = self.static_job_info[StaticVariables.SHUFFLING_BUCKET_FN]
             job_name = self.static_job_info[StaticVariables.JOB_NAME_FN]
             job_keys = self.s3_client.list_objects(Bucket=shuffling_bucket, Prefix=job_name)["Contents"]
