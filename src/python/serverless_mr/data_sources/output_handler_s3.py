@@ -8,8 +8,8 @@ from serverless_mr.static.static_variables import StaticVariables
 class OutputHandlerS3:
 
     def __init__(self, in_lambda):
-        self.static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
-        if self.static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
+        static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
+        if static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
             if in_lambda:
                 local_endpoint_url = 'http://%s:4572' % os.environ['LOCALSTACK_HOSTNAME']
             else:
@@ -20,34 +20,34 @@ class OutputHandlerS3:
         else:
             self.client = boto3.client('s3')
 
-    def write_output(self, reducer_id, outputs, metadata):
-        output_source = self.static_job_info[StaticVariables.SHUFFLING_BUCKET_FN] \
-            if StaticVariables.OUTPUT_SOURCE_FN not in self.static_job_info \
-            else self.static_job_info[StaticVariables.OUTPUT_SOURCE_FN]
+    def write_output(self, reducer_id, outputs, metadata, static_job_info):
+        output_source = static_job_info[StaticVariables.SHUFFLING_BUCKET_FN] \
+            if StaticVariables.OUTPUT_SOURCE_FN not in static_job_info \
+            else static_job_info[StaticVariables.OUTPUT_SOURCE_FN]
 
-        job_name = self.static_job_info[StaticVariables.JOB_NAME_FN]
+        job_name = static_job_info[StaticVariables.JOB_NAME_FN]
         reduce_output_full_prefix = "%s/%s" % (job_name, StaticVariables.REDUCE_OUTPUT_PREFIX_S3) \
-            if StaticVariables.OUTPUT_PREFIX_FN not in self.static_job_info \
-            else self.static_job_info[StaticVariables.OUTPUT_PREFIX_FN]
+            if StaticVariables.OUTPUT_PREFIX_FN not in static_job_info \
+            else static_job_info[StaticVariables.OUTPUT_PREFIX_FN]
 
         output_file_name = "%s/%s" % (reduce_output_full_prefix, reducer_id)
         self.client.put_object(Bucket=output_source, Key=output_file_name, Body=json.dumps(outputs), Metadata=metadata)
 
-    def list_objects_for_checking_finish(self):
-        job_name = self.static_job_info[StaticVariables.JOB_NAME_FN]
-        output_source = self.static_job_info[StaticVariables.SHUFFLING_BUCKET_FN] \
-            if StaticVariables.OUTPUT_SOURCE_FN not in self.static_job_info else self.static_job_info[
+    def list_objects_for_checking_finish(self, static_job_info):
+        job_name = static_job_info[StaticVariables.JOB_NAME_FN]
+        output_source = static_job_info[StaticVariables.SHUFFLING_BUCKET_FN] \
+            if StaticVariables.OUTPUT_SOURCE_FN not in static_job_info else static_job_info[
             StaticVariables.OUTPUT_SOURCE_FN]
         reduce_output_full_prefix = "%s/%s" % (job_name, StaticVariables.REDUCE_OUTPUT_PREFIX_S3) \
-            if StaticVariables.OUTPUT_PREFIX_FN not in self.static_job_info else self.static_job_info[
-            StaticVariables.OUTPUT_PREFIX_FN]
+            if StaticVariables.OUTPUT_PREFIX_FN not in static_job_info \
+            else static_job_info[StaticVariables.OUTPUT_PREFIX_FN]
 
         return self.client.list_objects(Bucket=output_source, Prefix=reduce_output_full_prefix), "Contents"
 
-    def check_job_finish(self, response, string_index, num_final_dst_operators):
-        shuffling_bucket = self.static_job_info[StaticVariables.SHUFFLING_BUCKET_FN]
-        output_bucket = self.static_job_info[StaticVariables.OUTPUT_SOURCE_FN]
-        job_name = self.static_job_info[StaticVariables.JOB_NAME_FN]
+    def check_job_finish(self, response, string_index, num_final_dst_operators, static_job_info):
+        shuffling_bucket = static_job_info[StaticVariables.SHUFFLING_BUCKET_FN]
+        output_bucket = static_job_info[StaticVariables.OUTPUT_SOURCE_FN]
+        job_name = static_job_info[StaticVariables.JOB_NAME_FN]
         reducer_lambda_time = 0
         reducer_ids = response[string_index]
         if len(reducer_ids) == num_final_dst_operators:
@@ -63,15 +63,15 @@ class OutputHandlerS3:
             return reducer_lambda_time, total_s3_size, len(job_keys)
         return -1, -1, -1
 
-    def get_output(self, reducer_id):
-        output_source = self.static_job_info[StaticVariables.SHUFFLING_BUCKET_FN] \
-            if StaticVariables.OUTPUT_SOURCE_FN not in self.static_job_info \
-            else self.static_job_info[StaticVariables.OUTPUT_SOURCE_FN]
+    def get_output(self, reducer_id, static_job_info):
+        output_source = static_job_info[StaticVariables.SHUFFLING_BUCKET_FN] \
+            if StaticVariables.OUTPUT_SOURCE_FN not in static_job_info \
+            else static_job_info[StaticVariables.OUTPUT_SOURCE_FN]
 
-        job_name = self.static_job_info[StaticVariables.JOB_NAME_FN]
+        job_name = static_job_info[StaticVariables.JOB_NAME_FN]
         reduce_output_full_prefix = "%s/%s" % (job_name, StaticVariables.REDUCE_OUTPUT_PREFIX_S3) \
-            if StaticVariables.OUTPUT_PREFIX_FN not in self.static_job_info \
-            else self.static_job_info[StaticVariables.OUTPUT_PREFIX_FN]
+            if StaticVariables.OUTPUT_PREFIX_FN not in static_job_info \
+            else static_job_info[StaticVariables.OUTPUT_PREFIX_FN]
 
         output_file_name = "%s/%s" % (reduce_output_full_prefix, reducer_id)
 

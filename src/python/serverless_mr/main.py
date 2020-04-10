@@ -1,9 +1,7 @@
-import boto3
 import json
 import importlib.resources
 import os
 import shutil
-import glob
 import inspect
 
 from pathlib import Path
@@ -11,9 +9,10 @@ from serverless_mr.driver.driver import Driver
 from serverless_mr.functions.map_function import MapFunction
 from serverless_mr.functions.map_shuffle_function import MapShuffleFunction
 from serverless_mr.functions.reduce_function import ReduceFunction
+from serverless_mr.functions.merge_map_shuffle import MergeMapShuffleFunction
 from serverless_mr.driver.serverless_driver_setup import ServerlessDriverSetup
 from serverless_mr.static.static_variables import StaticVariables
-from serverless_mr.utils import input_handler
+from serverless_mr.utils.pipeline import Pipeline
 
 
 project_working_dir = os.getcwd()
@@ -85,68 +84,72 @@ def tear_down():
     delete_files("job", ["map.py", "reduce.py", "partition.py"])
 
 
-def set_up_local_input_bucket(local_input_bucket):
-    print("Setting up local input bucket")
-    s3_client = boto3.client('s3', aws_access_key_id='', aws_secret_access_key='', region_name='us-east-1',
-                             endpoint_url='http://localhost:4572')
-    s3_client.create_bucket(Bucket=local_input_bucket)
-    s3_client.put_bucket_acl(
-        ACL='public-read-write',
-        Bucket=local_input_bucket,
-    )
-    print("Finished setting up shuffling bucket")
-
 class ServerlessMR:
 
     def __init__(self):
-        self.functions = []
+        self.pipelines = {}
+        self.cur_pipeline = Pipeline()
+        self.pipeline_id = 1
+        self.total_num_functions = 0
+
+    def config(self, pipeline_specific_config):
+        self.cur_pipeline.set_config(pipeline_specific_config)
+        return self
 
     def map(self, map_function):
         rel_function_path = copy_job_function(map_function)
-        self.functions.append(MapFunction(map_function, rel_function_path))
+        self.cur_pipeline.add_function(MapFunction(map_function, rel_function_path))
         return self
 
     def map_shuffle(self, map_function, partition_function):
         rel_map_function_path = copy_job_function(map_function)
         rel_partition_function_path = copy_job_function(partition_function)
-        self.functions.append(MapShuffleFunction(map_function, rel_map_function_path,
-                                                 partition_function, rel_partition_function_path))
+        self.cur_pipeline.add_function(MapShuffleFunction(map_function, rel_map_function_path,
+                                                          partition_function, rel_partition_function_path))
         return self
 
     def reduce(self, reduce_function, num_reducers):
         rel_function_path = copy_job_function(reduce_function)
-        self.functions.append(ReduceFunction(reduce_function, rel_function_path, num_reducers))
+        self.cur_pipeline.add_function(ReduceFunction(reduce_function, rel_function_path, num_reducers))
+        return self
+
+    def finish(self):
+        cur_pipeline_id = self.pipeline_id
+        self.pipelines[cur_pipeline_id] = self.cur_pipeline
+        self.cur_pipeline = Pipeline()
+        self.pipeline_id += 1
+        return cur_pipeline_id
+
+    def merge_map(self, map_function, partition_function, dependent_pipeline_ids):
+        rel_map_function_path = copy_job_function(map_function)
+        rel_partition_function_path = copy_job_function(partition_function)
+        self.cur_pipeline.add_function(MergeMapShuffleFunction(map_function, rel_map_function_path,
+                                                               partition_function, rel_partition_function_path))
+        self.cur_pipeline.set_dependent_pipelines_ids(dependent_pipeline_ids)
         return self
 
     def run(self):
+        self.finish()
         set_up()
+        StaticVariables.PROJECT_WORKING_DIRECTORY = project_working_dir
+        StaticVariables.LIBRARY_WORKING_DIRECTORY = library_working_dir
         static_job_info_file = open(StaticVariables.STATIC_JOB_INFO_PATH, "r")
         static_job_info = json.loads(static_job_info_file.read())
         static_job_info_file.close()
 
-        if static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
-            set_up_local_input_bucket(static_job_info[StaticVariables.INPUT_SOURCE_FN])
-            cur_input_handler = input_handler.get_input_handler(static_job_info[StaticVariables.INPUT_SOURCE_TYPE_FN])
-
-            os.chdir(project_working_dir)
-            local_testing_input_path = static_job_info[StaticVariables.LOCAL_TESTING_INPUT_PATH]
-            local_file_paths = glob.glob(local_testing_input_path + "*")
-            print(local_file_paths)
-            cur_input_handler.set_up_local_input_data(local_file_paths)
-            os.chdir(library_working_dir)
-
         is_serverless_driver = static_job_info[StaticVariables.SERVERLESS_DRIVER_FLAG_FN]
 
         if is_serverless_driver:
-            serverless_driver_setup = ServerlessDriverSetup(functions=self.functions)
-            serverless_driver_setup.register_driver()
-            print("Driver Lambda function successfully registered")
-            command = input("Enter invoke to invoke and other keys to exit: ")
-            if command == "invoke":
-                print("Driver invoked and starting job execution")
-                serverless_driver_setup.invoke()
+            pass
+            # serverless_driver_setup = ServerlessDriverSetup(functions=self.functions)
+            # serverless_driver_setup.register_driver()
+            # print("Driver Lambda function successfully registered")
+            # command = input("Enter invoke to invoke and other keys to exit: ")
+            # if command == "invoke":
+            #     print("Driver invoked and starting job execution")
+            #     serverless_driver_setup.invoke()
         else:
-            driver = Driver(functions=self.functions)
+            driver = Driver(self.pipelines, self.total_num_functions)
             driver.run()
 
         tear_down()

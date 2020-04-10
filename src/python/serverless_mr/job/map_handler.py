@@ -16,6 +16,7 @@ def lambda_handler(event, _):
     start_time = time.time()
 
     src_keys = event['keys']
+    load_data_from_input = event['load_data_from_input']
     mapper_id = event['id']
     map_function_pickle_path = event['function_pickle_path']
 
@@ -44,12 +45,12 @@ def lambda_handler(event, _):
     # INPUT CSV => OUTPUT JSON
 
     intermediate_data = []
-    if stage_id == 1:
+    if load_data_from_input:
         cur_input_handler = input_handler.get_input_handler(static_job_info[StaticVariables.INPUT_SOURCE_TYPE_FN],
                                                             in_lambda=True)
         input_source = static_job_info[StaticVariables.INPUT_SOURCE_FN]
         for input_key in src_keys:
-            input_value = cur_input_handler.read_records_from_input_key(input_source, input_key)
+            input_value = cur_input_handler.read_records_from_input_key(input_source, input_key, static_job_info)
             input_pair = (input_key, input_value)
             map_function(intermediate_data, input_pair)
 

@@ -3,7 +3,7 @@ import json
 import os
 
 from serverless_mr.static.static_variables import StaticVariables
-from serverless_mr.utils import stage_state
+from serverless_mr.utils import stage_state, in_degree
 
 # create an S3 and Lambda session
 static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
@@ -53,10 +53,44 @@ def lambda_handler(event, _):
         return
 
     cur_map_phase_state = stage_state.StageState(in_lambda=True)
-    stage_id = cur_map_phase_state.read_current_stage_id(StaticVariables.STAGE_STATE_DYNAMODB_TABLE_NAME)
+    # stage_id = cur_map_phase_state.read_current_stage_id(StaticVariables.STAGE_STATE_DYNAMODB_TABLE_NAME)
+    stage_id = int(s3_obj_key.split("/")[1].split("-")[1])
     with open(StaticVariables.COORDINATOR_CONFIGURATION_PATH) as json_file:
         coordinator_config = json.load(json_file)
-    cur_stage_config = coordinator_config[stage_id - 1]
+
+    if stage_id not in coordinator_config or coordinator_config[stage_id]["coordinator_type"] == 3:
+        print("The event obj key is", s3_obj_key)
+        num_src_operators = cur_stage_config["num_src_operators"]
+        response = cur_map_phase_state.increment_num_completed_operators(
+            StaticVariables.STAGE_STATE_DYNAMODB_TABLE_NAME,
+            stage_id)
+        num_src_completed_operators = int(response["Attributes"]["num_completed_operators"]["N"])
+        print("Number of operators completed in stage %s is %s" % (stage_id, num_src_completed_operators))
+
+        if num_src_operators == num_src_completed_operators:
+            invoking_lambda_name = cur_stage_config["invoking_lambda_name"]
+
+
+        with open(StaticVariables.STAGE_TO_PIPELINE_PATH, 'w') as f:
+            mapping_stage_id_pipeline_id = json.load(f)
+
+        with open(StaticVariables.PIPELINE_DEPENDENCIES_PATH, 'w') as f:
+            adj_list = json.load(f)
+
+        with open(StaticVariables.PIPELINE_TO_FIRST_STAGE_PATH, 'w') as f:
+            pipeline_first_stage_id = json.load(f)
+
+        pipeline_id = mapping_stage_id_pipeline_id[stage_id]
+        in_degree_obj = in_degree.InDegree(in_lambda=True)
+        for dependent_pipeline_id in range(adj_list[pipeline_id]):
+            response = in_degree_obj\
+                .decrement_in_degree_table(StaticVariables.IN_DEGREE_DYNAMODB_TABLE_NAME, dependent_pipeline_id)
+            in_degree_of_dependent = int(response["Attributes"]["in_degree"]["N"])
+            if in_degree_of_dependent == 0:
+                schedule_new_pipeline(pipeline_first_stage_id)
+
+
+    cur_stage_config = coordinator_config[stage_id]
     if cur_stage_config["coordinator_type"] == 2:
         num_dst_operators = cur_stage_config["num_dst_operators"]
         bin_s3_path = "bin-%s" % num_dst_operators
@@ -86,6 +120,7 @@ def lambda_handler(event, _):
                     Payload=json.dumps({
                         "keys": [keys[i]],
                         "id": i + 1,
+                        "load_data_from_input": False,
                         "function_pickle_path": cur_stage_config["function_pickle_path"],
                         "reduce_function_pickle_path": cur_stage_config["reduce_function_pickle_path"],
                         "partition_function_pickle_path": cur_stage_config["partition_function_pickle_path"]
@@ -112,7 +147,7 @@ def lambda_handler(event, _):
             print("Error: Unknown coordinator type")
             return
 
-        cur_map_phase_state.increment_current_stage_id(StaticVariables.STAGE_STATE_DYNAMODB_TABLE_NAME)
+        # cur_map_phase_state.increment_current_stage_id(StaticVariables.STAGE_STATE_DYNAMODB_TABLE_NAME)
 
     else:
         print("Still waiting for all the src operators to finish...")

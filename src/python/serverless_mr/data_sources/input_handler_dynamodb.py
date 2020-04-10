@@ -11,8 +11,8 @@ id_cnt = 1
 class InputHandlerDynamoDB:
 
     def __init__(self, in_lambda):
-        self.static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
-        if self.static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
+        static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
+        if static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
             if in_lambda:
                 local_endpoint_url = 'http://%s:4569' % os.environ['LOCALSTACK_HOSTNAME']
             else:
@@ -115,12 +115,12 @@ class InputHandlerDynamoDB:
                 id_cnt += 1
 
 
-    def set_up_local_input_data(self, input_filepaths):
-        input_partition_key = self.static_job_info[StaticVariables.INPUT_PARTITION_KEY_DYNAMODB]
-        input_sort_key = self.static_job_info[StaticVariables.INPUT_SORT_KEY_DYNAMODB] \
-            if StaticVariables.INPUT_SORT_KEY_DYNAMODB in self.static_job_info else None
-        input_columns = self.static_job_info[StaticVariables.INPUT_COLUMNS_DYNAMODB]
-        input_table_name = self.static_job_info[StaticVariables.INPUT_SOURCE_FN]
+    def set_up_local_input_data(self, input_filepaths, static_job_info):
+        input_partition_key = static_job_info[StaticVariables.INPUT_PARTITION_KEY_DYNAMODB]
+        input_sort_key = static_job_info[StaticVariables.INPUT_SORT_KEY_DYNAMODB] \
+            if StaticVariables.INPUT_SORT_KEY_DYNAMODB in static_job_info else None
+        input_columns = static_job_info[StaticVariables.INPUT_COLUMNS_DYNAMODB]
+        input_table_name = static_job_info[StaticVariables.INPUT_SOURCE_FN]
         InputHandlerDynamoDB.create_table(self.client, input_table_name, input_partition_key, input_sort_key)
 
         for input_filepath in input_filepaths:
@@ -129,17 +129,17 @@ class InputHandlerDynamoDB:
 
         print("Set up local input data successfully")
 
-    def get_all_input_keys(self):
+    def get_all_input_keys(self, static_job_info):
         # Returns all input keys to be processed: a list of format obj where obj is a map of {'Key': ..., 'Size': ...}
         all_keys = []
-        input_table_name = self.static_job_info[StaticVariables.INPUT_SOURCE_FN]
+        input_table_name = static_job_info[StaticVariables.INPUT_SOURCE_FN]
         response = self.client.describe_table(TableName=input_table_name)
         number_of_records = response['Table']['ItemCount']
         one_record_avg_size = response['Table']['TableSizeBytes'] / number_of_records
 
-        input_partition_key = self.static_job_info[StaticVariables.INPUT_PARTITION_KEY_DYNAMODB]
-        input_sort_key = self.static_job_info[StaticVariables.INPUT_SORT_KEY_DYNAMODB] \
-            if StaticVariables.INPUT_SORT_KEY_DYNAMODB in self.static_job_info else None
+        input_partition_key = static_job_info[StaticVariables.INPUT_PARTITION_KEY_DYNAMODB]
+        input_sort_key = static_job_info[StaticVariables.INPUT_SORT_KEY_DYNAMODB] \
+            if StaticVariables.INPUT_SORT_KEY_DYNAMODB in static_job_info else None
 
         projection_expression = input_partition_key[0]
         if input_sort_key is not None:
@@ -155,12 +155,12 @@ class InputHandlerDynamoDB:
 
         return all_keys
 
-    def read_records_from_input_key(self, input_source, input_key):
+    def read_records_from_input_key(self, input_source, input_key, static_job_info):
         input_table_name = input_source
-        input_partition_key = self.static_job_info[StaticVariables.INPUT_PARTITION_KEY_DYNAMODB]
-        input_sort_key = self.static_job_info[StaticVariables.INPUT_SORT_KEY_DYNAMODB] \
-            if StaticVariables.INPUT_SORT_KEY_DYNAMODB in self.static_job_info else None
-        input_processing_columns = self.static_job_info[StaticVariables.INPUT_PROCESSING_COLUMNS_DYNAMODB]
+        input_partition_key = static_job_info[StaticVariables.INPUT_PARTITION_KEY_DYNAMODB]
+        input_sort_key = static_job_info[StaticVariables.INPUT_SORT_KEY_DYNAMODB] \
+            if StaticVariables.INPUT_SORT_KEY_DYNAMODB in static_job_info else None
+        input_processing_columns = static_job_info[StaticVariables.INPUT_PROCESSING_COLUMNS_DYNAMODB]
 
         input_processing_column_names = []
         for input_processing_column in input_processing_columns:

@@ -8,8 +8,8 @@ from serverless_mr.static.static_variables import StaticVariables
 class InputHandlerS3:
 
     def __init__(self, in_lambda):
-        self.static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
-        if self.static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
+        static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
+        if static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
             if in_lambda:
                 local_endpoint_url = 'http://%s:4572' % os.environ['LOCALSTACK_HOSTNAME']
             else:
@@ -20,9 +20,9 @@ class InputHandlerS3:
         else:
             self.client = boto3.client('s3')
 
-    def set_up_local_input_data(self, input_file_paths):
-        input_bucket = self.static_job_info[StaticVariables.INPUT_SOURCE_FN]
-        prefix = self.static_job_info[StaticVariables.INPUT_PREFIX_FN]
+    def set_up_local_input_data(self, input_file_paths, static_job_info):
+        input_bucket = static_job_info[StaticVariables.INPUT_SOURCE_FN]
+        prefix = static_job_info[StaticVariables.INPUT_PREFIX_FN]
 
         self.client.create_bucket(Bucket=input_bucket)
         self.client.put_bucket_acl(
@@ -39,18 +39,18 @@ class InputHandlerS3:
 
         print("Set up local input data successfully")
 
-    def get_all_input_keys(self):
+    def get_all_input_keys(self, static_job_info):
         # Returns all input keys to be processed: a list of format obj where obj is a map of {'Key': ..., 'Size': ...}
         all_keys = []
-        input_source = self.static_job_info[StaticVariables.INPUT_SOURCE_FN]
+        input_source = static_job_info[StaticVariables.INPUT_SOURCE_FN]
         for obj in self.client.list_objects(Bucket=input_source,
-                                            Prefix=self.static_job_info[StaticVariables.INPUT_PREFIX_FN])['Contents']:
+                                            Prefix=static_job_info[StaticVariables.INPUT_PREFIX_FN])['Contents']:
             if not obj['Key'].endswith('/'):
                 all_keys.append(obj)
 
         return all_keys
 
-    def read_records_from_input_key(self, input_source, input_key):
+    def read_records_from_input_key(self, input_source, input_key, static_job_info):
         response = self.client.get_object(Bucket=input_source, Key=input_key)
         contents = response['Body'].read()
 

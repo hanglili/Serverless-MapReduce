@@ -6,6 +6,9 @@ class StaticVariables:
     # CONFIGURATION_INIT_PATH = find_filepath("configuration", "__init__.py")
     CONFIGURATION_INIT_PATH = "serverless_mr/configuration/__init__.py"
     COORDINATOR_CONFIGURATION_PATH = "serverless_mr/configuration/coordinator-config.json"
+    PIPELINE_DEPENDENCIES_PATH = "serverless_mr/configuration/pipeline-dependencies.json"
+    STAGE_TO_PIPELINE_PATH = "serverless_mr/configuration/stage-to-pipeline.json"
+    PIPELINE_TO_FIRST_STAGE_PATH = "serverless_mr/configuration/pipeline-to-first-stage.json"
     # JOB_INFO_LAMBDA_PATH = "/tmp/job-info.json"
     MAP_HANDLER_PATH = "serverless_mr/job/map_handler.py"
     MAP_SHUFFLE_HANDLER_PATH = "serverless_mr/job/map_shuffle_handler.py"
@@ -27,6 +30,8 @@ class StaticVariables:
     STATIC_INIT_PATH = "serverless_mr/static/__init__.py"
     OUTPUT_PREFIX = "stage"
     REDUCE_OUTPUT_PREFIX_S3 = "stage"
+    IN_DEGREE_DYNAMODB_TABLE_NAME = "in-degree"
+    IN_DEGREE_PATH = "serverless_mr/utils/in_degree.py"
     STAGE_STATE_DYNAMODB_TABLE_NAME = "stage-state"
     STAGE_STATE_PATH = "serverless_mr/utils/stage_state.py"
 
@@ -83,3 +88,7 @@ class StaticVariables:
     INPUT_PROCESSING_COLUMNS_DYNAMODB = "inputProcessingColumnsDynamoDB"
     OUTPUT_PARTITION_KEY_DYNAMODB = "outputPartitionKeyDynamoDB"
     OUTPUT_COLUMN_DYNAMODB = "outputColumnDynamoDB"
+
+    # dynamic variables
+    PROJECT_WORKING_DIRECTORY = ""
+    LIBRARY_WORKING_DIRECTORY = ""
