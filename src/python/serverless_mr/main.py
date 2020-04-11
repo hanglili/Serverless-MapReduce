@@ -145,13 +145,13 @@ class ServerlessMR:
 
         if is_serverless_driver:
             pass
-            # serverless_driver_setup = ServerlessDriverSetup(functions=self.functions)
-            # serverless_driver_setup.register_driver()
-            # print("Driver Lambda function successfully registered")
-            # command = input("Enter invoke to invoke and other keys to exit: ")
-            # if command == "invoke":
-            #     print("Driver invoked and starting job execution")
-            #     serverless_driver_setup.invoke()
+            serverless_driver_setup = ServerlessDriverSetup(self.pipelines, self.total_num_functions)
+            serverless_driver_setup.register_driver()
+            print("Driver Lambda function successfully registered")
+            command = input("Enter invoke to invoke and other keys to exit: ")
+            if command == "invoke":
+                print("Driver invoked and starting job execution")
+                serverless_driver_setup.invoke()
         else:
             print("The total number of functions is", self.total_num_functions)
             driver = Driver(self.pipelines, self.total_num_functions)

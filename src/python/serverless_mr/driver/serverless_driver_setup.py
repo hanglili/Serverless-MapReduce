@@ -3,21 +3,23 @@ import boto3
 import pickle
 import os
 
+from serverless_mr.driver.driver import set_up_local_input_data
 from serverless_mr.static.static_variables import StaticVariables
 from serverless_mr.utils import zip
 from serverless_mr.aws_lambda import lambda_manager
 from botocore.client import Config
+from serverless_mr.functions.map_shuffle_function import MapShuffleFunction
+from serverless_mr.functions.merge_map_shuffle import MergeMapShuffleFunction
 
 
-def delete_files(dirname, filenames):
+def delete_files(filenames):
     for filename in filenames:
-        dst_file = "%s/%s" % (dirname, filename)
-        if os.path.exists(dst_file):
-            os.remove(dst_file)
+        if os.path.exists(filename):
+            os.remove(filename)
 
 
 class ServerlessDriverSetup:
-    def __init__(self, map_function, reduce_function, partition_function, rel_function_paths):
+    def __init__(self, pipelines, total_num_functions):
         self.config = json.loads(open(StaticVariables.DRIVER_CONFIG_PATH, 'r').read())
         self.static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
         if self.static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
@@ -48,33 +50,78 @@ class ServerlessDriverSetup:
         else:
             self.lambda_client = boto3.client('lambda', config=lambda_config)
 
-        self.map_function = map_function
-        self.reduce_function = reduce_function
-        self.partition_function = partition_function
-        self.rel_function_paths = rel_function_paths
+        self.pipelines = pipelines
+        self.total_num_functions = total_num_functions
+
+    def _overwrite_existing_job_info(self, pipeline_specific_config):
+        with open(StaticVariables.STATIC_JOB_INFO_PATH, "r") as f:
+            cur_config = json.load(f)
+
+        for key, value in pipeline_specific_config.items():
+            cur_config[key] = value
+
+        with open(StaticVariables.STATIC_JOB_INFO_PATH, "w") as f:
+            json.dump(cur_config, f)
+
+        return cur_config
 
     # Serverless set up
     def register_driver(self):
-        with open('serverless_mr/job/map.pkl', 'wb') as f:
-            pickle.dump(self.map_function, f)
-        with open('serverless_mr/job/reduce.pkl', 'wb') as f:
-            pickle.dump(self.reduce_function, f)
-        with open('serverless_mr/job/partition.pkl', 'wb') as f:
-            pickle.dump(self.partition_function, f)
+        stage_id = 1
+        function_filepaths = []
 
-        # Prepare Lambda functions
-        zip.zip_lambda(self.rel_function_paths, self.config[StaticVariables.MAPPER_FN][StaticVariables.ZIP_FN])
-        zip.zip_lambda(self.rel_function_paths, self.config[StaticVariables.REDUCER_FN][StaticVariables.ZIP_FN])
-        zip.zip_lambda([self.config[StaticVariables.COORDINATOR_FN][StaticVariables.LOCATION_FN]],
-                       self.config[StaticVariables.COORDINATOR_FN][StaticVariables.ZIP_FN])
+        # The first function should be a map/map_shuffle function
+        for pipeline_id, pipeline in self.pipelines.items():
+            functions = pipeline.get_functions()
+            pipeline_static_job_info = self._overwrite_existing_job_info(pipeline.get_config())
+            # TODO: The next line is correct?
+            self.static_job_info = pipeline_static_job_info
+            dependent_pipeline_ids = pipeline.get_dependent_pipeline_ids()
+            if len(dependent_pipeline_ids) == 0:
+                set_up_local_input_data(pipeline_static_job_info)
+            for i in range(len(functions)):
+                cur_function = functions[i]
+                cur_function_zip_path = "serverless_mr/%s-%s.zip" % (cur_function.get_string(), stage_id)
 
-        zip.zip_driver_lambda(self.config[StaticVariables.DRIVER_FN][StaticVariables.ZIP_FN])
+                # Prepare Lambda functions if driver running in local machine
+                cur_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % (cur_function.get_string(), stage_id)
+                rel_function_paths = cur_function.get_rel_function_paths()
+                with open(cur_function_pickle_path, 'wb') as f:
+                    pickle.dump(cur_function.get_function(), f)
+                if isinstance(cur_function, MapShuffleFunction) \
+                        or isinstance(cur_function, MergeMapShuffleFunction):
+                    partition_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % ("partition", stage_id)
+                    with open(partition_function_pickle_path, 'wb') as f:
+                        pickle.dump(cur_function.get_partition_function(), f)
+
+                    next_function_reduce = functions[i + 1]
+                    reduce_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % \
+                                                  (next_function_reduce.get_string(), stage_id + 1)
+                    with open(reduce_function_pickle_path, 'wb') as f:
+                        pickle.dump(next_function_reduce.get_function(), f)
+                    rel_function_paths += next_function_reduce.get_rel_function_paths()
+
+                zip.zip_lambda(rel_function_paths, cur_function_zip_path)
+
+                function_filepaths += rel_function_paths
+                stage_id += 1
+
+        with open(StaticVariables.SERVERLESS_PIPELINES_INFO_PATH, 'wb') as f:
+            pickle.dump(self.pipelines, f)
+        with open(StaticVariables.SERVERLESS_TOTAL_NUM_OPERATIONS_PATH, 'wb') as f:
+            pickle.dump(self.total_num_functions, f)
+
+        zip.zip_lambda([StaticVariables.COORDINATOR_HANDLER_PATH], StaticVariables.COORDINATOR_ZIP_PATH)
+
+        zip.zip_driver_lambda(self.config[StaticVariables.DRIVER_FN][StaticVariables.ZIP_FN], function_filepaths)
 
         l_driver = lambda_manager.LambdaManager(self.lambda_client, self.s3_client, self.region,
                                                 self.config[StaticVariables.DRIVER_FN][StaticVariables.ZIP_FN],
                                                 self.job_name, self.driver_lambda_name,
                                                 self.config[StaticVariables.DRIVER_FN][StaticVariables.HANDLER_FN])
-        l_driver.update_code_or_create_on_no_exist()
+        l_driver.update_code_or_create_on_no_exist(self.total_num_functions)
+
+        # delete_files(glob.glob(StaticVariables.FUNCTIONS_PICKLE_GLOB_PATH))
 
     def invoke(self):
         result = self.lambda_client.invoke(
@@ -84,4 +131,4 @@ class ServerlessDriverSetup:
         )
 
         print("Finished executing this job: ", result)
-        delete_files("serverless_mr/job", ["map.pkl", "reduce.pkl", "partition.pkl"])
+        # delete_files([cur_function_zip_path])

@@ -53,27 +53,22 @@ class OutputHandlerS3:
             if StaticVariables.OUTPUT_PREFIX_FN not in static_job_info \
             else static_job_info[StaticVariables.OUTPUT_PREFIX_FN]
 
-
-
         return self.client.list_objects(Bucket=output_source, Prefix=reduce_output_full_prefix), "Contents"
 
     def check_job_finish(self, response, string_index, num_final_dst_operators, static_job_info):
-        shuffling_bucket = static_job_info[StaticVariables.SHUFFLING_BUCKET_FN]
         output_bucket = static_job_info[StaticVariables.OUTPUT_SOURCE_FN]
-        job_name = static_job_info[StaticVariables.JOB_NAME_FN]
-        reducer_lambda_time = 0
-        reducer_ids = response[string_index]
-        if len(reducer_ids) == num_final_dst_operators:
-            job_keys = self.client.list_objects(Bucket=shuffling_bucket, Prefix=job_name)["Contents"]
-            total_s3_size = sum([job_key["Size"] for job_key in job_keys])
-            for reducer_id in reducer_ids:
+        lambda_time = 0
+        s3_size = 0
+        last_stage_keys = response[string_index]
+        if len(last_stage_keys) == num_final_dst_operators:
+            for last_stage_key in last_stage_keys:
                 # Even though metadata processing time is written as processingTime,
                 # AWS does not accept uppercase letter metadata key
-                reducer_lambda_time += float(self.client.get_object(Bucket=output_bucket, Key=reducer_id["Key"])
+                lambda_time += float(self.client.get_object(Bucket=output_bucket, Key=last_stage_key["Key"])
                                              ['Metadata']['processingtime'])
-                total_s3_size += reducer_id["Size"]
+                s3_size += last_stage_key["Size"]  # Size is expressed in (int) Bytes
 
-            return reducer_lambda_time, total_s3_size, len(job_keys)
+            return lambda_time, s3_size, len(last_stage_keys)
         return -1, -1, -1
 
     def get_output(self, reducer_id, static_job_info):

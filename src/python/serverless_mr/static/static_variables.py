@@ -5,6 +5,8 @@ class StaticVariables:
     STATIC_JOB_INFO_PATH = "serverless_mr/configuration/static-job-info.json"
     # CONFIGURATION_INIT_PATH = find_filepath("configuration", "__init__.py")
     CONFIGURATION_INIT_PATH = "serverless_mr/configuration/__init__.py"
+    SERVERLESS_PIPELINES_INFO_PATH = "serverless_mr/configuration/serverless-pipelines-info.pkl"
+    SERVERLESS_TOTAL_NUM_OPERATIONS_PATH = "serverless_mr/configuration/serverless-total-num-operations.pkl"
     STAGE_CONFIGURATION_PATH = "serverless_mr/configuration/stage-config.json"
     PIPELINE_DEPENDENCIES_PATH = "serverless_mr/configuration/pipeline-dependencies.json"
     STAGE_TO_PIPELINE_PATH = "serverless_mr/configuration/stage-to-pipeline.json"

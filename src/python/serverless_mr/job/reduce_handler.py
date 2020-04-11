@@ -79,13 +79,12 @@ def lambda_handler(event, _):
     # timeTaken = time_in_secs * 1000000000 # in 10^9
     # s3DownloadTime = 0
     # totalProcessingTime = 0
-    processing_info = [len(reduce_keys), line_count, time_in_secs]
-    print("Reducer process information: (number of keys processed, line count, processing time)\n", processing_info)
 
     metadata = {
         "lineCount": '%s' % line_count,
         "processingTime": '%s' % time_in_secs,
-        "memoryUsage": '%s' % resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        "memoryUsage": '%s' % resource.getrusage(resource.RUSAGE_SELF).ru_maxrss,
+        "numKeys": '%s' % len(reduce_keys)
     }
 
     if stage_id == total_num_stages:
@@ -96,5 +95,3 @@ def lambda_handler(event, _):
         mapper_filename = "%s/%s-%s/%s" % (job_name, StaticVariables.OUTPUT_PREFIX, stage_id, reducer_id)
         s3_client.put_object(Bucket=shuffling_bucket, Key=mapper_filename,
                              Body=json.dumps(outputs), Metadata=metadata)
-
-    return processing_info

@@ -42,7 +42,6 @@ def lambda_handler(event, _):
 
     # aggr
     line_count = 0
-    err = ''
 
     # INPUT CSV => OUTPUT JSON
 
@@ -77,16 +76,15 @@ def lambda_handler(event, _):
     # timeTaken = time_in_secs * 1000000000 # in 10^9
     # s3DownloadTime = 0
     # totalProcessingTime = 0
-    processing_info = [len(src_keys), line_count, time_in_secs, err]
-    print("Mapper process information: (number of keys processed, line count, processing time)\n", processing_info)
 
     metadata = {
         "lineCount": '%s' % line_count,
         "processingTime": '%s' % time_in_secs,
-        "memoryUsage": '%s' % resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        "memoryUsage": '%s' % resource.getrusage(resource.RUSAGE_SELF).ru_maxrss,
+        "numKeys": '%s' % len(src_keys)
     }
 
-    print("Map: outputs are", outputs[0:10])
+    print("Map Outputs:", outputs[0:10])
 
     if stage_id == total_num_stages:
         cur_output_handler = output_handler.get_output_handler(static_job_info[StaticVariables.OUTPUT_SOURCE_TYPE_FN],
@@ -96,6 +94,3 @@ def lambda_handler(event, _):
         mapper_filename = "%s/%s-%s/%s" % (job_name, StaticVariables.OUTPUT_PREFIX, stage_id, mapper_id)
         s3_client.put_object(Bucket=shuffling_bucket, Key=mapper_filename,
                              Body=json.dumps(outputs), Metadata=metadata)
-
-    return processing_info
-

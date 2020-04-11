@@ -110,13 +110,12 @@ def lambda_handler(event, _):
     # timeTaken = time_in_secs * 1000000000 # in 10^9
     # s3DownloadTime = 0
     # totalProcessingTime = 0
-    processing_info = [len(src_keys), line_count, time_in_secs, err]
-    print("Mapper process information: (number of keys processed, line count, processing time)\n", processing_info)
 
     metadata = {
         "lineCount": '%s' % line_count,
         "processingTime": '%s' % time_in_secs,
-        "memoryUsage": '%s' % resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        "memoryUsage": '%s' % resource.getrusage(resource.RUSAGE_SELF).ru_maxrss,
+        "numKeys": '%s' % len(src_keys)
     }
 
     # Partition ids are from 1 to n (inclusive).
@@ -134,5 +133,3 @@ def lambda_handler(event, _):
         mapper_filename = "%s/%s-%s/%s/%s" % (job_name, StaticVariables.OUTPUT_PREFIX, stage_id, partition_id, mapper_id)
         s3_client.put_object(Bucket=shuffling_bucket, Key=mapper_filename,
                              Body=json.dumps(output_partitions[i]), Metadata=metadata)
-
-    return processing_info

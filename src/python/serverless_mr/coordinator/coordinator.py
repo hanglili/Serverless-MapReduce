@@ -83,13 +83,23 @@ def schedule_same_pipeline_next_stage(stage_configuration, stage_id, shuffling_b
           % (stage_id, next_stage_num_operators))
 
 
-def schedule_different_pipeline_next_stage(stage_configuration, cur_pipeline_id,
+def schedule_different_pipeline_next_stage(is_serverless_driver, stage_configuration, cur_pipeline_id,
                                            shuffling_bucket, job_name):
-    with open(StaticVariables.PIPELINE_DEPENDENCIES_PATH) as f:
-        adj_list = json.load(f)
+    if not is_serverless_driver:
+        with open(StaticVariables.PIPELINE_DEPENDENCIES_PATH) as json_file:
+            adj_list = json.load(json_file)
+    else:
+        response = s3_client.get_object(Bucket=shuffling_bucket, Key=StaticVariables.PIPELINE_DEPENDENCIES_PATH)
+        contents = response['Body'].read()
+        adj_list = json.loads(contents)
 
-    with open(StaticVariables.PIPELINE_TO_FIRST_LAST_STAGE_PATH) as f:
-        pipeline_first_last_stage_ids = json.load(f)
+    if not is_serverless_driver:
+        with open(StaticVariables.PIPELINE_TO_FIRST_LAST_STAGE_PATH) as json_file:
+            pipeline_first_last_stage_ids = json.load(json_file)
+    else:
+        response = s3_client.get_object(Bucket=shuffling_bucket, Key=StaticVariables.PIPELINE_TO_FIRST_LAST_STAGE_PATH)
+        contents = response['Body'].read()
+        pipeline_first_last_stage_ids = json.loads(contents)
 
     in_degree_obj = in_degree.InDegree(in_lambda=True)
     for dependent_pipeline_id in adj_list[str(cur_pipeline_id)]:
@@ -137,8 +147,14 @@ def lambda_handler(event, _):
     # stage_id = cur_map_phase_state.read_current_stage_id(StaticVariables.STAGE_STATE_DYNAMODB_TABLE_NAME)
     stage_id = int(s3_obj_key.split("/")[1].split("-")[1])
     print("Stage:", stage_id)
-    with open(StaticVariables.STAGE_CONFIGURATION_PATH) as json_file:
-        stage_configuration = json.load(json_file)
+    is_serverless_driver = static_job_info[StaticVariables.SERVERLESS_DRIVER_FLAG_FN]
+    if not is_serverless_driver:
+        with open(StaticVariables.STAGE_CONFIGURATION_PATH) as json_file:
+            stage_configuration = json.load(json_file)
+    else:
+        response = s3_client.get_object(Bucket=shuffling_bucket, Key=StaticVariables.STAGE_CONFIGURATION_PATH)
+        contents = response['Body'].read()
+        stage_configuration = json.loads(contents)
 
     cur_stage_config = stage_configuration[str(stage_id)]
     if cur_stage_config["stage_type"] == 1:
@@ -159,12 +175,17 @@ def lambda_handler(event, _):
     print("In stage %s, number of operators completed: %s" % (stage_id, num_completed_operators))
 
     if num_operators == num_completed_operators:
-        with open(StaticVariables.STAGE_TO_PIPELINE_PATH) as f:
-            mapping_stage_id_pipeline_id = json.load(f)
+        if not is_serverless_driver:
+            with open(StaticVariables.STAGE_TO_PIPELINE_PATH) as f:
+                mapping_stage_id_pipeline_id = json.load(f)
+        else:
+            response = s3_client.get_object(Bucket=shuffling_bucket, Key=StaticVariables.STAGE_TO_PIPELINE_PATH)
+            contents = response['Body'].read()
+            mapping_stage_id_pipeline_id = json.loads(contents)
 
         cur_pipeline_id = mapping_stage_id_pipeline_id[str(stage_id)]
         if cur_pipeline_id != mapping_stage_id_pipeline_id[str(stage_id + 1)]:
-            schedule_different_pipeline_next_stage(stage_configuration, cur_pipeline_id, shuffling_bucket, job_name)
+            schedule_different_pipeline_next_stage(is_serverless_driver, stage_configuration, cur_pipeline_id, shuffling_bucket, job_name)
         else:
             schedule_same_pipeline_next_stage(stage_configuration, stage_id, shuffling_bucket, job_name)
 

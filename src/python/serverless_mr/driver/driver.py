@@ -147,8 +147,9 @@ class Driver:
         for key, value in pipeline_specific_config.items():
             cur_config[key] = value
 
-        with open(StaticVariables.STATIC_JOB_INFO_PATH, "w") as f:
-            json.dump(cur_config, f)
+        if not self.is_serverless:
+            with open(StaticVariables.STATIC_JOB_INFO_PATH, "w") as f:
+                json.dump(cur_config, f)
 
         return cur_config
 
@@ -182,7 +183,8 @@ class Driver:
                 in_degrees[pipeline_id] = in_degrees.get(pipeline_id, 0) + 1
 
             if len(dependent_pipeline_ids) == 0:
-                set_up_local_input_data(pipeline_static_job_info)
+                if not self.is_serverless:
+                    set_up_local_input_data(pipeline_static_job_info)
                 all_keys, num_operators, batches = self._get_all_keys(pipeline_static_job_info)
                 invoking_pipelines_info[pipeline_id] = [all_keys, num_operators, batches, functions, stage_id]
             else:
@@ -230,41 +232,41 @@ class Driver:
                 else:
                     cur_function_lambda.update_code_or_create_on_no_exist(self.total_num_functions, stage_id=stage_id)
                 function_lambdas.append(cur_function_lambda)
-                delete_files([cur_function_zip_path])
+
+                if not self.is_serverless:
+                    delete_files([cur_function_zip_path])
 
                 # Coordinator
-                if not self.is_serverless:
-                    cur_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % (cur_function.get_string(), stage_id)
+                cur_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % (cur_function.get_string(), stage_id)
+                if isinstance(cur_function, MapShuffleFunction):
+                    next_function_reduce = functions[i + 1]
+                    partition_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % ("partition", stage_id)
+                    reduce_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % \
+                                                  (next_function_reduce.get_string(), stage_id + 1)
+                    stage_config[stage_id] = \
+                        self._create_stage_config_file(num_operators, 1, cur_function_lambda_name,
+                                                       cur_function_pickle_path, partition_function_pickle_path,
+                                                       reduce_function_pickle_path)
+                elif isinstance(cur_function, MergeMapShuffleFunction):
+                    dependent_last_stage_ids = []
+                    for dependent_pipeline_id in dependent_pipeline_ids:
+                        dependent_last_stage_ids.append(pipelines_first_last_stage_ids[dependent_pipeline_id][1])
 
-                    if isinstance(cur_function, MapShuffleFunction):
-                        next_function_reduce = functions[i + 1]
-                        partition_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % ("partition", stage_id)
-                        reduce_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % \
-                                                      (next_function_reduce.get_string(), stage_id + 1)
-                        stage_config[stage_id] = \
-                            self._create_stage_config_file(num_operators, 1, cur_function_lambda_name,
-                                                           cur_function_pickle_path, partition_function_pickle_path,
-                                                           reduce_function_pickle_path)
-                    elif isinstance(cur_function, MergeMapShuffleFunction):
-                        dependent_last_stage_ids = []
-                        for dependent_pipeline_id in dependent_pipeline_ids:
-                            dependent_last_stage_ids.append(pipelines_first_last_stage_ids[dependent_pipeline_id][1])
+                    next_function_reduce = functions[i + 1]
+                    partition_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % ("partition", stage_id)
+                    reduce_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % \
+                                                  (next_function_reduce.get_string(), stage_id + 1)
+                    stage_config[stage_id] = \
+                        self._create_stage_config_file(num_operators, 1, cur_function_lambda_name,
+                                                       cur_function_pickle_path, partition_function_pickle_path,
+                                                       reduce_function_pickle_path, dependent_last_stage_ids)
+                else:
+                    if isinstance(cur_function, ReduceFunction):
+                        num_operators = cur_function.get_num_reducers()
 
-                        next_function_reduce = functions[i + 1]
-                        partition_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % ("partition", stage_id)
-                        reduce_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % \
-                                                      (next_function_reduce.get_string(), stage_id + 1)
-                        stage_config[stage_id] = \
-                            self._create_stage_config_file(num_operators, 1, cur_function_lambda_name,
-                                                           cur_function_pickle_path, partition_function_pickle_path,
-                                                           reduce_function_pickle_path, dependent_last_stage_ids)
-                    else:
-                        if isinstance(cur_function, ReduceFunction):
-                            num_operators = cur_function.get_num_reducers()
-
-                        stage_config[stage_id] = \
-                            self._create_stage_config_file(num_operators, 2, cur_function_lambda_name,
-                                                           cur_function_pickle_path)
+                    stage_config[stage_id] = \
+                        self._create_stage_config_file(num_operators, 2, cur_function_lambda_name,
+                                                       cur_function_pickle_path)
 
                 stage_id += 1
 
@@ -286,6 +288,18 @@ class Driver:
                 json.dump(pipelines_first_last_stage_ids, f)
 
             zip.zip_lambda([StaticVariables.COORDINATOR_HANDLER_PATH], coordinator_zip_path)
+        else:
+            self.s3_client.put_object(Bucket=shuffling_bucket, Key=StaticVariables.STAGE_CONFIGURATION_PATH,
+                                      Body=json.dumps(stage_config))
+
+            self.s3_client.put_object(Bucket=shuffling_bucket, Key=StaticVariables.PIPELINE_DEPENDENCIES_PATH,
+                                      Body=json.dumps(adj_list))
+
+            self.s3_client.put_object(Bucket=shuffling_bucket, Key=StaticVariables.STAGE_TO_PIPELINE_PATH,
+                                      Body=json.dumps(mapping_stage_id_pipeline_id))
+
+            self.s3_client.put_object(Bucket=shuffling_bucket, Key=StaticVariables.PIPELINE_TO_FIRST_LAST_STAGE_PATH,
+                                      Body=json.dumps(pipelines_first_last_stage_ids))
 
         cur_coordinator_lambda_name = "%s-%s-%s-%s" % (job_name, lambda_name_prefix, "coordinator", stage_id)
         cur_coordinator_lambda = lambda_manager.LambdaManager(self.lambda_client, self.s3_client, region,
@@ -320,7 +334,7 @@ class Driver:
     #
     #     self.s3_client.put_object(Bucket=self.static_job_info[StaticVariables.SHUFFLING_BUCKET_FN], Key=j_key, Body=data, Metadata={})
 
-    def invoke_lambda(self, mapper_outputs, batches, functions, stage_id, mapper_id):
+    def invoke_lambda(self, batches, functions, stage_id, mapper_id):
         job_name = self.static_job_info[StaticVariables.JOB_NAME_FN]
         lambda_name_prefix = self.static_job_info[StaticVariables.LAMBDA_NAME_PREFIX_FN]
         first_function = functions[0]
@@ -355,17 +369,14 @@ class Driver:
                     "function_pickle_path": pickle_file_path
                 })
             )
-        # out = eval(resp['Payload'].read())
-        # mapper_outputs.append(out)
-        # print("Mapper processing information: ", out)
 
     def _invoke_pipelines(self, invoking_pipelines_info):
         for _, invoking_pipeline_info in invoking_pipelines_info.items():
+            print("Scheduling pipeline %s")
             num_mappers = invoking_pipeline_info[1]
             batches = invoking_pipeline_info[2]
             functions = invoking_pipeline_info[3]
             stage_id = invoking_pipeline_info[4]
-            mapper_outputs = []
             concurrent_lambdas = self.config[StaticVariables.NUM_CONCURRENT_LAMBDAS_FN] \
                 if StaticVariables.NUM_CONCURRENT_LAMBDAS_FN in self.config else StaticVariables.DEFAULT_NUM_CONCURRENT_LAMBDAS
 
@@ -373,7 +384,7 @@ class Driver:
             print("Number of Mappers: ", num_mappers)
             pool = ThreadPool(num_mappers)
             ids = [i + 1 for i in range(num_mappers)]
-            invoke_lambda_partial = partial(self.invoke_lambda, mapper_outputs, batches, functions, stage_id)
+            invoke_lambda_partial = partial(self.invoke_lambda, batches, functions, stage_id)
 
             # Burst request handling
             mappers_executed = 0
@@ -385,60 +396,73 @@ class Driver:
             pool.close()
             pool.join()
 
-            print("All the mappers have finished")
-            print("The mapper outputs are", mapper_outputs)
+            print("Pipeline %s scheduled successfully")
 
-            # return mapper_outputs
 
-    def _calculate_cost(self, mapper_outputs, num_outputs, cur_output_handler):
-        total_lambda_secs = 0
+    def _calculate_cost(self, num_outputs, cur_output_handler, invoking_pipelines_info):
+        total_lambda_time = 0
         total_s3_get_ops = 0
-        # total_s3_put_ops = 0
-        # s3_storage_hours = 0
+        total_s3_put_ops = 0
+        total_s3_size = 0
         total_lines = 0
 
-        for output in mapper_outputs:
-            total_s3_get_ops += int(output[0])
-            total_lines += int(output[1])
-            total_lambda_secs += float(output[2])
-
-        # Note: Wait for the job to complete so that we can compute total cost ; create a poll every 10 secs
-        # Get all reducer keys
-
-        # Total execution time for reducers
+        pipelines_first_stage_ids = [pipeline_info[4] for _, pipeline_info in invoking_pipelines_info.items()]
         lambda_memory = self.config[StaticVariables.LAMBDA_MEMORY_PROVISIONED_FN] \
-            if StaticVariables.LAMBDA_MEMORY_PROVISIONED_FN in self.config else StaticVariables.DEFAULT_LAMBDA_MEMORY_LIMIT
+            if StaticVariables.LAMBDA_MEMORY_PROVISIONED_FN in self.config \
+            else StaticVariables.DEFAULT_LAMBDA_MEMORY_LIMIT
+        shuffling_bucket = self.static_job_info[StaticVariables.SHUFFLING_BUCKET_FN]
+        job_name = self.static_job_info[StaticVariables.JOB_NAME_FN]
 
+        # Wait for the job to complete so that we can compute total cost ; create a poll every 10 secs
         while True:
             print("Checking whether the job is completed...")
             response, string_index = cur_output_handler.list_objects_for_checking_finish(self.static_job_info)
             if string_index in response:
-                reducer_lambda_time, total_s3_size, len_job_keys = cur_output_handler\
-                    .check_job_finish(response, string_index, num_outputs, self.static_job_info)
-                if reducer_lambda_time > -1:
+                last_stage_lambda_time, last_stage_s3_size, last_stage_num_keys = \
+                    cur_output_handler.check_job_finish(response, string_index, num_outputs, self.static_job_info)
+                if last_stage_lambda_time > -1:
+                    total_lambda_time += last_stage_lambda_time
+                    total_s3_size += last_stage_s3_size
+                    total_s3_get_ops += last_stage_num_keys
+                    total_s3_put_ops += last_stage_num_keys
                     break
             time.sleep(5)
 
         print("Job Complete")
 
-        # S3 Storage cost - Account for mappers only; This cost is negligible anyways since S3 costs 3 cents/GB/month
-        s3_storage_hour_cost = 1 * 0.0000521574022522109 * (total_s3_size / 1024.0 / 1024.0 / 1024.0)  # cost per GB/hr
-        s3_put_cost = len_job_keys * 0.005 / 1000
+        all_stages_key_objs = self.s3_client.list_objects(Bucket=shuffling_bucket, Prefix=job_name)["Contents"]
+        for all_stage_key_obj in all_stages_key_objs:
+            # Even though metadata processing time is written as processingTime,
+            # AWS does not accept uppercase letter metadata key
+            all_stage_key = all_stage_key_obj["Key"]
+            total_s3_size += all_stage_key_obj["Size"]
+            total_s3_get_ops += 1
+            total_s3_put_ops += 1
+            if ("bin" not in all_stage_key) or ("bin-1" in all_stage_key):
+                lambda_time = float(self.s3_client.get_object(Bucket=shuffling_bucket,
+                                                              Key=all_stage_key)['Metadata']['processingtime'])
+                total_lambda_time += lambda_time
+                stage_id = int(all_stage_key.split("/")[1].split("-")[1])
+                if stage_id in pipelines_first_stage_ids:
+                    total_lines += int(self.s3_client.get_object(Bucket=shuffling_bucket,
+                                                                 Key=all_stage_key)['Metadata']['linecount'])
 
+        # S3 Storage cost for shuffling bucket and output bucket - is negligible anyways since S3 costs 3 cents/GB/month
+        total_s3_storage_hour_cost = 1 * 0.0000521574022522109 * (total_s3_size / 1024.0 / 1024.0 / 1024.0)  # cost per GB/hr
+        # S3 PUT # 0.005/1000
+        total_s3_put_cost = total_s3_put_ops * 0.005 / 1000
         # S3 GET # $0.004/10000
-        total_s3_get_ops += len_job_keys
-        s3_get_cost = total_s3_get_ops * 0.004 / 10000
+        total_s3_get_cost = total_s3_get_ops * 0.004 / 10000
 
-        total_lambda_secs += reducer_lambda_time
-        lambda_cost = total_lambda_secs * 0.00001667 * lambda_memory / 1024.0
-        s3_cost = (s3_get_cost + s3_put_cost + s3_storage_hour_cost)
+        # Lambda cost
+        total_lambda_cost = total_lambda_time * 0.00001667 * lambda_memory / 1024.0
+        total_s3_cost = (total_s3_get_cost + total_s3_put_cost + total_s3_storage_hour_cost)
 
-        print("Reducer L", reducer_lambda_time * 0.00001667 * lambda_memory / 1024.0)
-        print("Lambda Cost", lambda_cost)
-        print("S3 Storage Cost", s3_storage_hour_cost)
-        print("S3 Request Cost", s3_get_cost + s3_put_cost)
-        print("S3 Cost", s3_cost)
-        print("Total Cost: ", lambda_cost + s3_cost)
+        print("Total Lambda Cost", total_lambda_cost)
+        print("S3 Storage Cost", total_s3_storage_hour_cost)
+        print("S3 Request Cost", total_s3_get_cost + total_s3_put_cost)
+        print("Total S3 Cost", total_s3_cost)
+        print("Total Cost: ", total_lambda_cost + total_s3_cost)
         print("Total Lines:", total_lines)
 
     def run(self):
@@ -454,7 +478,7 @@ class Driver:
         cur_output_handler = output_handler.get_output_handler(self.static_job_info[StaticVariables.OUTPUT_SOURCE_TYPE_FN],
                                                                self.is_serverless)
         cur_output_handler.create_output_storage(self.static_job_info)
-        self._calculate_cost([], num_outputs, cur_output_handler)
+        self._calculate_cost(num_outputs, cur_output_handler, invoking_pipelines_info)
 
         # 4. Delete the function lambdas
         for function_lambda in function_lambdas:
