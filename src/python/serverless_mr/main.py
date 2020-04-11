@@ -99,6 +99,7 @@ class ServerlessMR:
     def map(self, map_function):
         rel_function_path = copy_job_function(map_function)
         self.cur_pipeline.add_function(MapFunction(map_function, rel_function_path))
+        self.total_num_functions += 1
         return self
 
     def map_shuffle(self, map_function, partition_function):
@@ -106,11 +107,13 @@ class ServerlessMR:
         rel_partition_function_path = copy_job_function(partition_function)
         self.cur_pipeline.add_function(MapShuffleFunction(map_function, rel_map_function_path,
                                                           partition_function, rel_partition_function_path))
+        self.total_num_functions += 1
         return self
 
     def reduce(self, reduce_function, num_reducers):
         rel_function_path = copy_job_function(reduce_function)
         self.cur_pipeline.add_function(ReduceFunction(reduce_function, rel_function_path, num_reducers))
+        self.total_num_functions += 1
         return self
 
     def finish(self):
@@ -120,12 +123,13 @@ class ServerlessMR:
         self.pipeline_id += 1
         return cur_pipeline_id
 
-    def merge_map(self, map_function, partition_function, dependent_pipeline_ids):
+    def merge_map_shuffle(self, map_function, partition_function, dependent_pipeline_ids):
         rel_map_function_path = copy_job_function(map_function)
         rel_partition_function_path = copy_job_function(partition_function)
         self.cur_pipeline.add_function(MergeMapShuffleFunction(map_function, rel_map_function_path,
                                                                partition_function, rel_partition_function_path))
         self.cur_pipeline.set_dependent_pipelines_ids(dependent_pipeline_ids)
+        self.total_num_functions += 1
         return self
 
     def run(self):
@@ -149,6 +153,7 @@ class ServerlessMR:
             #     print("Driver invoked and starting job execution")
             #     serverless_driver_setup.invoke()
         else:
+            print("The total number of functions is", self.total_num_functions)
             driver = Driver(self.pipelines, self.total_num_functions)
             driver.run()
 

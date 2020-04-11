@@ -15,7 +15,7 @@
     "outputSource": "serverless-mapreduce-storage-output",
     "outputPrefix": "output",
     "outputPartitionKeyDynamoDB": ["ip", "S"],
-    "outputColumnDynamoDB": ["revenue", "N"],
+    "outputColumnDynamoDB": ["revenue", "S"],
     "useCombine": true,
     "localTesting": true,
     "localTestingInputPath": "../../input_data/testing_partitioned/dynamodb/",

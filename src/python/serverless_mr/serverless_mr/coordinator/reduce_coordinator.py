@@ -19,6 +19,10 @@ else:
     lambda_client = boto3.client('lambda')
 
 
+def keys_to_int(x):
+    return {int(k): v for k, v in x.items()}
+
+
 def get_map_reduce_outputs(bucket, job_name, stage_ids):
     keys_bins = []
     for stage_id in stage_ids:
@@ -41,10 +45,10 @@ def get_map_shuffle_outputs(num_bins, bucket, job_name, stage_id):
     return keys_bins
 
 def schedule_same_pipeline_next_stage(stage_configuration, stage_id, shuffling_bucket, job_name):
-    cur_stage_config = stage_configuration[str(stage_id)]
-    next_stage_config = stage_configuration[str(stage_id + 1)]
+    cur_stage_config = stage_configuration[stage_id]
+    next_stage_config = stage_configuration[stage_id + 1]
     invoking_lambda_name = next_stage_config["invoking_lambda_name"]
-    next_stage_num_operators = stage_configuration[str(stage_id + 1)]["num_operators"]
+    next_stage_num_operators = stage_configuration[stage_id + 1]["num_operators"]
 
     if cur_stage_config["stage_type"] == 1:
         keys_bins = get_map_shuffle_outputs(next_stage_num_operators, shuffling_bucket, job_name, stage_id)
@@ -67,14 +71,13 @@ def schedule_same_pipeline_next_stage(stage_configuration, stage_id, shuffling_b
             )
 
     else:
-        for i in range(len(keys_bins)):
+        for i in range(keys_bins):
             response = lambda_client.invoke(
                 FunctionName=invoking_lambda_name,
                 InvocationType='Event',
                 Payload=json.dumps({
                     "keys": keys_bins[i],
                     "id": i + 1,
-                    "load_data_from_input": False,
                     "function_pickle_path": next_stage_config["function_pickle_path"]
                 })
             )
@@ -84,20 +87,20 @@ def schedule_same_pipeline_next_stage(stage_configuration, stage_id, shuffling_b
 
 def schedule_different_pipeline_next_stage(stage_configuration, cur_pipeline_id,
                                            shuffling_bucket, job_name):
-    with open(StaticVariables.PIPELINE_DEPENDENCIES_PATH) as f:
+    with open(StaticVariables.PIPELINE_DEPENDENCIES_PATH, 'w') as f:
         adj_list = json.load(f)
 
-    with open(StaticVariables.PIPELINE_TO_FIRST_LAST_STAGE_PATH) as f:
+    with open(StaticVariables.PIPELINE_TO_FIRST_LAST_STAGE_PATH, 'w') as f:
         pipeline_first_last_stage_ids = json.load(f)
 
     in_degree_obj = in_degree.InDegree(in_lambda=True)
-    for dependent_pipeline_id in adj_list[str(cur_pipeline_id)]:
+    for dependent_pipeline_id in range(adj_list[cur_pipeline_id]):
         response = in_degree_obj.decrement_in_degree_table(StaticVariables.IN_DEGREE_DYNAMODB_TABLE_NAME,
                                                            dependent_pipeline_id)
         dependent_in_degree = int(response["Attributes"]["in_degree"]["N"])
         if dependent_in_degree == 0:
-            next_pipeline_first_stage_id = pipeline_first_last_stage_ids[str(dependent_pipeline_id)][0]
-            next_stage_config = stage_configuration[str(next_pipeline_first_stage_id)]
+            next_pipeline_first_stage_id = pipeline_first_last_stage_ids[dependent_pipeline_id][0]
+            next_stage_config = stage_configuration[next_pipeline_first_stage_id]
             invoking_lambda_name = next_stage_config["invoking_lambda_name"]
             dependent_stage_ids = next_stage_config["dependent_last_stage_ids"]
             keys_bins = get_map_reduce_outputs(shuffling_bucket, job_name, dependent_stage_ids)
@@ -131,13 +134,13 @@ def lambda_handler(event, _):
 
     cur_map_phase_state = stage_state.StageState(in_lambda=True)
     # stage_id = cur_map_phase_state.read_current_stage_id(StaticVariables.STAGE_STATE_DYNAMODB_TABLE_NAME)
-    stage_id = int(s3_obj_key.split("/")[1].split("-")[1])
+    stage_id = s3_obj_key.split("/")[1].split("-")[1]
     with open(StaticVariables.STAGE_CONFIGURATION_PATH) as json_file:
-        stage_configuration = json.load(json_file)
+        stage_configuration = json.load(json_file, object_hook=keys_to_int)
 
-    cur_stage_config = stage_configuration[str(stage_id)]
+    cur_stage_config = stage_configuration[stage_id]
     if cur_stage_config["stage_type"] == 1:
-        next_stage_num_operators = stage_configuration[str(stage_id + 1)]["num_operators"]
+        next_stage_num_operators = stage_configuration[stage_id + 1]["num_operators"]
         bin_s3_path = "bin-%s" % next_stage_num_operators
         shuffle_stage_s3_prefix = "%s/%s-%s/%s/" % (job_name, StaticVariables.OUTPUT_PREFIX,
                                                     stage_id, bin_s3_path)
@@ -154,11 +157,11 @@ def lambda_handler(event, _):
     print("In stage %s, number of operators completed: %s" % (stage_id, num_completed_operators))
 
     if num_operators == num_completed_operators:
-        with open(StaticVariables.STAGE_TO_PIPELINE_PATH) as f:
+        with open(StaticVariables.STAGE_TO_PIPELINE_PATH, 'w') as f:
             mapping_stage_id_pipeline_id = json.load(f)
 
-        cur_pipeline_id = mapping_stage_id_pipeline_id[str(stage_id)]
-        if cur_pipeline_id != mapping_stage_id_pipeline_id[str(stage_id + 1)]:
+        cur_pipeline_id = mapping_stage_id_pipeline_id[stage_id]
+        if cur_pipeline_id != mapping_stage_id_pipeline_id[stage_id + 1]:
             schedule_different_pipeline_next_stage(stage_configuration, cur_pipeline_id, shuffling_bucket, job_name)
         else:
             schedule_same_pipeline_next_stage(stage_configuration, stage_id, shuffling_bucket, job_name)

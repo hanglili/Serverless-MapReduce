@@ -20,20 +20,11 @@ class OutputHandlerS3:
         else:
             self.client = boto3.client('s3')
 
-    def set_up_output_bucket(self, output_bucket):
-        self.client.create_bucket(Bucket=output_bucket)
-        self.client.put_bucket_acl(
-            ACL='public-read-write',
-            Bucket=output_bucket,
-        )
-        print("Finished setting up shuffling bucket")
-
     def write_output(self, reducer_id, outputs, metadata, static_job_info):
         output_source = static_job_info[StaticVariables.SHUFFLING_BUCKET_FN] \
             if StaticVariables.OUTPUT_SOURCE_FN not in static_job_info \
             else static_job_info[StaticVariables.OUTPUT_SOURCE_FN]
 
-        self.set_up_output_bucket(output_source)
         job_name = static_job_info[StaticVariables.JOB_NAME_FN]
         reduce_output_full_prefix = "%s/%s" % (job_name, StaticVariables.REDUCE_OUTPUT_PREFIX_S3) \
             if StaticVariables.OUTPUT_PREFIX_FN not in static_job_info \
