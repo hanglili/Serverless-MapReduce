@@ -89,5 +89,5 @@ class InDegree:
             ReturnValues="UPDATED_NEW"
         )
 
-        print("In-degree for %s incremented successfully" % pipeline_id)
+        print("In-degree for pipeline %s incremented successfully" % pipeline_id)
         return response

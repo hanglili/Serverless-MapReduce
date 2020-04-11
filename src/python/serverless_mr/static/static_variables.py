@@ -13,7 +13,7 @@ class StaticVariables:
     MAP_HANDLER_PATH = "serverless_mr/job/map_handler.py"
     MAP_SHUFFLE_HANDLER_PATH = "serverless_mr/job/map_shuffle_handler.py"
     REDUCE_HANDLER_PATH = "serverless_mr/job/reduce_handler.py"
-    REDUCE_COORDINATOR_HANDLER_PATH = "serverless_mr/coordinator/reduce_coordinator.py"
+    COORDINATOR_HANDLER_PATH = "serverless_mr/coordinator/coordinator.py"
     PARTITION_PATH = "serverless_mr/job/partition.py"
     REDUCE_PATH = "serverless_mr/job/reduce.py"
     COMBINE_PATH = "serverless_mr/job/combine.py"
@@ -40,7 +40,10 @@ class StaticVariables:
     MAP_HANDLER_FUNCTION_PATH = "serverless_mr/job/map_handler.lambda_handler"
     MAP_SHUFFLE_HANDLER_FUNCTION_PATH = "serverless_mr/job/map_shuffle_handler.lambda_handler"
     REDUCE_HANDLER_FUNCTION_PATH = "serverless_mr/job/reduce_handler.lambda_handler"
-    REDUCE_COORDINATOR_HANDLER_FUNCTION_PATH = "serverless_mr/coordinator/reduce_coordinator.lambda_handler"
+    COORDINATOR_HANDLER_FUNCTION_PATH = "serverless_mr/coordinator/coordinator.lambda_handler"
+
+    # Zip path
+    COORDINATOR_ZIP_PATH = "serverless_mr/coordinator.zip"
 
     # Constants
     DEFAULT_REGION = "us-east-1"
@@ -60,7 +63,7 @@ class StaticVariables:
     BOTO_MAX_CONNECTIONS_FN = "botoMaxConnections"
     MAPPER_FN = "mapper"
     REDUCER_FN = "reducer"
-    REDUCER_COORDINATOR_FN = "reducerCoordinator"
+    COORDINATOR_FN = "coordinator"
     DRIVER_FN = "driver"
     LOCATION_FN = "location"
     HANDLER_FN = "handler"

@@ -271,7 +271,7 @@ class Driver:
             pipelines_first_last_stage_ids[pipeline_id].append(stage_id - 1)
             pipelines_last_stage_num_operators[pipeline_id] = num_operators
 
-        reduce_coordinator_zip_path = "serverless_mr/reduce-coordinator.zip"
+        coordinator_zip_path = StaticVariables.COORDINATOR_ZIP_PATH
         if not self.is_serverless:
             with open(StaticVariables.STAGE_CONFIGURATION_PATH, 'w') as f:
                 json.dump(stage_config, f)
@@ -285,13 +285,13 @@ class Driver:
             with open(StaticVariables.PIPELINE_TO_FIRST_LAST_STAGE_PATH, 'w') as f:
                 json.dump(pipelines_first_last_stage_ids, f)
 
-            zip.zip_lambda([StaticVariables.REDUCE_COORDINATOR_HANDLER_PATH], reduce_coordinator_zip_path)
+            zip.zip_lambda([StaticVariables.COORDINATOR_HANDLER_PATH], coordinator_zip_path)
 
-        cur_coordinator_lambda_name = "%s-%s-%s-%s" % (job_name, lambda_name_prefix, "reduce-coordinator", stage_id)
+        cur_coordinator_lambda_name = "%s-%s-%s-%s" % (job_name, lambda_name_prefix, "coordinator", stage_id)
         cur_coordinator_lambda = lambda_manager.LambdaManager(self.lambda_client, self.s3_client, region,
-                                                              reduce_coordinator_zip_path, job_name,
+                                                              coordinator_zip_path, job_name,
                                                               cur_coordinator_lambda_name,
-                                                              StaticVariables.REDUCE_COORDINATOR_HANDLER_FUNCTION_PATH)
+                                                              StaticVariables.COORDINATOR_HANDLER_FUNCTION_PATH)
         cur_coordinator_lambda.update_code_or_create_on_no_exist(self.total_num_functions)
         cur_coordinator_lambda.add_lambda_permission(random.randint(1, 1000), shuffling_bucket)
         shuffling_s3_path_prefix = "%s/" % job_name
@@ -303,7 +303,7 @@ class Driver:
         in_degree_obj.initialise_in_degree_table(StaticVariables.IN_DEGREE_DYNAMODB_TABLE_NAME, in_degrees)
 
         if not self.is_serverless:
-            delete_files([reduce_coordinator_zip_path])
+            delete_files([coordinator_zip_path])
             delete_files(glob.glob(StaticVariables.FUNCTIONS_PICKLE_GLOB_PATH))
 
         return function_lambdas, invoking_pipelines_info, num_operators

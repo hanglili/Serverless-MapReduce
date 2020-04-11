@@ -52,7 +52,7 @@ serverless_mr = ServerlessMR()
 pipeline1 = serverless_mr.config(config_pipeline_1).map_shuffle(extract_data_s3, partition)\
     .reduce(reduce_function, 4).finish()
 
-pipeline2 = serverless_mr.config(config_pipeline_2).map_shuffle(extract_data_dynamo_db, partition)\
+pipeline2 = serverless_mr.config(config_pipeline_1).map_shuffle(extract_data_s3, partition)\
     .reduce(reduce_function, 2).finish()
 
 pipeline3 = serverless_mr.config(config_pipeline_3).merge_map_shuffle(identity_function, partition, [pipeline1, pipeline2])\

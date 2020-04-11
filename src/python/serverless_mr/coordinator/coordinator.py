@@ -122,7 +122,7 @@ def schedule_different_pipeline_next_stage(stage_configuration, cur_pipeline_id,
 
 
 def lambda_handler(event, _):
-    print("**************Reduce coordinator****************")
+    print("*************Coordinator****************")
     # start_time = time.time()
 
     # Shuffling Bucket (we just got a notification from this bucket)
