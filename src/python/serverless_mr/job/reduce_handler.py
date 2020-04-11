@@ -36,6 +36,8 @@ def lambda_handler(event, _):
     stage_id = int(os.environ.get("stage_id"))
     total_num_stages = int(os.environ.get("total_num_stages"))
 
+    print("Stage:", stage_id)
+
     # aggr
     line_count = 0
     intermediate_data = []
@@ -58,9 +60,6 @@ def lambda_handler(event, _):
     outputs = []
     for key, value in intermediate_data:
         if cur_key == key:
-            # if use_combine:
-            #     cur_values += value
-            # else:
             cur_values.append(value)
         else:
             if cur_key is not None:
@@ -69,9 +68,6 @@ def lambda_handler(event, _):
                 outputs += cur_key_outputs
 
             cur_key = key
-            # if use_combine:
-            #     cur_values = value
-            # else:
             cur_values = [value]
 
     if cur_key is not None:
@@ -95,7 +91,7 @@ def lambda_handler(event, _):
     if stage_id == total_num_stages:
         cur_output_handler = output_handler.get_output_handler(static_job_info[StaticVariables.OUTPUT_SOURCE_TYPE_FN],
                                                                in_lambda=True)
-        cur_output_handler.write_output(reducer_id, outputs, metadata)
+        cur_output_handler.write_output(reducer_id, outputs, metadata, static_job_info)
     else:
         mapper_filename = "%s/%s-%s/%s" % (job_name, StaticVariables.OUTPUT_PREFIX, stage_id, reducer_id)
         s3_client.put_object(Bucket=shuffling_bucket, Key=mapper_filename,

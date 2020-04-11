@@ -5,16 +5,20 @@ class StaticVariables:
     STATIC_JOB_INFO_PATH = "serverless_mr/configuration/static-job-info.json"
     # CONFIGURATION_INIT_PATH = find_filepath("configuration", "__init__.py")
     CONFIGURATION_INIT_PATH = "serverless_mr/configuration/__init__.py"
-    COORDINATOR_CONFIGURATION_PATH = "serverless_mr/configuration/coordinator-config.json"
+    STAGE_CONFIGURATION_PATH = "serverless_mr/configuration/stage-config.json"
+    PIPELINE_DEPENDENCIES_PATH = "serverless_mr/configuration/pipeline-dependencies.json"
+    STAGE_TO_PIPELINE_PATH = "serverless_mr/configuration/stage-to-pipeline.json"
+    PIPELINE_TO_FIRST_LAST_STAGE_PATH = "serverless_mr/configuration/pipeline-to-first-last-stage.json"
     # JOB_INFO_LAMBDA_PATH = "/tmp/job-info.json"
     MAP_HANDLER_PATH = "serverless_mr/job/map_handler.py"
     MAP_SHUFFLE_HANDLER_PATH = "serverless_mr/job/map_shuffle_handler.py"
     REDUCE_HANDLER_PATH = "serverless_mr/job/reduce_handler.py"
-    REDUCE_COORDINATOR_HANDLER_PATH = "serverless_mr/coordinator/reduce_coordinator.py"
+    COORDINATOR_HANDLER_PATH = "serverless_mr/coordinator/coordinator.py"
     PARTITION_PATH = "serverless_mr/job/partition.py"
     REDUCE_PATH = "serverless_mr/job/reduce.py"
     COMBINE_PATH = "serverless_mr/job/combine.py"
     JOB_INIT_PATH = "serverless_mr/job/__init__.py"
+    FUNCTIONS_PICKLE_GLOB_PATH = "serverless_mr/job/*.pkl"
     UTILS_INIT_PATH = "serverless_mr/utils/__init__.py"
     LAMBDA_UTILS_PATH = "serverless_mr/utils/lambda_utils.py"
     INPUT_HANDLER_PATH = "serverless_mr/utils/input_handler.py"
@@ -27,6 +31,8 @@ class StaticVariables:
     STATIC_INIT_PATH = "serverless_mr/static/__init__.py"
     OUTPUT_PREFIX = "stage"
     REDUCE_OUTPUT_PREFIX_S3 = "stage"
+    IN_DEGREE_DYNAMODB_TABLE_NAME = "in-degree"
+    IN_DEGREE_PATH = "serverless_mr/utils/in_degree.py"
     STAGE_STATE_DYNAMODB_TABLE_NAME = "stage-state"
     STAGE_STATE_PATH = "serverless_mr/utils/stage_state.py"
 
@@ -34,7 +40,10 @@ class StaticVariables:
     MAP_HANDLER_FUNCTION_PATH = "serverless_mr/job/map_handler.lambda_handler"
     MAP_SHUFFLE_HANDLER_FUNCTION_PATH = "serverless_mr/job/map_shuffle_handler.lambda_handler"
     REDUCE_HANDLER_FUNCTION_PATH = "serverless_mr/job/reduce_handler.lambda_handler"
-    REDUCE_COORDINATOR_HANDLER_FUNCTION_PATH = "serverless_mr/coordinator/reduce_coordinator.lambda_handler"
+    COORDINATOR_HANDLER_FUNCTION_PATH = "serverless_mr/coordinator/coordinator.lambda_handler"
+
+    # Zip path
+    COORDINATOR_ZIP_PATH = "serverless_mr/coordinator.zip"
 
     # Constants
     DEFAULT_REGION = "us-east-1"
@@ -54,7 +63,7 @@ class StaticVariables:
     BOTO_MAX_CONNECTIONS_FN = "botoMaxConnections"
     MAPPER_FN = "mapper"
     REDUCER_FN = "reducer"
-    REDUCER_COORDINATOR_FN = "reducerCoordinator"
+    COORDINATOR_FN = "coordinator"
     DRIVER_FN = "driver"
     LOCATION_FN = "location"
     HANDLER_FN = "handler"
@@ -83,3 +92,7 @@ class StaticVariables:
     INPUT_PROCESSING_COLUMNS_DYNAMODB = "inputProcessingColumnsDynamoDB"
     OUTPUT_PARTITION_KEY_DYNAMODB = "outputPartitionKeyDynamoDB"
     OUTPUT_COLUMN_DYNAMODB = "outputColumnDynamoDB"
+
+    # dynamic variables
+    PROJECT_WORKING_DIRECTORY = ""
+    LIBRARY_WORKING_DIRECTORY = ""

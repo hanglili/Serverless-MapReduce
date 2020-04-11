@@ -12,8 +12,8 @@ class OutputHandlerDynamoDB:
 
     def __init__(self, in_lambda):
         # S3 client required to calculate the cost of S3 shuffling bucket
-        self.static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
-        if self.static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
+        static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
+        if static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
             if in_lambda:
                 local_endpoint_url = 'http://%s:4569' % os.environ['LOCALSTACK_HOSTNAME']
                 s3_local_endpoint_url = 'http://%s:4572' % os.environ['LOCALSTACK_HOSTNAME']
@@ -81,36 +81,43 @@ class OutputHandlerDynamoDB:
             }
         )
 
-    def write_output(self, reducer_id, outputs, metadata):
-        job_name = self.static_job_info[StaticVariables.JOB_NAME_FN]
+    def create_output_storage(self, static_job_info):
+        job_name = static_job_info[StaticVariables.JOB_NAME_FN]
         metadata_table_name = "%s-metadata" % job_name
-        output_table_name = self.static_job_info[StaticVariables.OUTPUT_SOURCE_FN]
-
-        output_partition_key = self.static_job_info[StaticVariables.OUTPUT_PARTITION_KEY_DYNAMODB]
-        output_column = self.static_job_info[StaticVariables.OUTPUT_COLUMN_DYNAMODB]
+        output_table_name = static_job_info[StaticVariables.OUTPUT_SOURCE_FN]
+        output_partition_key = static_job_info[StaticVariables.OUTPUT_PARTITION_KEY_DYNAMODB]
 
         OutputHandlerDynamoDB.create_table(self.client, output_table_name, output_partition_key)
         OutputHandlerDynamoDB.create_table(self.client, metadata_table_name,
                                            [OutputHandlerDynamoDB.METADATA_TABLE_KEY_NAME, 'S'])
 
+    def write_output(self, reducer_id, outputs, metadata, static_job_info):
+        job_name = static_job_info[StaticVariables.JOB_NAME_FN]
+        metadata_table_name = "%s-metadata" % job_name
+        output_table_name = static_job_info[StaticVariables.OUTPUT_SOURCE_FN]
+
+        output_partition_key = static_job_info[StaticVariables.OUTPUT_PARTITION_KEY_DYNAMODB]
+        output_column = static_job_info[StaticVariables.OUTPUT_COLUMN_DYNAMODB]
+
         OutputHandlerDynamoDB.put_items(self.client, output_table_name, outputs, output_partition_key, output_column)
         OutputHandlerDynamoDB.put_metadata(self.client, metadata_table_name, json.dumps(metadata), reducer_id)
 
-    def list_objects_for_checking_finish(self):
-        job_name = self.static_job_info[StaticVariables.JOB_NAME_FN]
+    def list_objects_for_checking_finish(self, static_job_info):
+        job_name = static_job_info[StaticVariables.JOB_NAME_FN]
         metadata_table_name = "%s-metadata" % job_name
-        existing_tables = self.client.list_tables()['TableNames']
+        # existing_tables = self.client.list_tables()['TableNames']
         project_expression = '%s, %s' % (OutputHandlerDynamoDB.METADATA_TABLE_KEY_NAME,
                                          OutputHandlerDynamoDB.METADATA_TABLE_COLUMN_NAME)
 
-        if metadata_table_name in existing_tables\
-                and self.client.describe_table(TableName=metadata_table_name)['Table']['TableStatus'] == 'ACTIVE':
+        # if metadata_table_name in existing_tables\
+        #         and \
+        if self.client.describe_table(TableName=metadata_table_name)['Table']['TableStatus'] == 'ACTIVE':
             response = self.client.scan(TableName=metadata_table_name, ProjectionExpression=project_expression)
             return response, "Items"
 
         return {}, "Items"
 
-    def check_job_finish(self, response, string_index, num_final_dst_operators):
+    def check_job_finish(self, response, string_index, num_final_dst_operators, static_job_info):
         reducer_ids = []
         reducer_metadata = []
         reducer_lambda_time = 0
@@ -120,8 +127,8 @@ class OutputHandlerDynamoDB:
             reducer_metadata.append(json.loads(record[OutputHandlerDynamoDB.METADATA_TABLE_COLUMN_NAME]['S']))
 
         if len(reducer_ids) == num_final_dst_operators:
-            shuffling_bucket = self.static_job_info[StaticVariables.SHUFFLING_BUCKET_FN]
-            job_name = self.static_job_info[StaticVariables.JOB_NAME_FN]
+            shuffling_bucket = static_job_info[StaticVariables.SHUFFLING_BUCKET_FN]
+            job_name = static_job_info[StaticVariables.JOB_NAME_FN]
             job_keys = self.s3_client.list_objects(Bucket=shuffling_bucket, Prefix=job_name)["Contents"]
             total_s3_size = 0
             for metadatum in reducer_metadata:
@@ -133,11 +140,11 @@ class OutputHandlerDynamoDB:
 
         return -1, -1, -1
 
-    def get_output(self, reducer_id):
-        output_table_name = self.static_job_info[StaticVariables.OUTPUT_SOURCE_FN]
+    def get_output(self, reducer_id, static_job_info):
+        output_table_name = static_job_info[StaticVariables.OUTPUT_SOURCE_FN]
 
-        output_partition_key = self.static_job_info[StaticVariables.OUTPUT_PARTITION_KEY_DYNAMODB]
-        output_column = self.static_job_info[StaticVariables.OUTPUT_COLUMN_DYNAMODB]
+        output_partition_key = static_job_info[StaticVariables.OUTPUT_PARTITION_KEY_DYNAMODB]
+        output_column = static_job_info[StaticVariables.OUTPUT_COLUMN_DYNAMODB]
 
         outputs = []
         response = self.client.scan(TableName=output_table_name)

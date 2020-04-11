@@ -9,10 +9,10 @@
         "handler": "serverless_mr/job/reduce_handler.lambda_handler",
         "zip": "serverless_mr/reduce.zip"
     },
-    "reducerCoordinator": {
-        "location": "serverless_mr/coordinator/reduce_coordinator.py",
-        "handler": "serverless_mr/coordinator/reduce_coordinator.lambda_handler",
-        "zip": "serverless_mr/reduce_coordinator.zip"
+    "coordinator": {
+        "location": "serverless_mr/coordinator/coordinator.py",
+        "handler": "serverless_mr/coordinator/coordinator.lambda_handler",
+        "zip": "serverless_mr/coordinator.zip"
     },
     "driver": {
         "location": "serverless_mr/driver/serverless_driver.py",

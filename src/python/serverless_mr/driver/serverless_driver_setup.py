@@ -65,8 +65,8 @@ class ServerlessDriverSetup:
         # Prepare Lambda functions
         zip.zip_lambda(self.rel_function_paths, self.config[StaticVariables.MAPPER_FN][StaticVariables.ZIP_FN])
         zip.zip_lambda(self.rel_function_paths, self.config[StaticVariables.REDUCER_FN][StaticVariables.ZIP_FN])
-        zip.zip_lambda([self.config[StaticVariables.REDUCER_COORDINATOR_FN][StaticVariables.LOCATION_FN]],
-                       self.config[StaticVariables.REDUCER_COORDINATOR_FN][StaticVariables.ZIP_FN])
+        zip.zip_lambda([self.config[StaticVariables.COORDINATOR_FN][StaticVariables.LOCATION_FN]],
+                       self.config[StaticVariables.COORDINATOR_FN][StaticVariables.ZIP_FN])
 
         zip.zip_driver_lambda(self.config[StaticVariables.DRIVER_FN][StaticVariables.ZIP_FN])
 

@@ -18,11 +18,11 @@ class DecimalEncoder(json.JSONEncoder):
         return super(DecimalEncoder, self).default(o)
 
 
-class StageState:
+class InDegree:
 
     def __init__(self, in_lambda):
-        static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
-        if static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
+        self.static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
+        if self.static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
             if in_lambda:
                 local_endpoint_url = 'http://%s:4569' % os.environ['LOCALSTACK_HOSTNAME']
             else:
@@ -33,15 +33,15 @@ class StageState:
         else:
             self.client = boto3.client('dynamodb')
 
-    def create_state_table(self, table_name):
+    def create_in_degree_table(self, table_name):
         self.client.create_table(
             AttributeDefinitions=[{
-                'AttributeName': 'stage_id',
+                'AttributeName': 'pipeline_id',
                 'AttributeType': 'N'
             }],
             TableName=table_name,
             KeySchema=[{
-                'AttributeName': 'stage_id',
+                'AttributeName': 'pipeline_id',
                 'KeyType': 'HASH'
             }],
             ProvisionedThroughput={
@@ -58,24 +58,15 @@ class StageState:
 
         print("Stage state table created successfully")
 
-    def initialise_state_table(self, table_name, num_stages):
-        for i in range(1, num_stages):
+    def initialise_in_degree_table(self, table_name, in_degrees):
+        for pipeline_id, in_degree in in_degrees.items():
             self.client.put_item(
                 TableName=table_name,
                 Item={
-                    'stage_id': {'N': str(i)},
-                    'num_completed_operators': {'N': str(0)}
+                    'pipeline_id': {'N': str(pipeline_id)},
+                    'in_degree': {'N': str(in_degree)}
                 }
             )
-
-        # -1 stage_id stores the current stage id
-        self.client.put_item(
-            TableName=table_name,
-            Item={
-                'stage_id': {'N': str(-1)},
-                'current_stage_id': {'N': str(1)}
-            }
-        )
         print("Stage state table initialised successfully")
 
     def delete_state_table(self, table_name):
@@ -85,43 +76,18 @@ class StageState:
 
         print("Stage state table deleted successfully")
 
-    def increment_num_completed_operators(self, table_name, stage_id):
+    def decrement_in_degree_table(self, table_name, pipeline_id):
         response = self.client.update_item(
             TableName=table_name,
             Key={
-                'stage_id': {'N': str(stage_id)}
+                'pipeline_id': {'N': str(pipeline_id)}
             },
-            UpdateExpression="set num_completed_operators = num_completed_operators + :val",
+            UpdateExpression="set in_degree = in_degree - :val",
             ExpressionAttributeValues={
                 ':val': {'N': str(1)}
             },
             ReturnValues="UPDATED_NEW"
         )
 
-        print("Number of completed operators incremented successfully")
+        print("In-degree for pipeline %s incremented successfully" % pipeline_id)
         return response
-
-    def increment_current_stage_id(self, table_name):
-        response = self.client.update_item(
-            TableName=table_name,
-            Key={
-                'stage_id': {'N': str(-1)}
-            },
-            UpdateExpression="set current_stage_id = current_stage_id + :val",
-            ExpressionAttributeValues={
-                ':val': {'N': str(1)}
-            },
-            ReturnValues="UPDATED_NEW"
-        )
-
-        print("Current stage id incremented successfully")
-        return response
-
-    def read_current_stage_id(self, table_name):
-        projection_expression = "current_stage_id"
-        response = self.client.get_item(TableName=table_name,
-                                        Key={
-                                            'stage_id': { 'N': str(-1)}
-                                        },
-                                        ProjectionExpression=projection_expression)
-        return int(response['Item']['current_stage_id']['N'])
