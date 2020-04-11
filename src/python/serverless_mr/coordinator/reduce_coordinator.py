@@ -79,7 +79,8 @@ def schedule_same_pipeline_next_stage(stage_configuration, stage_id, shuffling_b
                 })
             )
 
-    print("In stage %s, number of operators scheduled: %s" % (stage_id, next_stage_num_operators))
+    print("All operators finished in stage %s, next stage: number of operators scheduled: %s"
+          % (stage_id, next_stage_num_operators))
 
 
 def schedule_different_pipeline_next_stage(stage_configuration, cur_pipeline_id,
@@ -116,6 +117,9 @@ def schedule_different_pipeline_next_stage(stage_configuration, cur_pipeline_id,
                     })
                 )
 
+            print("All operators finished in pipeline %s, next pipeline: number of operators scheduled: %s"
+                  % (cur_pipeline_id, len(keys_bins)))
+
 
 def lambda_handler(event, _):
     print("**************Reduce coordinator****************")
@@ -132,6 +136,7 @@ def lambda_handler(event, _):
     cur_map_phase_state = stage_state.StageState(in_lambda=True)
     # stage_id = cur_map_phase_state.read_current_stage_id(StaticVariables.STAGE_STATE_DYNAMODB_TABLE_NAME)
     stage_id = int(s3_obj_key.split("/")[1].split("-")[1])
+    print("Stage:", stage_id)
     with open(StaticVariables.STAGE_CONFIGURATION_PATH) as json_file:
         stage_configuration = json.load(json_file)
 

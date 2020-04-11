@@ -81,6 +81,16 @@ class OutputHandlerDynamoDB:
             }
         )
 
+    def create_output_storage(self, static_job_info):
+        job_name = static_job_info[StaticVariables.JOB_NAME_FN]
+        metadata_table_name = "%s-metadata" % job_name
+        output_table_name = static_job_info[StaticVariables.OUTPUT_SOURCE_FN]
+        output_partition_key = static_job_info[StaticVariables.OUTPUT_PARTITION_KEY_DYNAMODB]
+
+        OutputHandlerDynamoDB.create_table(self.client, output_table_name, output_partition_key)
+        OutputHandlerDynamoDB.create_table(self.client, metadata_table_name,
+                                           [OutputHandlerDynamoDB.METADATA_TABLE_KEY_NAME, 'S'])
+
     def write_output(self, reducer_id, outputs, metadata, static_job_info):
         job_name = static_job_info[StaticVariables.JOB_NAME_FN]
         metadata_table_name = "%s-metadata" % job_name
@@ -89,22 +99,19 @@ class OutputHandlerDynamoDB:
         output_partition_key = static_job_info[StaticVariables.OUTPUT_PARTITION_KEY_DYNAMODB]
         output_column = static_job_info[StaticVariables.OUTPUT_COLUMN_DYNAMODB]
 
-        OutputHandlerDynamoDB.create_table(self.client, output_table_name, output_partition_key)
-        OutputHandlerDynamoDB.create_table(self.client, metadata_table_name,
-                                           [OutputHandlerDynamoDB.METADATA_TABLE_KEY_NAME, 'S'])
-
         OutputHandlerDynamoDB.put_items(self.client, output_table_name, outputs, output_partition_key, output_column)
         OutputHandlerDynamoDB.put_metadata(self.client, metadata_table_name, json.dumps(metadata), reducer_id)
 
     def list_objects_for_checking_finish(self, static_job_info):
         job_name = static_job_info[StaticVariables.JOB_NAME_FN]
         metadata_table_name = "%s-metadata" % job_name
-        existing_tables = self.client.list_tables()['TableNames']
+        # existing_tables = self.client.list_tables()['TableNames']
         project_expression = '%s, %s' % (OutputHandlerDynamoDB.METADATA_TABLE_KEY_NAME,
                                          OutputHandlerDynamoDB.METADATA_TABLE_COLUMN_NAME)
 
-        if metadata_table_name in existing_tables\
-                and self.client.describe_table(TableName=metadata_table_name)['Table']['TableStatus'] == 'ACTIVE':
+        # if metadata_table_name in existing_tables\
+        #         and \
+        if self.client.describe_table(TableName=metadata_table_name)['Table']['TableStatus'] == 'ACTIVE':
             response = self.client.scan(TableName=metadata_table_name, ProjectionExpression=project_expression)
             return response, "Items"
 

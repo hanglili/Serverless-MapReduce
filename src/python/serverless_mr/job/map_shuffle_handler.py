@@ -46,6 +46,8 @@ def lambda_handler(event, _):
     stage_id = int(os.environ.get("stage_id"))
     num_bins = int(os.environ.get("num_reducers"))
 
+    print("Stage:", stage_id)
+
     # aggr
     line_count = 0
     err = ''
@@ -74,6 +76,8 @@ def lambda_handler(event, _):
             input_value = json.loads(contents)
             input_pair = (input_key, input_value)
             map_function(intermediate_data, input_pair)
+
+            line_count += len(input_value)
 
     if use_combine:
 

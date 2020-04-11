@@ -98,7 +98,7 @@ class StageState:
             ReturnValues="UPDATED_NEW"
         )
 
-        print("Number of completed mappers incremented successfully")
+        print("Number of completed operators incremented successfully")
         return response
 
     def increment_current_stage_id(self, table_name):

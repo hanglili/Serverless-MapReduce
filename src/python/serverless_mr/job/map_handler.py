@@ -38,6 +38,8 @@ def lambda_handler(event, _):
     stage_id = int(os.environ.get("stage_id"))
     total_num_stages = int(os.environ.get("total_num_stages"))
 
+    print("Stage:", stage_id)
+
     # aggr
     line_count = 0
     err = ''
@@ -66,6 +68,8 @@ def lambda_handler(event, _):
             input_value = json.loads(contents)
             input_pair = (input_key, input_value)
             map_function(intermediate_data, input_pair)
+
+            line_count += len(input_value)
 
     outputs = intermediate_data
 

@@ -36,6 +36,8 @@ def lambda_handler(event, _):
     stage_id = int(os.environ.get("stage_id"))
     total_num_stages = int(os.environ.get("total_num_stages"))
 
+    print("Stage:", stage_id)
+
     # aggr
     line_count = 0
     intermediate_data = []
@@ -58,9 +60,6 @@ def lambda_handler(event, _):
     outputs = []
     for key, value in intermediate_data:
         if cur_key == key:
-            # if use_combine:
-            #     cur_values += value
-            # else:
             cur_values.append(value)
         else:
             if cur_key is not None:
@@ -69,9 +68,6 @@ def lambda_handler(event, _):
                 outputs += cur_key_outputs
 
             cur_key = key
-            # if use_combine:
-            #     cur_values = value
-            # else:
             cur_values = [value]
 
     if cur_key is not None:

@@ -11,7 +11,7 @@
         ["sourceIP", "S"], ["destURL", "S"], ["visitDate", "S"], ["adRevenue", "N"], ["userAgent","S"],
         ["countryCode", "S"], ["languageCode", "S"], ["searchWord", "S"], ["duration", "S"]
     ],
-    "outputSourceType": "dynamodb",
+    "outputSourceType": "s3",
     "outputSource": "serverless-mapreduce-storage-output",
     "outputPrefix": "output",
     "outputPartitionKeyDynamoDB": ["ip", "S"],

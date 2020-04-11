@@ -18,39 +18,20 @@ from serverless_mr.functions.reduce_function import ReduceFunction
 from serverless_mr.functions.merge_map_shuffle import MergeMapShuffleFunction
 
 
-def delete_files(dirname, filenames):
+def delete_files(filenames):
     for filename in filenames:
-        dst_file = "%s/%s" % (dirname, filename)
-        if os.path.exists(dst_file):
-            os.remove(dst_file)
-
-
-def delete_file(filename):
-    if os.path.exists(filename):
-        os.remove(filename)
-
-
-# def set_up_local_input_bucket(local_input_bucket):
-#     print("Setting up local input bucket")
-#     s3_client = boto3.client('s3', aws_access_key_id='', aws_secret_access_key='', region_name='us-east-1',
-#                              endpoint_url='http://localhost:4572')
-#     s3_client.create_bucket(Bucket=local_input_bucket)
-#     s3_client.put_bucket_acl(
-#         ACL='public-read-write',
-#         Bucket=local_input_bucket,
-#     )
-#     print("Finished setting up local input bucket")
+        if os.path.exists(filename):
+            os.remove(filename)
 
 
 def set_up_local_input_data(static_job_info):
     if static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
-        # set_up_local_input_bucket(static_job_info[StaticVariables.INPUT_SOURCE_FN])
         cur_input_handler = input_handler.get_input_handler(static_job_info[StaticVariables.INPUT_SOURCE_TYPE_FN])
 
         os.chdir(StaticVariables.PROJECT_WORKING_DIRECTORY)
         local_testing_input_path = static_job_info[StaticVariables.LOCAL_TESTING_INPUT_PATH]
         local_file_paths = glob.glob(local_testing_input_path + "*")
-        print(local_file_paths)
+        print("The list of local file paths:", local_file_paths)
         cur_input_handler.set_up_local_input_data(local_file_paths, static_job_info)
         os.chdir(StaticVariables.LIBRARY_WORKING_DIRECTORY)
 
@@ -64,12 +45,10 @@ class Driver:
         self._set_aws_clients()
         self._set_lambda_config_and_client()
         self.pipelines = pipelines
-        self.cur_output_handler = None
         self.total_num_functions = total_num_functions
         self.map_phase_state = stage_state.StageState(self.is_serverless)
         self._initialise_stage_state(total_num_functions)
         self.set_up_shuffling_bucket()
-        # self.set_up_output_bucket()
 
     def _set_aws_clients(self):
         if self.static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
@@ -116,6 +95,15 @@ class Driver:
         self.map_phase_state.create_state_table(StaticVariables.STAGE_STATE_DYNAMODB_TABLE_NAME)
         self.map_phase_state.initialise_state_table(StaticVariables.STAGE_STATE_DYNAMODB_TABLE_NAME,
                                                     num_stages)
+
+    def set_up_shuffling_bucket(self):
+        shuffling_bucket = self.static_job_info[StaticVariables.SHUFFLING_BUCKET_FN]
+        self.s3_client.create_bucket(Bucket=shuffling_bucket)
+        self.s3_client.put_bucket_acl(
+            ACL='public-read-write',
+            Bucket=shuffling_bucket,
+        )
+        print("Shuffling bucket created successfully")
 
     # Get all keys to be processed
     def _get_all_keys(self, static_job_info):
@@ -200,7 +188,7 @@ class Driver:
             else:
                 num_operators = 0
                 for dependent_pipeline_id in dependent_pipeline_ids:
-                    num_operators = pipelines_last_stage_num_operators[dependent_pipeline_id]
+                    num_operators += pipelines_last_stage_num_operators[dependent_pipeline_id]
 
             pipelines_first_last_stage_ids[pipeline_id] = [stage_id]
 
@@ -242,7 +230,7 @@ class Driver:
                 else:
                     cur_function_lambda.update_code_or_create_on_no_exist(self.total_num_functions, stage_id=stage_id)
                 function_lambdas.append(cur_function_lambda)
-                # delete_file(cur_function_zip_path)
+                delete_files([cur_function_zip_path])
 
                 # Coordinator
                 if not self.is_serverless:
@@ -299,8 +287,6 @@ class Driver:
 
             zip.zip_lambda([StaticVariables.REDUCE_COORDINATOR_HANDLER_PATH], reduce_coordinator_zip_path)
 
-            # delete_file(StaticVariables.COORDINATOR_CONFIGURATION_PATH)
-
         cur_coordinator_lambda_name = "%s-%s-%s-%s" % (job_name, lambda_name_prefix, "reduce-coordinator", stage_id)
         cur_coordinator_lambda = lambda_manager.LambdaManager(self.lambda_client, self.s3_client, region,
                                                               reduce_coordinator_zip_path, job_name,
@@ -317,8 +303,8 @@ class Driver:
         in_degree_obj.initialise_in_degree_table(StaticVariables.IN_DEGREE_DYNAMODB_TABLE_NAME, in_degrees)
 
         if not self.is_serverless:
-            # delete_file(reduce_coordinator_zip_path)
-            pass
+            delete_files([reduce_coordinator_zip_path])
+            delete_files(glob.glob(StaticVariables.FUNCTIONS_PICKLE_GLOB_PATH))
 
         return function_lambdas, invoking_pipelines_info, num_operators
 
@@ -346,7 +332,7 @@ class Driver:
         if isinstance(first_function, MapShuffleFunction):
             reduce_pickle_file_path = 'serverless_mr/job/%s-%s.pkl' % (functions[1].get_string(), stage_id + 1)
             partition_pickle_file_path = 'serverless_mr/job/%s-%s.pkl' % ("partition", stage_id)
-            resp = self.lambda_client.invoke(
+            response = self.lambda_client.invoke(
                 FunctionName=first_function_lambda_name,
                 InvocationType='Event',
                 Payload=json.dumps({
@@ -359,7 +345,7 @@ class Driver:
                 })
             )
         else:
-            resp = self.lambda_client.invoke(
+            response = self.lambda_client.invoke(
                 FunctionName=first_function_lambda_name,
                 InvocationType='Event',
                 Payload=json.dumps({
@@ -373,7 +359,7 @@ class Driver:
         # mapper_outputs.append(out)
         # print("Mapper processing information: ", out)
 
-    def _invoke_mappers(self, invoking_pipelines_info):
+    def _invoke_pipelines(self, invoking_pipelines_info):
         for _, invoking_pipeline_info in invoking_pipelines_info.items():
             num_mappers = invoking_pipeline_info[1]
             batches = invoking_pipeline_info[2]
@@ -404,7 +390,7 @@ class Driver:
 
             # return mapper_outputs
 
-    def _calculate_cost(self, mapper_outputs, num_outputs):
+    def _calculate_cost(self, mapper_outputs, num_outputs, cur_output_handler):
         total_lambda_secs = 0
         total_s3_get_ops = 0
         # total_s3_put_ops = 0
@@ -425,9 +411,9 @@ class Driver:
 
         while True:
             print("Checking whether the job is completed...")
-            response, string_index = self.cur_output_handler.list_objects_for_checking_finish(self.static_job_info)
+            response, string_index = cur_output_handler.list_objects_for_checking_finish(self.static_job_info)
             if string_index in response:
-                reducer_lambda_time, total_s3_size, len_job_keys = self.cur_output_handler\
+                reducer_lambda_time, total_s3_size, len_job_keys = cur_output_handler\
                     .check_job_finish(response, string_index, num_outputs, self.static_job_info)
                 if reducer_lambda_time > -1:
                     break
@@ -462,40 +448,18 @@ class Driver:
 
         # Execute
         # 2. Invoke Mappers and wait until they finish the execution
-        self._invoke_mappers(invoking_pipelines_info)
+        self._invoke_pipelines(invoking_pipelines_info)
 
-        # 3. Calculate costs - Approx (since we are using exec time reported by our func and not billed ms)
-        self.cur_output_handler = output_handler.get_output_handler(self.static_job_info[StaticVariables.OUTPUT_SOURCE_TYPE_FN],
-                                                                    self.is_serverless)
-        self._calculate_cost([], num_outputs)
+        # 3. Create output storage and calculate costs - Approx (since we are using exec time reported by our func and not billed ms)
+        cur_output_handler = output_handler.get_output_handler(self.static_job_info[StaticVariables.OUTPUT_SOURCE_TYPE_FN],
+                                                               self.is_serverless)
+        cur_output_handler.create_output_storage(self.static_job_info)
+        self._calculate_cost([], num_outputs, cur_output_handler)
 
         # 4. Delete the function lambdas
         for function_lambda in function_lambdas:
             function_lambda.delete_function()
 
         # 5. View one of the reducer results
-        print(self.cur_output_handler.get_output(3, self.static_job_info))
+        print(cur_output_handler.get_output(3, self.static_job_info))
         self.map_phase_state.delete_state_table(StaticVariables.STAGE_STATE_DYNAMODB_TABLE_NAME)
-
-        if not self.is_serverless:
-            delete_files("serverless_mr/job", ["map.pkl", "reduce.pkl", "partition.pkl"])
-
-    def set_up_shuffling_bucket(self):
-        print("Setting up shuffling bucket")
-        shuffling_bucket = self.static_job_info[StaticVariables.SHUFFLING_BUCKET_FN]
-        self.s3_client.create_bucket(Bucket=shuffling_bucket)
-        self.s3_client.put_bucket_acl(
-            ACL='public-read-write',
-            Bucket=shuffling_bucket,
-        )
-        print("Finished setting up shuffling bucket")
-
-    # def set_up_output_bucket(self):
-    #     print("Setting up output bucket")
-    #     output_bucket = self.static_job_info[StaticVariables.OUTPUT_SOURCE_FN]
-    #     self.s3_client.create_bucket(Bucket=output_bucket)
-    #     self.s3_client.put_bucket_acl(
-    #         ACL='public-read-write',
-    #         Bucket=output_bucket,
-    #     )
-    #     print("Finished setting up shuffling bucket")
