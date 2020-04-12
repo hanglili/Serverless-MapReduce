@@ -56,7 +56,7 @@ class InDegree:
             time.sleep(1)
             response = self.client.describe_table(TableName=table_name)['Table']['TableStatus']
 
-        print("Stage state table created successfully")
+        print("In degree table created successfully")
 
     def initialise_in_degree_table(self, table_name, in_degrees):
         for pipeline_id, in_degree in in_degrees.items():
@@ -67,14 +67,14 @@ class InDegree:
                     'in_degree': {'N': str(in_degree)}
                 }
             )
-        print("Stage state table initialised successfully")
+        print("In degree table initialised successfully")
 
-    def delete_state_table(self, table_name):
+    def delete_in_degree_table(self, table_name):
         self.client.delete_table(
             TableName=table_name
         )
 
-        print("Stage state table deleted successfully")
+        print("In degree table deleted successfully")
 
     def decrement_in_degree_table(self, table_name, pipeline_id):
         response = self.client.update_item(

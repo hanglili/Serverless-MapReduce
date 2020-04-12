@@ -15,6 +15,6 @@ cur_input_handler = input_handler.get_input_handler(static_job_info[StaticVariab
 
 local_testing_input_path = static_job_info[StaticVariables.LOCAL_TESTING_INPUT_PATH]
 local_file_paths = glob.glob(local_testing_input_path + "*")
-cur_input_handler.set_up_local_input_data(local_file_paths)
+cur_input_handler.set_up_local_input_data(local_file_paths, static_job_info)
 
 tear_down()

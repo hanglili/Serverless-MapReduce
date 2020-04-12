@@ -486,3 +486,6 @@ class Driver:
         # 5. View one of the reducer results
         print(cur_output_handler.get_output(3, self.static_job_info))
         self.map_phase_state.delete_state_table(StaticVariables.STAGE_STATE_DYNAMODB_TABLE_NAME)
+        
+        in_degree_obj = in_degree.InDegree(in_lambda=self.is_serverless)
+        in_degree_obj.delete_in_degree_table(StaticVariables.IN_DEGREE_DYNAMODB_TABLE_NAME)

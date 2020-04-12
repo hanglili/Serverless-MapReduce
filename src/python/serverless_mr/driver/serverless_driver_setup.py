@@ -57,8 +57,8 @@ class ServerlessDriverSetup:
                                region_name=self.region)
         if self.static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
             self.lambda_client = boto3.client('lambda', aws_access_key_id='', aws_secret_access_key='',
-                                         region_name=self.region,
-                                         endpoint_url='http://localhost:4574', config=lambda_config)
+                                              region_name=self.region,
+                                              endpoint_url='http://localhost:4574', config=lambda_config)
         else:
             self.lambda_client = boto3.client('lambda', config=lambda_config)
 
