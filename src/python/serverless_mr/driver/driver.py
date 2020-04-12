@@ -371,8 +371,8 @@ class Driver:
             )
 
     def _invoke_pipelines(self, invoking_pipelines_info):
-        for _, invoking_pipeline_info in invoking_pipelines_info.items():
-            print("Scheduling pipeline %s")
+        for pipeline_id, invoking_pipeline_info in invoking_pipelines_info.items():
+            print("Scheduling pipeline %s" % pipeline_id)
             num_mappers = invoking_pipeline_info[1]
             batches = invoking_pipeline_info[2]
             functions = invoking_pipeline_info[3]
@@ -396,14 +396,14 @@ class Driver:
             pool.close()
             pool.join()
 
-            print("Pipeline %s scheduled successfully")
+            print("Pipeline %s scheduled successfully" % pipeline_id)
 
 
     def _calculate_cost(self, num_outputs, cur_output_handler, invoking_pipelines_info):
         total_lambda_time = 0
-        total_s3_get_ops = 0
-        total_s3_put_ops = 0
-        total_s3_size = 0
+        intermediate_s3_get_ops = 0
+        intermediate_s3_put_ops = 0
+        intermediate_s3_size = 0
         total_lines = 0
 
         pipelines_first_stage_ids = [pipeline_info[4] for _, pipeline_info in invoking_pipelines_info.items()]
@@ -413,18 +413,16 @@ class Driver:
         shuffling_bucket = self.static_job_info[StaticVariables.SHUFFLING_BUCKET_FN]
         job_name = self.static_job_info[StaticVariables.JOB_NAME_FN]
 
-        # Wait for the job to complete so that we can compute total cost ; create a poll every 10 secs
+        # Wait for the job to complete so that we can compute total cost ; create a poll every 5 secs
         while True:
             print("Checking whether the job is completed...")
             response, string_index = cur_output_handler.list_objects_for_checking_finish(self.static_job_info)
             if string_index in response:
-                last_stage_lambda_time, last_stage_s3_size, last_stage_num_keys = \
+                last_stage_lambda_time, last_stage_storage_cost, last_stage_write_cost, last_stage_read_cost = \
                     cur_output_handler.check_job_finish(response, string_index, num_outputs, self.static_job_info)
                 if last_stage_lambda_time > -1:
                     total_lambda_time += last_stage_lambda_time
-                    total_s3_size += last_stage_s3_size
-                    total_s3_get_ops += last_stage_num_keys
-                    total_s3_put_ops += last_stage_num_keys
+                    last_stage_database_cost = last_stage_storage_cost + last_stage_write_cost + last_stage_read_cost
                     break
             time.sleep(5)
 
@@ -435,9 +433,9 @@ class Driver:
             # Even though metadata processing time is written as processingTime,
             # AWS does not accept uppercase letter metadata key
             all_stage_key = all_stage_key_obj["Key"]
-            total_s3_size += all_stage_key_obj["Size"]
-            total_s3_get_ops += 1
-            total_s3_put_ops += 1
+            intermediate_s3_size += all_stage_key_obj["Size"]
+            intermediate_s3_get_ops += 1
+            intermediate_s3_put_ops += 1
             if ("bin" not in all_stage_key) or ("bin-1" in all_stage_key):
                 lambda_time = float(self.s3_client.get_object(Bucket=shuffling_bucket,
                                                               Key=all_stage_key)['Metadata']['processingtime'])
@@ -448,21 +446,28 @@ class Driver:
                                                                  Key=all_stage_key)['Metadata']['linecount'])
 
         # S3 Storage cost for shuffling bucket and output bucket - is negligible anyways since S3 costs 3 cents/GB/month
-        total_s3_storage_hour_cost = 1 * 0.0000521574022522109 * (total_s3_size / 1024.0 / 1024.0 / 1024.0)  # cost per GB/hr
+        # Storage cost per GB / hour
+        intermediate_s3_storage_cost = 1 * 0.0000521574022522109 \
+                                              * (intermediate_s3_size / 1024.0 / 1024.0 / 1024.0)
         # S3 PUT # 0.005/1000
-        total_s3_put_cost = total_s3_put_ops * 0.005 / 1000
+        intermediate_s3_put_cost = intermediate_s3_put_ops * 0.005 / 1000
         # S3 GET # $0.004/10000
-        total_s3_get_cost = total_s3_get_ops * 0.004 / 10000
+        intermediate_s3_get_cost = intermediate_s3_get_ops * 0.004 / 10000
 
         # Lambda cost
         total_lambda_cost = total_lambda_time * 0.00001667 * lambda_memory / 1024.0
-        total_s3_cost = (total_s3_get_cost + total_s3_put_cost + total_s3_storage_hour_cost)
+        total_intermediate_s3_cost = (intermediate_s3_get_cost + intermediate_s3_put_cost +
+                                      intermediate_s3_storage_cost)
 
-        print("Total Lambda Cost", total_lambda_cost)
-        print("S3 Storage Cost", total_s3_storage_hour_cost)
-        print("S3 Request Cost", total_s3_get_cost + total_s3_put_cost)
-        print("Total S3 Cost", total_s3_cost)
-        print("Total Cost: ", total_lambda_cost + total_s3_cost)
+        print("Intermediate Stages total number of s3 GET ops:", intermediate_s3_get_ops)
+        print("Intermediate Stages total number of s3 PUT ops:", intermediate_s3_put_ops)
+        print("********** COST ***********")
+        print("Total Lambda Cost:", total_lambda_cost)
+        print("Intermediate Stages S3 Storage Cost:", intermediate_s3_storage_cost)
+        print("Intermediate Stages S3 Request Cost:", intermediate_s3_get_cost + intermediate_s3_put_cost)
+        print("Total Intermediate Stages S3 Cost:", total_intermediate_s3_cost)
+        print("Total Last Stage Database Cost:", last_stage_database_cost)
+        print("Total Cost:", total_lambda_cost + total_intermediate_s3_cost + last_stage_database_cost)
         print("Total Lines:", total_lines)
 
     def run(self):

@@ -94,7 +94,9 @@ class OutputHandlerDynamoDB:
     def write_output(self, reducer_id, outputs, metadata, static_job_info):
         job_name = static_job_info[StaticVariables.JOB_NAME_FN]
         metadata_table_name = "%s-metadata" % job_name
-        output_table_name = static_job_info[StaticVariables.OUTPUT_SOURCE_FN]
+        output_table_name = static_job_info[StaticVariables.SHUFFLING_BUCKET_FN] \
+            if StaticVariables.OUTPUT_SOURCE_FN not in static_job_info else static_job_info[
+            StaticVariables.OUTPUT_SOURCE_FN]
 
         output_partition_key = static_job_info[StaticVariables.OUTPUT_PARTITION_KEY_DYNAMODB]
         output_column = static_job_info[StaticVariables.OUTPUT_COLUMN_DYNAMODB]
@@ -118,27 +120,45 @@ class OutputHandlerDynamoDB:
         return {}, "Items"
 
     def check_job_finish(self, response, string_index, num_final_dst_operators, static_job_info):
-        reducer_ids = []
+        last_stage_keys = []
         reducer_metadata = []
-        reducer_lambda_time = 0
+        lambda_time = 0
 
         for record in response[string_index]:
-            reducer_ids.append(record[OutputHandlerDynamoDB.METADATA_TABLE_KEY_NAME]['S'])
+            last_stage_keys.append(record[OutputHandlerDynamoDB.METADATA_TABLE_KEY_NAME]['S'])
             reducer_metadata.append(json.loads(record[OutputHandlerDynamoDB.METADATA_TABLE_COLUMN_NAME]['S']))
 
-        if len(reducer_ids) == num_final_dst_operators:
-            shuffling_bucket = static_job_info[StaticVariables.SHUFFLING_BUCKET_FN]
+        if len(last_stage_keys) == num_final_dst_operators:
+            output_table_name = static_job_info[StaticVariables.SHUFFLING_BUCKET_FN] \
+                if StaticVariables.OUTPUT_SOURCE_FN not in static_job_info else static_job_info[
+                StaticVariables.OUTPUT_SOURCE_FN]
             job_name = static_job_info[StaticVariables.JOB_NAME_FN]
-            job_keys = self.s3_client.list_objects(Bucket=shuffling_bucket, Prefix=job_name)["Contents"]
-            total_s3_size = 0
-            for metadatum in reducer_metadata:
+            metadata_table_name = "%s-metadata" % job_name
+            metadata_table_size = self.client.describe_table(TableName=metadata_table_name)['Table']['TableSizeBytes']
+            output_table_info = self.client.describe_table(TableName=output_table_name)['Table']
+            output_table_item_count = output_table_info['ItemCount']
+            output_table_size = output_table_info['TableSizeBytes']
+            dynamodb_size = output_table_size + metadata_table_size
+            for data in reducer_metadata:
                 # Even though metadata processing time is written as processingTime,
                 # AWS does not accept uppercase letter metadata key
-                reducer_lambda_time += float(metadatum['processingTime'])
-                total_s3_size += float(metadatum['lineCount'])
-            return reducer_lambda_time, total_s3_size, len(job_keys)
+                lambda_time += float(data['processingTime'])
 
-        return -1, -1, -1
+            num_write_ops = len(last_stage_keys) + output_table_item_count
+            num_read_ops = 0
+            # DynamoDB costs $0.25/GB/month, if approaximated by 3 cents/GB/month, then per hour it is $0.000052/GB
+            storage_cost = 1 * 0.0000521574022522109 * (dynamodb_size / 1024.0 / 1024.0 / 1024.0)
+            # DynamoDB write # 0.005/1000
+            write_cost = num_write_ops * 1.25 / 1000000
+            # DynamoDB read # $0.004/10000
+            read_cost = num_read_ops * 0.25 / 1000000
+
+            print("Last stage number of write ops:", num_write_ops)
+            print("Last stage number of read ops:", num_read_ops)
+
+            return lambda_time, storage_cost, write_cost, read_cost
+
+        return -1, -1, -1, -1
 
     def get_output(self, reducer_id, static_job_info):
         output_table_name = static_job_info[StaticVariables.OUTPUT_SOURCE_FN]

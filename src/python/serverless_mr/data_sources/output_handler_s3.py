@@ -68,8 +68,18 @@ class OutputHandlerS3:
                                              ['Metadata']['processingtime'])
                 s3_size += last_stage_key["Size"]  # Size is expressed in (int) Bytes
 
-            return lambda_time, s3_size, len(last_stage_keys)
-        return -1, -1, -1
+            s3_put_ops = len(last_stage_keys)
+            s3_get_ops = 0
+            s3_storage_cost = 1 * 0.0000521574022522109 * (s3_size / 1024.0 / 1024.0 / 1024.0)
+            # S3 PUT # 0.005/1000
+            s3_put_cost = s3_put_ops * 0.005 / 1000
+            # S3 GET # $0.004/10000
+            s3_get_cost = s3_get_ops * 0.004 / 10000
+            print("Last stage number of write ops:", s3_put_ops)
+            print("Last stage number of read ops:", s3_get_ops)
+
+            return lambda_time, s3_storage_cost, s3_put_cost, s3_get_cost
+        return -1, -1, -1, -1
 
     def get_output(self, reducer_id, static_job_info):
         output_source = static_job_info[StaticVariables.SHUFFLING_BUCKET_FN] \
