@@ -107,12 +107,9 @@ class OutputHandlerDynamoDB:
     def list_objects_for_checking_finish(self, static_job_info):
         job_name = static_job_info[StaticVariables.JOB_NAME_FN]
         metadata_table_name = "%s-metadata" % job_name
-        # existing_tables = self.client.list_tables()['TableNames']
         project_expression = '%s, %s' % (OutputHandlerDynamoDB.METADATA_TABLE_KEY_NAME,
                                          OutputHandlerDynamoDB.METADATA_TABLE_COLUMN_NAME)
 
-        # if metadata_table_name in existing_tables\
-        #         and \
         if self.client.describe_table(TableName=metadata_table_name)['Table']['TableStatus'] == 'ACTIVE':
             response = self.client.scan(TableName=metadata_table_name, ProjectionExpression=project_expression)
             return response, "Items"
@@ -148,9 +145,9 @@ class OutputHandlerDynamoDB:
             num_read_ops = 0
             # DynamoDB costs $0.25/GB/month, if approaximated by 3 cents/GB/month, then per hour it is $0.000052/GB
             storage_cost = 1 * 0.0000521574022522109 * (dynamodb_size / 1024.0 / 1024.0 / 1024.0)
-            # DynamoDB write # 0.005/1000
+            # DynamoDB write # $1.25/1000000
             write_cost = num_write_ops * 1.25 / 1000000
-            # DynamoDB read # $0.004/10000
+            # DynamoDB read # $0.25/1000000
             read_cost = num_read_ops * 0.25 / 1000000
 
             print("Last stage number of write ops:", num_write_ops)

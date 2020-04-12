@@ -1,22 +1,3 @@
 {
-    "mapper": {
-        "location": "serverless_mr/job/map.py",
-        "handler": "serverless_mr/job/map_handler.lambda_handler",
-        "zip": "serverless_mr/map.zip"
-    },
-    "reducer": {
-        "location": "serverless_mr/job/reduce.py",
-        "handler": "serverless_mr/job/reduce_handler.lambda_handler",
-        "zip": "serverless_mr/reduce.zip"
-    },
-    "coordinator": {
-        "location": "serverless_mr/coordinator/coordinator.py",
-        "handler": "serverless_mr/coordinator/coordinator.lambda_handler",
-        "zip": "serverless_mr/coordinator.zip"
-    },
-    "driver": {
-        "location": "serverless_mr/driver/serverless_driver.py",
-        "handler": "serverless_mr/driver/serverless_driver.lambda_handler",
-        "zip": "serverless_mr/serverless_driver.zip"
-    }
+
 }

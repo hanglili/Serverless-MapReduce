@@ -36,6 +36,40 @@ def set_up_local_input_data(static_job_info):
         os.chdir(StaticVariables.LIBRARY_WORKING_DIRECTORY)
 
 
+def create_stage_config_file(num_operators, stage_type, invoking_lambda_name,
+                             function_pickle_path, partition_function_pickle_path="",
+                             reduce_function_pickle_path="", dependent_last_stage_ids=[]):
+    return {
+        "num_operators": num_operators, "invoking_lambda_name": invoking_lambda_name,
+        "function_pickle_path": function_pickle_path,
+        "reduce_function_pickle_path": reduce_function_pickle_path,
+        "partition_function_pickle_path": partition_function_pickle_path,
+        "dependent_last_stage_ids": dependent_last_stage_ids,
+        "stage_type": stage_type
+    }
+
+
+def pickle_functions_and_zip_stage(cur_function_zip_path, cur_function, functions, stage_id, i):
+    cur_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % (cur_function.get_string(), stage_id)
+    rel_function_paths = cur_function.get_rel_function_paths()
+    with open(cur_function_pickle_path, 'wb') as f:
+        pickle.dump(cur_function.get_function(), f)
+    if isinstance(cur_function, MapShuffleFunction) or isinstance(cur_function, MergeMapShuffleFunction):
+        partition_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % ("partition", stage_id)
+        with open(partition_function_pickle_path, 'wb') as f:
+            pickle.dump(cur_function.get_partition_function(), f)
+
+        next_function_reduce = functions[i + 1]
+        reduce_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % \
+                                      (next_function_reduce.get_string(), stage_id + 1)
+        with open(reduce_function_pickle_path, 'wb') as f:
+            pickle.dump(next_function_reduce.get_function(), f)
+        rel_function_paths += next_function_reduce.get_rel_function_paths()
+
+    zip.zip_lambda(rel_function_paths, cur_function_zip_path)
+    return rel_function_paths
+
+
 class Driver:
 
     def __init__(self, pipelines, total_num_functions, is_serverless=False):
@@ -128,18 +162,6 @@ class Driver:
 
         return all_keys, num_mappers, batches
 
-    def _create_stage_config_file(self, num_operators, stage_type, invoking_lambda_name,
-                                  function_pickle_path, partition_function_pickle_path="",
-                                  reduce_function_pickle_path="", dependent_last_stage_ids=[]):
-        return {
-            "num_operators": num_operators, "invoking_lambda_name": invoking_lambda_name,
-            "function_pickle_path": function_pickle_path,
-            "reduce_function_pickle_path": reduce_function_pickle_path,
-            "partition_function_pickle_path": partition_function_pickle_path,
-            "dependent_last_stage_ids": dependent_last_stage_ids,
-            "stage_type": stage_type
-        }
-
     def _overwrite_existing_job_info(self, pipeline_specific_config):
         with open(StaticVariables.STATIC_JOB_INFO_PATH, "r") as f:
             cur_config = json.load(f)
@@ -201,23 +223,7 @@ class Driver:
 
                 # Prepare Lambda functions if driver running in local machine
                 if not self.is_serverless:
-                    cur_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % (cur_function.get_string(), stage_id)
-                    rel_function_paths = cur_function.get_rel_function_paths()
-                    with open(cur_function_pickle_path, 'wb') as f:
-                        pickle.dump(cur_function.get_function(), f)
-                    if isinstance(cur_function, MapShuffleFunction) or isinstance(cur_function, MergeMapShuffleFunction):
-                        partition_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % ("partition", stage_id)
-                        with open(partition_function_pickle_path, 'wb') as f:
-                            pickle.dump(cur_function.get_partition_function(), f)
-
-                        next_function_reduce = functions[i + 1]
-                        reduce_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % \
-                                                      (next_function_reduce.get_string(), stage_id + 1)
-                        with open(reduce_function_pickle_path, 'wb') as f:
-                            pickle.dump(next_function_reduce.get_function(), f)
-                        rel_function_paths += next_function_reduce.get_rel_function_paths()
-
-                    zip.zip_lambda(rel_function_paths, cur_function_zip_path)
+                    pickle_functions_and_zip_stage(cur_function_zip_path, cur_function, functions, stage_id, i)
 
                 cur_function_lambda_name = "%s-%s-%s-%s" % (job_name, lambda_name_prefix, cur_function.get_string(),
                                                             stage_id)
@@ -233,9 +239,6 @@ class Driver:
                     cur_function_lambda.update_code_or_create_on_no_exist(self.total_num_functions, stage_id=stage_id)
                 function_lambdas.append(cur_function_lambda)
 
-                if not self.is_serverless:
-                    delete_files([cur_function_zip_path])
-
                 # Coordinator
                 cur_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % (cur_function.get_string(), stage_id)
                 if isinstance(cur_function, MapShuffleFunction):
@@ -244,9 +247,9 @@ class Driver:
                     reduce_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % \
                                                   (next_function_reduce.get_string(), stage_id + 1)
                     stage_config[stage_id] = \
-                        self._create_stage_config_file(num_operators, 1, cur_function_lambda_name,
-                                                       cur_function_pickle_path, partition_function_pickle_path,
-                                                       reduce_function_pickle_path)
+                        create_stage_config_file(num_operators, 1, cur_function_lambda_name,
+                                                 cur_function_pickle_path, partition_function_pickle_path,
+                                                 reduce_function_pickle_path)
                 elif isinstance(cur_function, MergeMapShuffleFunction):
                     dependent_last_stage_ids = []
                     for dependent_pipeline_id in dependent_pipeline_ids:
@@ -257,16 +260,16 @@ class Driver:
                     reduce_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % \
                                                   (next_function_reduce.get_string(), stage_id + 1)
                     stage_config[stage_id] = \
-                        self._create_stage_config_file(num_operators, 1, cur_function_lambda_name,
-                                                       cur_function_pickle_path, partition_function_pickle_path,
-                                                       reduce_function_pickle_path, dependent_last_stage_ids)
+                        create_stage_config_file(num_operators, 1, cur_function_lambda_name,
+                                                 cur_function_pickle_path, partition_function_pickle_path,
+                                                 reduce_function_pickle_path, dependent_last_stage_ids)
                 else:
                     if isinstance(cur_function, ReduceFunction):
                         num_operators = cur_function.get_num_reducers()
 
                     stage_config[stage_id] = \
-                        self._create_stage_config_file(num_operators, 2, cur_function_lambda_name,
-                                                       cur_function_pickle_path)
+                        create_stage_config_file(num_operators, 2, cur_function_lambda_name,
+                                                 cur_function_pickle_path)
 
                 stage_id += 1
 
@@ -275,31 +278,13 @@ class Driver:
 
         coordinator_zip_path = StaticVariables.COORDINATOR_ZIP_PATH
         if not self.is_serverless:
-            with open(StaticVariables.STAGE_CONFIGURATION_PATH, 'w') as f:
-                json.dump(stage_config, f)
-
-            with open(StaticVariables.PIPELINE_DEPENDENCIES_PATH, 'w') as f:
-                json.dump(adj_list, f)
-
-            with open(StaticVariables.STAGE_TO_PIPELINE_PATH, 'w') as f:
-                json.dump(mapping_stage_id_pipeline_id, f)
-
-            with open(StaticVariables.PIPELINE_TO_FIRST_LAST_STAGE_PATH, 'w') as f:
-                json.dump(pipelines_first_last_stage_ids, f)
+            self._write_config_to_local(adj_list, mapping_stage_id_pipeline_id, pipelines_first_last_stage_ids,
+                                        stage_config)
 
             zip.zip_lambda([StaticVariables.COORDINATOR_HANDLER_PATH], coordinator_zip_path)
         else:
-            self.s3_client.put_object(Bucket=shuffling_bucket, Key=StaticVariables.STAGE_CONFIGURATION_PATH,
-                                      Body=json.dumps(stage_config))
-
-            self.s3_client.put_object(Bucket=shuffling_bucket, Key=StaticVariables.PIPELINE_DEPENDENCIES_PATH,
-                                      Body=json.dumps(adj_list))
-
-            self.s3_client.put_object(Bucket=shuffling_bucket, Key=StaticVariables.STAGE_TO_PIPELINE_PATH,
-                                      Body=json.dumps(mapping_stage_id_pipeline_id))
-
-            self.s3_client.put_object(Bucket=shuffling_bucket, Key=StaticVariables.PIPELINE_TO_FIRST_LAST_STAGE_PATH,
-                                      Body=json.dumps(pipelines_first_last_stage_ids))
+            self._write_config_to_s3(adj_list, mapping_stage_id_pipeline_id, pipelines_first_last_stage_ids,
+                                     shuffling_bucket, stage_config)
 
         cur_coordinator_lambda_name = "%s-%s-%s-%s" % (job_name, lambda_name_prefix, "coordinator", stage_id)
         cur_coordinator_lambda = lambda_manager.LambdaManager(self.lambda_client, self.s3_client, region,
@@ -317,22 +302,32 @@ class Driver:
         in_degree_obj.initialise_in_degree_table(StaticVariables.IN_DEGREE_DYNAMODB_TABLE_NAME, in_degrees)
 
         if not self.is_serverless:
-            delete_files([coordinator_zip_path])
+            delete_files(glob.glob(StaticVariables.LAMBDA_ZIP_GLOB_PATH))
             delete_files(glob.glob(StaticVariables.FUNCTIONS_PICKLE_GLOB_PATH))
 
         return function_lambdas, invoking_pipelines_info, num_operators
 
-    # Write Jobdata to S3
-    # def _write_job_data(self, all_keys, n_mappers):
-    #     job_name = self.static_job_info[StaticVariables.JOB_NAME_FN]
-    #     j_key = "%s/%s" % (job_name, StaticVariables.JOB_DATA_S3_FILENAME)
-    #     data = json.dumps({
-    #         "mapCount": n_mappers,
-    #         "totalS3Files": len(all_keys),
-    #         "startTime": time.time()
-    #     })
-    #
-    #     self.s3_client.put_object(Bucket=self.static_job_info[StaticVariables.SHUFFLING_BUCKET_FN], Key=j_key, Body=data, Metadata={})
+    def _write_config_to_s3(self, adj_list, mapping_stage_id_pipeline_id, pipelines_first_last_stage_ids,
+                            shuffling_bucket, stage_config):
+        self.s3_client.put_object(Bucket=shuffling_bucket, Key=StaticVariables.STAGE_CONFIGURATION_PATH,
+                                  Body=json.dumps(stage_config))
+        self.s3_client.put_object(Bucket=shuffling_bucket, Key=StaticVariables.PIPELINE_DEPENDENCIES_PATH,
+                                  Body=json.dumps(adj_list))
+        self.s3_client.put_object(Bucket=shuffling_bucket, Key=StaticVariables.STAGE_TO_PIPELINE_PATH,
+                                  Body=json.dumps(mapping_stage_id_pipeline_id))
+        self.s3_client.put_object(Bucket=shuffling_bucket, Key=StaticVariables.PIPELINE_TO_FIRST_LAST_STAGE_PATH,
+                                  Body=json.dumps(pipelines_first_last_stage_ids))
+
+    def _write_config_to_local(self, adj_list, mapping_stage_id_pipeline_id, pipelines_first_last_stage_ids,
+                               stage_config):
+        with open(StaticVariables.STAGE_CONFIGURATION_PATH, 'w') as f:
+            json.dump(stage_config, f)
+        with open(StaticVariables.PIPELINE_DEPENDENCIES_PATH, 'w') as f:
+            json.dump(adj_list, f)
+        with open(StaticVariables.STAGE_TO_PIPELINE_PATH, 'w') as f:
+            json.dump(mapping_stage_id_pipeline_id, f)
+        with open(StaticVariables.PIPELINE_TO_FIRST_LAST_STAGE_PATH, 'w') as f:
+            json.dump(pipelines_first_last_stage_ids, f)
 
     def invoke_lambda(self, batches, functions, stage_id, mapper_id):
         job_name = self.static_job_info[StaticVariables.JOB_NAME_FN]
@@ -454,7 +449,7 @@ class Driver:
         # S3 GET # $0.004/10000
         intermediate_s3_get_cost = intermediate_s3_get_ops * 0.004 / 10000
 
-        # Lambda cost
+        # Lambda cost - For 1024 MB Lambda, it costs $0.00001667/s
         total_lambda_cost = total_lambda_time * 0.00001667 * lambda_memory / 1024.0
         total_intermediate_s3_cost = (intermediate_s3_get_cost + intermediate_s3_put_cost +
                                       intermediate_s3_storage_cost)
@@ -473,7 +468,6 @@ class Driver:
     def run(self):
         # 1. Create the aws_lambda functions
         function_lambdas, invoking_pipelines_info, num_outputs = self._create_lambdas()
-        # self._write_job_data(all_keys, num_mappers)
 
         # Execute
         # 2. Invoke Mappers and wait until they finish the execution

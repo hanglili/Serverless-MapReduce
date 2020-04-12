@@ -43,9 +43,12 @@ class StaticVariables:
     MAP_SHUFFLE_HANDLER_FUNCTION_PATH = "serverless_mr/job/map_shuffle_handler.lambda_handler"
     REDUCE_HANDLER_FUNCTION_PATH = "serverless_mr/job/reduce_handler.lambda_handler"
     COORDINATOR_HANDLER_FUNCTION_PATH = "serverless_mr/coordinator/coordinator.lambda_handler"
+    SERVERLESS_DRIVER_HANDLER_FUNCTION_PATH = "serverless_mr/driver/serverless_driver.lambda_handler"
 
     # Zip path
     COORDINATOR_ZIP_PATH = "serverless_mr/coordinator.zip"
+    DRIVER_ZIP_PATH = "serverless_mr/serverless_driver.zip"
+    LAMBDA_ZIP_GLOB_PATH = "serverless_mr/*.zip"
 
     # Constants
     DEFAULT_REGION = "us-east-1"
@@ -55,7 +58,6 @@ class StaticVariables:
     DEFAULT_BOTO_MAX_CONNECTIONS = 1000
     DEFAULT_NUM_CONCURRENT_LAMBDAS = 1000
 
-
     # Naming of config files (FN stands for field name)
     # driver.json
     REGION_FN = "region"
@@ -63,13 +65,6 @@ class StaticVariables:
     NUM_CONCURRENT_LAMBDAS_FN = "concurrentLambdas"
     LAMBDA_READ_TIMEOUT_FN = "lambdaReadTimeout"
     BOTO_MAX_CONNECTIONS_FN = "botoMaxConnections"
-    MAPPER_FN = "mapper"
-    REDUCER_FN = "reducer"
-    COORDINATOR_FN = "coordinator"
-    DRIVER_FN = "driver"
-    LOCATION_FN = "location"
-    HANDLER_FN = "handler"
-    ZIP_FN = "zip"
 
     # static-job-info-.json
     JOB_NAME_FN = "jobName"

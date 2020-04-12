@@ -89,7 +89,7 @@ def lambda_handler(event, _):
     if stage_id == total_num_stages:
         cur_output_handler = output_handler.get_output_handler(static_job_info[StaticVariables.OUTPUT_SOURCE_TYPE_FN],
                                                                in_lambda=True)
-        cur_output_handler.write_output(mapper_id, outputs, metadata)
+        cur_output_handler.write_output(mapper_id, outputs, metadata, static_job_info)
     else:
         mapper_filename = "%s/%s-%s/%s" % (job_name, StaticVariables.OUTPUT_PREFIX, stage_id, mapper_id)
         s3_client.put_object(Bucket=shuffling_bucket, Key=mapper_filename,

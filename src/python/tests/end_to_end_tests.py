@@ -4,9 +4,10 @@ import os
 
 from serverless_mr.static.static_variables import StaticVariables
 from serverless_mr.main import ServerlessMR
-from user_job_3.map import map_function
-from user_job_3.reduce import reduce_function
-from user_job_3.partition import partition
+from user_job_5.map import extract_data
+from user_job_5.map_2 import truncate_decimals
+from user_job_5.reduce import reduce_function
+from user_job_5.partition import partition
 from unittest import TestCase
 
 
@@ -18,8 +19,8 @@ class Test(TestCase):
     def setUp(self):
         print('\r\nSetting up and executing the job')
         self.s3_client = boto3.client('s3', aws_access_key_id='', aws_secret_access_key='',
-                                 region_name=StaticVariables.DEFAULT_REGION,
-                                 endpoint_url='http://localhost:4572')
+                                      region_name=StaticVariables.DEFAULT_REGION,
+                                      endpoint_url='http://localhost:4572')
         static_job_info_file = open(Test.static_job_info_path, 'r')
         self.static_job_info = json.loads(static_job_info_file.read())
         static_job_info_file.close()
@@ -33,11 +34,7 @@ class Test(TestCase):
     def test_that_lambda_returns_correct_message(self):
         # Execute the job
         serverless_mr = ServerlessMR()
-        serverless_mr.map(map_function)
-        serverless_mr.reduce(reduce_function)
-        serverless_mr.set_partition_function(partition)
-
-        serverless_mr.run()
+        serverless_mr.map(extract_data).map_shuffle(truncate_decimals, partition).reduce(reduce_function, 4).run()
 
         print("The job has finished")
 
@@ -52,4 +49,4 @@ class Test(TestCase):
 
         # Assertions
         self.assertEqual(results[0][0], '0.0.0.0')
-        self.assertEqual(results[0][1], [80.0])
+        self.assertEqual(results[0][1], 80.0)
