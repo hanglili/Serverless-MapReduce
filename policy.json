@@ -42,6 +42,8 @@
             "Sid": "Stmt1475879783000",
             "Effect": "Allow",
             "Action": [
+                "s3:CreateBucket",
+                "s3:PutBucketAcl",
                 "s3:DeleteObject",
                 "s3:DeleteObjectVersion",
                 "s3:GetBucketAcl",
@@ -59,8 +61,7 @@
                 "s3:PutObjectVersionAcl"
             ],
             "Resource": [
-                "arn:aws:s3:::serverless-mapreduce-storage",
-                "arn:aws:s3:::serverless-mapreduce-storage/*"
+                "*"
             ]
         },
         {
