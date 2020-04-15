@@ -14,8 +14,13 @@ from user_job_5.reduce import reduce_function
 # from user_job_6.map_3 import identity_function
 
 serverless_mr = ServerlessMR()
-serverless_mr.map(extract_data).map_shuffle(truncate_decimals, partition)\
+serverless_mr.map(extract_data).map(truncate_decimals).shuffle(partition)\
     .reduce(reduce_function, 4).map(remove_dots).map(truncate_to_four_chars).run()
+
+# serverless_mr.map(extract_data).map(truncate_decimals)\
+#     .reduce(reduce_function, 4).map(remove_dots).map(truncate_to_four_chars).run()
+# serverless_mr.map(extract_data).map_shuffle(truncate_decimals, partition)\
+#     .reduce(reduce_function, 4).map(remove_dots).map(truncate_to_four_chars).run()
 # serverless_mr.map(extract_data).map_shuffle(truncate_decimals, partition).reduce(reduce_function, 4).run()
 # serverless_mr.map(extract_data).map(truncate_decimals)
 # serverless_mr.map(extract_data).map_shuffle(truncate_decimals, partition).reduce(reduce_function, 4)
