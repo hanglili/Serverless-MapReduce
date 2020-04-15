@@ -5,6 +5,7 @@ import time
 import os
 import pickle
 import glob
+import cloudpickle
 
 from collections import defaultdict
 from serverless_mr.utils import lambda_utils, zip, input_handler, output_handler, stage_state, in_degree
@@ -53,17 +54,17 @@ def pickle_functions_and_zip_stage(cur_function_zip_path, cur_function, function
     cur_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % (cur_function.get_string(), stage_id)
     rel_function_paths = cur_function.get_rel_function_paths()
     with open(cur_function_pickle_path, 'wb') as f:
-        pickle.dump(cur_function.get_function(), f)
+        cloudpickle.dump(cur_function.get_function(), f)
     if isinstance(cur_function, MapShuffleFunction) or isinstance(cur_function, MergeMapShuffleFunction):
         partition_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % ("partition", stage_id)
         with open(partition_function_pickle_path, 'wb') as f:
-            pickle.dump(cur_function.get_partition_function(), f)
+            cloudpickle.dump(cur_function.get_partition_function(), f)
 
         next_function_reduce = functions[i + 1]
         reduce_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % \
                                       (next_function_reduce.get_string(), stage_id + 1)
         with open(reduce_function_pickle_path, 'wb') as f:
-            pickle.dump(next_function_reduce.get_function(), f)
+            cloudpickle.dump(next_function_reduce.get_function(), f)
         rel_function_paths += next_function_reduce.get_rel_function_paths()
 
     zip.zip_lambda(rel_function_paths, cur_function_zip_path)

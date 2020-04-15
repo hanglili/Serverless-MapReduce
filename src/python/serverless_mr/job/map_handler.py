@@ -4,6 +4,7 @@ import resource
 import time
 import os
 import pickle
+import cloudpickle
 
 
 from serverless_mr.static.static_variables import StaticVariables
@@ -21,7 +22,7 @@ def lambda_handler(event, _):
     map_function_pickle_path = event['function_pickle_path']
 
     with open(map_function_pickle_path, 'rb') as f:
-        map_function = pickle.load(f)
+        map_function = cloudpickle.load(f)
 
     # create an S3 session
     static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
