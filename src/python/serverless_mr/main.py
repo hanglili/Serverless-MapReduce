@@ -93,6 +93,7 @@ class ServerlessMR:
         self.pipeline_id = 1
         self.total_num_functions = 0
         self.cur_last_map_index = -1
+        self.last_combine_function = None
 
     def config(self, pipeline_specific_config):
         self.cur_pipeline.set_config(pipeline_specific_config)
@@ -115,6 +116,10 @@ class ServerlessMR:
                                                                    partition_function, rel_partition_function_path))
         return self
 
+    def combine(self, combine_function):
+        self.last_combine_function = combine_function
+        return self
+
     # def _map_shuffle(self, map_function, partition_function):
     #     rel_map_function_path = copy_job_function(map_function)
     #     rel_partition_function_path = copy_job_function(partition_function)
@@ -123,18 +128,19 @@ class ServerlessMR:
     #     self.total_num_functions += 1
     #     return self
 
-    def reduce(self, reduce_function, num_reducers, combiner_function=None):
+    def reduce(self, reduce_function, num_reducers):
         last_map_function = self.cur_pipeline.get_function_at_index(self.cur_pipeline.get_num_functions() - 1)
         if isinstance(last_map_function, MapFunction):
             self.shuffle(default_partition)
 
         rel_function_path = copy_job_function(reduce_function)
-        if combiner_function is None:
+        if self.last_combine_function is None:
             self.cur_pipeline.add_function(ReduceFunction(reduce_function, rel_function_path, num_reducers))
         else:
-            combiner_rel_function_path = copy_job_function(combiner_function)
+            combiner_rel_function_path = copy_job_function(self.last_combine_function)
             self.cur_pipeline.add_function(ReduceFunction(reduce_function, rel_function_path, num_reducers,
-                                                          combiner_function, combiner_rel_function_path))
+                                                          self.last_combine_function, combiner_rel_function_path))
+            self.last_combine_function = None
         self.total_num_functions += 1
         return self
 
