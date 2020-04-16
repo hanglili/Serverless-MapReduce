@@ -15,7 +15,6 @@ from botocore.client import Config
 from serverless_mr.static.static_variables import StaticVariables
 from serverless_mr.functions.map_shuffle_function import MapShuffleFunction
 from serverless_mr.functions.reduce_function import ReduceFunction
-from serverless_mr.functions.merge_map_shuffle import MergeMapShuffleFunction
 
 
 def delete_files(filenames):
@@ -37,8 +36,8 @@ def set_up_local_input_data(static_job_info):
 
 
 def create_stage_config_file(num_operators, stage_type, invoking_lambda_name,
-                             function_pickle_path, partition_function_pickle_path="",
-                             combiner_function_pickle_path="", dependent_last_stage_ids=[]):
+                             function_pickle_path, dependent_last_stage_ids,
+                             partition_function_pickle_path="", combiner_function_pickle_path=""):
     return {
         "num_operators": num_operators, "invoking_lambda_name": invoking_lambda_name,
         "function_pickle_path": function_pickle_path,
@@ -54,7 +53,7 @@ def pickle_functions_and_zip_stage(cur_function_zip_path, cur_function, stage_id
     rel_function_paths = cur_function.get_rel_function_paths()
     with open(cur_function_pickle_path, 'wb') as f:
         pickle.dump(cur_function.get_function(), f)
-    if isinstance(cur_function, MapShuffleFunction) or isinstance(cur_function, MergeMapShuffleFunction):
+    if isinstance(cur_function, MapShuffleFunction):
         partition_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % ("partition", stage_id)
         with open(partition_function_pickle_path, 'wb') as f:
             pickle.dump(cur_function.get_partition_function(), f)
@@ -151,7 +150,8 @@ class Driver:
         all_keys = cur_input_handler.get_all_input_keys(static_job_info)
 
         print("The number of keys: ", len(all_keys))
-        bsize = lambda_utils.compute_batch_size(all_keys, lambda_memory, concurrent_lambdas)
+        bsize = lambda_utils.compute_batch_size(all_keys, lambda_memory, concurrent_lambdas,
+                                                static_job_info[StaticVariables.INPUT_SOURCE_TYPE_FN])
         print("The batch size is: ", bsize)
         batches = lambda_utils.batch_creator(all_keys, bsize)
         print("The number of batches is the number of mappers: ", len(batches))
@@ -229,7 +229,7 @@ class Driver:
                                                                    cur_function_zip_path, job_name,
                                                                    cur_function_lambda_name,
                                                                    cur_function.get_handler_function_path())
-                if isinstance(cur_function, MapShuffleFunction) or isinstance(cur_function, MergeMapShuffleFunction):
+                if isinstance(cur_function, MapShuffleFunction):
                     assert i + 1 < len(functions) and isinstance(functions[i+1], ReduceFunction)
                     cur_function_lambda.update_code_or_create_on_no_exist(self.total_num_functions, stage_id=stage_id,
                                                                           num_reducers=functions[i+1].get_num_reducers())
@@ -239,31 +239,25 @@ class Driver:
 
                 # Coordinator
                 cur_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % (cur_function.get_string(), stage_id)
+                dependent_last_stage_ids = []
+                for dependent_pipeline_id in dependent_pipeline_ids:
+                    dependent_last_stage_ids.append(pipelines_first_last_stage_ids[dependent_pipeline_id][1])
                 if isinstance(cur_function, MapShuffleFunction):
                     partition_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % ("partition", stage_id)
                     combiner_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % ("combiner", stage_id)
                     stage_config[stage_id] = \
                         create_stage_config_file(num_operators, 1, cur_function_lambda_name,
-                                                 cur_function_pickle_path, partition_function_pickle_path,
+                                                 cur_function_pickle_path, dependent_last_stage_ids,
+                                                 partition_function_pickle_path,
                                                  combiner_function_pickle_path)
-                elif isinstance(cur_function, MergeMapShuffleFunction):
-                    dependent_last_stage_ids = []
-                    for dependent_pipeline_id in dependent_pipeline_ids:
-                        dependent_last_stage_ids.append(pipelines_first_last_stage_ids[dependent_pipeline_id][1])
-
-                    partition_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % ("partition", stage_id)
-                    combiner_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % ("combiner", stage_id)
-                    stage_config[stage_id] = \
-                        create_stage_config_file(num_operators, 1, cur_function_lambda_name,
-                                                 cur_function_pickle_path, partition_function_pickle_path,
-                                                 combiner_function_pickle_path, dependent_last_stage_ids)
                 else:
                     if isinstance(cur_function, ReduceFunction):
                         num_operators = cur_function.get_num_reducers()
 
                     stage_config[stage_id] = \
                         create_stage_config_file(num_operators, 2, cur_function_lambda_name,
-                                                 cur_function_pickle_path)
+                                                 cur_function_pickle_path,
+                                                 dependent_last_stage_ids)
 
                 stage_id += 1
 

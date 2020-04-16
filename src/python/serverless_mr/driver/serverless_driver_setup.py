@@ -74,7 +74,6 @@ class ServerlessDriverSetup:
         for pipeline_id, pipeline in self.pipelines.items():
             functions = pipeline.get_functions()
             pipeline_static_job_info = overwrite_existing_job_info(pipeline.get_config())
-            # TODO: The next line is correct?
             self.static_job_info = pipeline_static_job_info
             dependent_pipeline_ids = pipeline.get_dependent_pipeline_ids()
             if len(dependent_pipeline_ids) == 0:

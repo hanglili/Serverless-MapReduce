@@ -9,7 +9,6 @@ from serverless_mr.driver.driver import Driver
 from serverless_mr.functions.map_function import MapFunction
 from serverless_mr.functions.map_shuffle_function import MapShuffleFunction
 from serverless_mr.functions.reduce_function import ReduceFunction
-from serverless_mr.functions.merge_map_shuffle import MergeMapShuffleFunction
 from serverless_mr.driver.serverless_driver_setup import ServerlessDriverSetup
 from serverless_mr.static.static_variables import StaticVariables
 from serverless_mr.utils.pipeline import Pipeline
@@ -153,14 +152,17 @@ class ServerlessMR:
         self.last_combine_function = None
         return cur_pipeline_id
 
-    def merge_map_shuffle(self, map_function, partition_function, dependent_pipeline_ids):
-        rel_map_function_path = copy_job_function(map_function)
-        rel_partition_function_path = copy_job_function(partition_function)
-        self.cur_pipeline.add_function(MergeMapShuffleFunction(map_function, rel_map_function_path,
-                                                               partition_function, rel_partition_function_path))
+    def merge(self, dependent_pipeline_ids):
         self.cur_pipeline.set_dependent_pipelines_ids(dependent_pipeline_ids)
-        self.total_num_functions += 1
         return self
+
+    # def merge_map_shuffle(self, map_function, partition_function, dependent_pipeline_ids):
+    #     rel_map_function_path = copy_job_function(map_function)
+    #     rel_partition_function_path = copy_job_function(partition_function)
+    #     self.cur_pipeline.add_function(MergeMapShuffleFunction(map_function, rel_map_function_path,
+    #                                                            partition_function, rel_partition_function_path))
+    #     self.total_num_functions += 1
+    #     return self
 
     def run(self):
         self.finish()
