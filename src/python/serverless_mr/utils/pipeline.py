@@ -16,6 +16,17 @@ class Pipeline:
     def add_function(self, function):
         self.functions.append(function)
 
+    def get_function_at_index(self, index):
+        assert 0 <= index < len(self.functions)
+        return self.functions[index]
+
+    def set_function_at_index(self, index, function):
+        assert 0 <= index < len(self.functions)
+        self.functions[index] = function
+
+    def get_num_functions(self):
+        return len(self.functions)
+
     def set_config(self, config):
         self.config = config
 

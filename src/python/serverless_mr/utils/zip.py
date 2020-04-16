@@ -22,6 +22,7 @@ def zip_lambda(filenames, zip_name):
         + glob.glob(StaticVariables.MAP_SHUFFLE_HANDLER_PATH) + glob.glob(StaticVariables.STAGE_CONFIGURATION_PATH)
         + glob.glob(StaticVariables.STAGE_TO_PIPELINE_PATH) + glob.glob(StaticVariables.PIPELINE_DEPENDENCIES_PATH)
         + glob.glob(StaticVariables.IN_DEGREE_PATH) + glob.glob(StaticVariables.PIPELINE_TO_FIRST_LAST_STAGE_PATH)
+        + glob.glob(StaticVariables.DEFAULT_FUNCTIONS_GLOB_PATH)
     )
 
 

@@ -74,7 +74,6 @@ class ServerlessDriverSetup:
         for pipeline_id, pipeline in self.pipelines.items():
             functions = pipeline.get_functions()
             pipeline_static_job_info = overwrite_existing_job_info(pipeline.get_config())
-            # TODO: The next line is correct?
             self.static_job_info = pipeline_static_job_info
             dependent_pipeline_ids = pipeline.get_dependent_pipeline_ids()
             if len(dependent_pipeline_ids) == 0:
@@ -84,8 +83,7 @@ class ServerlessDriverSetup:
                 cur_function_zip_path = "serverless_mr/%s-%s.zip" % (cur_function.get_string(), stage_id)
 
                 # Prepare Lambda functions if driver running in local machine
-                rel_function_paths = pickle_functions_and_zip_stage(cur_function_zip_path,
-                                                                    cur_function, functions, stage_id, i)
+                rel_function_paths = pickle_functions_and_zip_stage(cur_function_zip_path, cur_function, stage_id)
 
                 function_filepaths += rel_function_paths
                 stage_id += 1

@@ -61,7 +61,7 @@ def schedule_same_pipeline_next_stage(stage_configuration, stage_id, shuffling_b
                     "id": i + 1,
                     "load_data_from_input": False,
                     "function_pickle_path": next_stage_config["function_pickle_path"],
-                    "reduce_function_pickle_path": next_stage_config["reduce_function_pickle_path"],
+                    "combiner_function_pickle_path": next_stage_config["combiner_function_pickle_path"],
                     "partition_function_pickle_path": next_stage_config["partition_function_pickle_path"]
                 })
             )
@@ -111,21 +111,35 @@ def schedule_different_pipeline_next_stage(is_serverless_driver, stage_configura
             next_stage_config = stage_configuration[str(next_pipeline_first_stage_id)]
             invoking_lambda_name = next_stage_config["invoking_lambda_name"]
             dependent_stage_ids = next_stage_config["dependent_last_stage_ids"]
+            # The last stages of a pipeline is assumed to be always either a map or reduce.
             keys_bins = get_map_reduce_outputs(shuffling_bucket, job_name, dependent_stage_ids)
-            # This stage is guaranteed to be a MergeMapShuffle
-            for i in range(len(keys_bins)):
-                response = lambda_client.invoke(
-                    FunctionName=invoking_lambda_name,
-                    InvocationType='Event',
-                    Payload=json.dumps({
-                        "keys": keys_bins[i],
-                        "id": i + 1,
-                        "load_data_from_input": False,
-                        "function_pickle_path": next_stage_config["function_pickle_path"],
-                        "reduce_function_pickle_path": next_stage_config["reduce_function_pickle_path"],
-                        "partition_function_pickle_path": next_stage_config["partition_function_pickle_path"]
-                    })
-                )
+            if next_stage_config["stage_type"] == 1:
+                for i in range(len(keys_bins)):
+                    response = lambda_client.invoke(
+                        FunctionName=invoking_lambda_name,
+                        InvocationType='Event',
+                        Payload=json.dumps({
+                            "keys": keys_bins[i],
+                            "id": i + 1,
+                            "load_data_from_input": False,
+                            "function_pickle_path": next_stage_config["function_pickle_path"],
+                            "combiner_function_pickle_path": next_stage_config["combiner_function_pickle_path"],
+                            "partition_function_pickle_path": next_stage_config["partition_function_pickle_path"]
+                        })
+                    )
+
+            else:
+                for i in range(len(keys_bins)):
+                    response = lambda_client.invoke(
+                        FunctionName=invoking_lambda_name,
+                        InvocationType='Event',
+                        Payload=json.dumps({
+                            "keys": keys_bins[i],
+                            "id": i + 1,
+                            "load_data_from_input": False,
+                            "function_pickle_path": next_stage_config["function_pickle_path"]
+                        })
+                    )
 
             print("All operators finished in pipeline %s, next pipeline: number of operators scheduled: %s"
                   % (cur_pipeline_id, len(keys_bins)))

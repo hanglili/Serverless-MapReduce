@@ -18,14 +18,14 @@ def lambda_handler(event, _):
     mapper_id = event['id']
     load_data_from_input = event['load_data_from_input']
     map_function_pickle_path = event['function_pickle_path']
-    reduce_function_pickle_path = event['reduce_function_pickle_path']
+    combiner_function_pickle_path = event['combiner_function_pickle_path']
     partition_function_pickle_path = event['partition_function_pickle_path']
 
     with open(map_function_pickle_path, 'rb') as f:
         map_function = pickle.load(f)
 
-    with open(reduce_function_pickle_path, 'rb') as f:
-        combine_function = pickle.load(f)
+    with open(combiner_function_pickle_path, 'rb') as f:
+        combiner_function = pickle.load(f)
 
     with open(partition_function_pickle_path, 'rb') as f:
         partition_function = pickle.load(f)
@@ -92,7 +92,7 @@ def lambda_handler(event, _):
             else:
                 if cur_key is not None:
                     cur_key_outputs = []
-                    combine_function(cur_key_outputs, (cur_key, cur_values))
+                    combiner_function(cur_key_outputs, (cur_key, cur_values))
                     outputs += cur_key_outputs
 
                 cur_key = input_key
@@ -100,7 +100,7 @@ def lambda_handler(event, _):
 
         if cur_key is not None:
             cur_key_outputs = []
-            combine_function(cur_key_outputs, (cur_key, cur_values))
+            combiner_function(cur_key_outputs, (cur_key, cur_values))
             outputs += cur_key_outputs
 
     else:

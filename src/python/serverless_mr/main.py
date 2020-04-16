@@ -9,10 +9,10 @@ from serverless_mr.driver.driver import Driver
 from serverless_mr.functions.map_function import MapFunction
 from serverless_mr.functions.map_shuffle_function import MapShuffleFunction
 from serverless_mr.functions.reduce_function import ReduceFunction
-from serverless_mr.functions.merge_map_shuffle import MergeMapShuffleFunction
 from serverless_mr.driver.serverless_driver_setup import ServerlessDriverSetup
 from serverless_mr.static.static_variables import StaticVariables
 from serverless_mr.utils.pipeline import Pipeline
+from serverless_mr.default.partition import default_partition
 
 
 project_working_dir = os.getcwd()
@@ -91,6 +91,9 @@ class ServerlessMR:
         self.cur_pipeline = Pipeline()
         self.pipeline_id = 1
         self.total_num_functions = 0
+        self.cur_last_map_index = -1
+        self.last_partition_function = None
+        self.last_combine_function = None
 
     def config(self, pipeline_specific_config):
         self.cur_pipeline.set_config(pipeline_specific_config)
@@ -100,17 +103,40 @@ class ServerlessMR:
         rel_function_path = copy_job_function(map_function)
         self.cur_pipeline.add_function(MapFunction(map_function, rel_function_path))
         self.total_num_functions += 1
+        self.cur_last_map_index = self.cur_pipeline.get_num_functions() - 1
         return self
 
-    def map_shuffle(self, map_function, partition_function):
-        rel_map_function_path = copy_job_function(map_function)
-        rel_partition_function_path = copy_job_function(partition_function)
-        self.cur_pipeline.add_function(MapShuffleFunction(map_function, rel_map_function_path,
-                                                          partition_function, rel_partition_function_path))
-        self.total_num_functions += 1
+    def shuffle(self, partition_function):
+        self.last_partition_function = partition_function
         return self
+
+    def combine(self, combine_function):
+        self.last_combine_function = combine_function
+        return self
+
+    def _construct_map_shuffle(self, combiner_function):
+        if self.last_partition_function is None:
+            partition_function = default_partition
+        else:
+            partition_function = self.last_partition_function
+            self.last_partition_function = None
+
+        map_function_obj = self.cur_pipeline.get_function_at_index(self.cur_last_map_index)
+        map_function = map_function_obj.get_function()
+        rel_map_function_path = map_function_obj.get_rel_function_path()
+        rel_partition_function_path = copy_job_function(partition_function)
+        rel_combiner_function_path = copy_job_function(combiner_function)
+        map_shuffle = MapShuffleFunction(map_function, rel_map_function_path, partition_function,
+                                         rel_partition_function_path, combiner_function, rel_combiner_function_path)
+        self.cur_pipeline.set_function_at_index(self.cur_last_map_index, map_shuffle)
 
     def reduce(self, reduce_function, num_reducers):
+        if self.last_combine_function is None:
+            self._construct_map_shuffle(reduce_function)
+        else:
+            self._construct_map_shuffle(self.last_combine_function)
+            self.last_combine_function = None
+
         rel_function_path = copy_job_function(reduce_function)
         self.cur_pipeline.add_function(ReduceFunction(reduce_function, rel_function_path, num_reducers))
         self.total_num_functions += 1
@@ -121,16 +147,22 @@ class ServerlessMR:
         self.pipelines[cur_pipeline_id] = self.cur_pipeline
         self.cur_pipeline = Pipeline()
         self.pipeline_id += 1
+        self.cur_last_map_index = -1
+        self.last_partition_function = None
+        self.last_combine_function = None
         return cur_pipeline_id
 
-    def merge_map_shuffle(self, map_function, partition_function, dependent_pipeline_ids):
-        rel_map_function_path = copy_job_function(map_function)
-        rel_partition_function_path = copy_job_function(partition_function)
-        self.cur_pipeline.add_function(MergeMapShuffleFunction(map_function, rel_map_function_path,
-                                                               partition_function, rel_partition_function_path))
+    def merge(self, dependent_pipeline_ids):
         self.cur_pipeline.set_dependent_pipelines_ids(dependent_pipeline_ids)
-        self.total_num_functions += 1
         return self
+
+    # def merge_map_shuffle(self, map_function, partition_function, dependent_pipeline_ids):
+    #     rel_map_function_path = copy_job_function(map_function)
+    #     rel_partition_function_path = copy_job_function(partition_function)
+    #     self.cur_pipeline.add_function(MergeMapShuffleFunction(map_function, rel_map_function_path,
+    #                                                            partition_function, rel_partition_function_path))
+    #     self.total_num_functions += 1
+    #     return self
 
     def run(self):
         self.finish()
