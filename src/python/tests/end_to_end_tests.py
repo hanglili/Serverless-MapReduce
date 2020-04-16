@@ -34,7 +34,7 @@ class Test(TestCase):
     def test_that_lambda_returns_correct_message(self):
         # Execute the job
         serverless_mr = ServerlessMR()
-        serverless_mr.map(extract_data).map_shuffle(truncate_decimals, partition).reduce(reduce_function, 4).run()
+        serverless_mr.map(extract_data).map(truncate_decimals).shuffle(partition).reduce(reduce_function, 4).run()
 
         print("The job has finished")
 

@@ -117,14 +117,15 @@ class ServerlessMR:
     def _construct_map_shuffle(self, combiner_function):
         if self.last_partition_function is None:
             partition_function = default_partition
+            rel_partition_function_path = StaticVariables.DEFAULT_PARTITION_FUNCTION_PATH
         else:
             partition_function = self.last_partition_function
+            rel_partition_function_path = copy_job_function(partition_function)
             self.last_partition_function = None
 
         map_function_obj = self.cur_pipeline.get_function_at_index(self.cur_last_map_index)
         map_function = map_function_obj.get_function()
         rel_map_function_path = map_function_obj.get_rel_function_path()
-        rel_partition_function_path = copy_job_function(partition_function)
         rel_combiner_function_path = copy_job_function(combiner_function)
         map_shuffle = MapShuffleFunction(map_function, rel_map_function_path, partition_function,
                                          rel_partition_function_path, combiner_function, rel_combiner_function_path)

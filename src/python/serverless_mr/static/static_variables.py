@@ -22,6 +22,7 @@ class StaticVariables:
     JOB_INIT_PATH = "serverless_mr/job/__init__.py"
     FUNCTIONS_PICKLE_GLOB_PATH = "serverless_mr/job/*.pkl"
     DEFAULT_FUNCTIONS_GLOB_PATH = "serverless_mr/default/*.py"
+    DEFAULT_PARTITION_FUNCTION_PATH = "serverless_mr/default/partition.py"
     UTILS_INIT_PATH = "serverless_mr/utils/__init__.py"
     LAMBDA_UTILS_PATH = "serverless_mr/utils/lambda_utils.py"
     INPUT_HANDLER_PATH = "serverless_mr/utils/input_handler.py"

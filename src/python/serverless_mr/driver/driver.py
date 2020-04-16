@@ -410,22 +410,24 @@ class Driver:
 
         print("Job Complete")
 
-        all_stages_key_objs = self.s3_client.list_objects(Bucket=shuffling_bucket, Prefix=job_name)["Contents"]
-        for all_stage_key_obj in all_stages_key_objs:
-            # Even though metadata processing time is written as processingTime,
-            # AWS does not accept uppercase letter metadata key
-            all_stage_key = all_stage_key_obj["Key"]
-            intermediate_s3_size += all_stage_key_obj["Size"]
-            intermediate_s3_get_ops += 1
-            intermediate_s3_put_ops += 1
-            if ("bin" not in all_stage_key) or ("bin-1" in all_stage_key):
-                lambda_time = float(self.s3_client.get_object(Bucket=shuffling_bucket,
-                                                              Key=all_stage_key)['Metadata']['processingtime'])
-                total_lambda_time += lambda_time
-                stage_id = int(all_stage_key.split("/")[1].split("-")[1])
-                if stage_id in pipelines_first_stage_ids:
-                    total_lines += int(self.s3_client.get_object(Bucket=shuffling_bucket,
-                                                                 Key=all_stage_key)['Metadata']['linecount'])
+        response = self.s3_client.list_objects(Bucket=shuffling_bucket, Prefix=job_name)
+        if "Contents" in response:
+            all_stages_key_objs = response["Contents"]
+            for all_stage_key_obj in all_stages_key_objs:
+                # Even though metadata processing time is written as processingTime,
+                # AWS does not accept uppercase letter metadata key
+                all_stage_key = all_stage_key_obj["Key"]
+                intermediate_s3_size += all_stage_key_obj["Size"]
+                intermediate_s3_get_ops += 1
+                intermediate_s3_put_ops += 1
+                if ("bin" not in all_stage_key) or ("bin-1" in all_stage_key):
+                    lambda_time = float(self.s3_client.get_object(Bucket=shuffling_bucket,
+                                                                  Key=all_stage_key)['Metadata']['processingtime'])
+                    total_lambda_time += lambda_time
+                    stage_id = int(all_stage_key.split("/")[1].split("-")[1])
+                    if stage_id in pipelines_first_stage_ids:
+                        total_lines += int(self.s3_client.get_object(Bucket=shuffling_bucket,
+                                                                     Key=all_stage_key)['Metadata']['linecount'])
 
         # S3 Storage cost for shuffling bucket and output bucket - is negligible anyways since S3 costs 3 cents/GB/month
         # Storage cost per GB / hour
