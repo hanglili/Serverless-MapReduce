@@ -84,8 +84,7 @@ class ServerlessDriverSetup:
                 cur_function_zip_path = "serverless_mr/%s-%s.zip" % (cur_function.get_string(), stage_id)
 
                 # Prepare Lambda functions if driver running in local machine
-                rel_function_paths = pickle_functions_and_zip_stage(cur_function_zip_path,
-                                                                    cur_function, functions, stage_id, i)
+                rel_function_paths = pickle_functions_and_zip_stage(cur_function_zip_path, cur_function, stage_id)
 
                 function_filepaths += rel_function_paths
                 stage_id += 1

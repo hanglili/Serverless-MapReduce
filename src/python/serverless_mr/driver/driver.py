@@ -38,18 +38,18 @@ def set_up_local_input_data(static_job_info):
 
 def create_stage_config_file(num_operators, stage_type, invoking_lambda_name,
                              function_pickle_path, partition_function_pickle_path="",
-                             reduce_function_pickle_path="", dependent_last_stage_ids=[]):
+                             combiner_function_pickle_path="", dependent_last_stage_ids=[]):
     return {
         "num_operators": num_operators, "invoking_lambda_name": invoking_lambda_name,
         "function_pickle_path": function_pickle_path,
-        "reduce_function_pickle_path": reduce_function_pickle_path,
+        "combiner_function_pickle_path": combiner_function_pickle_path,
         "partition_function_pickle_path": partition_function_pickle_path,
         "dependent_last_stage_ids": dependent_last_stage_ids,
         "stage_type": stage_type
     }
 
 
-def pickle_functions_and_zip_stage(cur_function_zip_path, cur_function, functions, stage_id, i):
+def pickle_functions_and_zip_stage(cur_function_zip_path, cur_function, stage_id):
     cur_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % (cur_function.get_string(), stage_id)
     rel_function_paths = cur_function.get_rel_function_paths()
     with open(cur_function_pickle_path, 'wb') as f:
@@ -59,12 +59,9 @@ def pickle_functions_and_zip_stage(cur_function_zip_path, cur_function, function
         with open(partition_function_pickle_path, 'wb') as f:
             pickle.dump(cur_function.get_partition_function(), f)
 
-        next_function_reduce = functions[i + 1]
-        reduce_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % \
-                                      (next_function_reduce.get_string(), stage_id + 1)
-        with open(reduce_function_pickle_path, 'wb') as f:
-            pickle.dump(next_function_reduce.get_function(), f)
-        rel_function_paths += next_function_reduce.get_rel_function_paths()
+        combiner_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % ("combiner", stage_id)
+        with open(combiner_function_pickle_path, 'wb') as f:
+            pickle.dump(cur_function.get_combiner_function(), f)
 
     zip.zip_lambda(rel_function_paths, cur_function_zip_path)
     return rel_function_paths
@@ -208,7 +205,8 @@ class Driver:
                 if not self.is_serverless:
                     set_up_local_input_data(pipeline_static_job_info)
                 all_keys, num_operators, batches = self._get_all_keys(pipeline_static_job_info)
-                invoking_pipelines_info[pipeline_id] = [all_keys, num_operators, batches, functions, stage_id]
+                first_function = functions[0]
+                invoking_pipelines_info[pipeline_id] = [all_keys, num_operators, batches, first_function, stage_id]
             else:
                 num_operators = 0
                 for dependent_pipeline_id in dependent_pipeline_ids:
@@ -223,7 +221,7 @@ class Driver:
 
                 # Prepare Lambda functions if driver running in local machine
                 if not self.is_serverless:
-                    pickle_functions_and_zip_stage(cur_function_zip_path, cur_function, functions, stage_id, i)
+                    pickle_functions_and_zip_stage(cur_function_zip_path, cur_function, stage_id)
 
                 cur_function_lambda_name = "%s-%s-%s-%s" % (job_name, lambda_name_prefix, cur_function.get_string(),
                                                             stage_id)
@@ -232,7 +230,7 @@ class Driver:
                                                                    cur_function_lambda_name,
                                                                    cur_function.get_handler_function_path())
                 if isinstance(cur_function, MapShuffleFunction) or isinstance(cur_function, MergeMapShuffleFunction):
-                    assert i + 1 < len(functions) and isinstance(functions[i + 1], ReduceFunction)
+                    assert i + 1 < len(functions) and isinstance(functions[i+1], ReduceFunction)
                     cur_function_lambda.update_code_or_create_on_no_exist(self.total_num_functions, stage_id=stage_id,
                                                                           num_reducers=functions[i+1].get_num_reducers())
                 else:
@@ -242,27 +240,23 @@ class Driver:
                 # Coordinator
                 cur_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % (cur_function.get_string(), stage_id)
                 if isinstance(cur_function, MapShuffleFunction):
-                    next_function_reduce = functions[i + 1]
                     partition_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % ("partition", stage_id)
-                    reduce_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % \
-                                                  (next_function_reduce.get_string(), stage_id + 1)
+                    combiner_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % ("combiner", stage_id)
                     stage_config[stage_id] = \
                         create_stage_config_file(num_operators, 1, cur_function_lambda_name,
                                                  cur_function_pickle_path, partition_function_pickle_path,
-                                                 reduce_function_pickle_path)
+                                                 combiner_function_pickle_path)
                 elif isinstance(cur_function, MergeMapShuffleFunction):
                     dependent_last_stage_ids = []
                     for dependent_pipeline_id in dependent_pipeline_ids:
                         dependent_last_stage_ids.append(pipelines_first_last_stage_ids[dependent_pipeline_id][1])
 
-                    next_function_reduce = functions[i + 1]
                     partition_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % ("partition", stage_id)
-                    reduce_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % \
-                                                  (next_function_reduce.get_string(), stage_id + 1)
+                    combiner_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % ("combiner", stage_id)
                     stage_config[stage_id] = \
                         create_stage_config_file(num_operators, 1, cur_function_lambda_name,
                                                  cur_function_pickle_path, partition_function_pickle_path,
-                                                 reduce_function_pickle_path, dependent_last_stage_ids)
+                                                 combiner_function_pickle_path, dependent_last_stage_ids)
                 else:
                     if isinstance(cur_function, ReduceFunction):
                         num_operators = cur_function.get_num_reducers()
@@ -329,18 +323,17 @@ class Driver:
         with open(StaticVariables.PIPELINE_TO_FIRST_LAST_STAGE_PATH, 'w') as f:
             json.dump(pipelines_first_last_stage_ids, f)
 
-    def invoke_lambda(self, batches, functions, stage_id, mapper_id):
+    def invoke_lambda(self, batches, first_function, stage_id, mapper_id):
         job_name = self.static_job_info[StaticVariables.JOB_NAME_FN]
         lambda_name_prefix = self.static_job_info[StaticVariables.LAMBDA_NAME_PREFIX_FN]
-        first_function = functions[0]
         first_function_lambda_name = "%s-%s-%s-%s" % (job_name, lambda_name_prefix, first_function.get_string(),
                                                       stage_id)
 
-        pickle_file_path = 'serverless_mr/job/%s-%s.pkl' % (first_function.get_string(), stage_id)
+        function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % (first_function.get_string(), stage_id)
         batch = [k['Key'] for k in batches[mapper_id - 1]]
         if isinstance(first_function, MapShuffleFunction):
-            reduce_pickle_file_path = 'serverless_mr/job/%s-%s.pkl' % (functions[1].get_string(), stage_id + 1)
-            partition_pickle_file_path = 'serverless_mr/job/%s-%s.pkl' % ("partition", stage_id)
+            combiner_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % ("combiner", stage_id)
+            partition_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % ("partition", stage_id)
             response = self.lambda_client.invoke(
                 FunctionName=first_function_lambda_name,
                 InvocationType='Event',
@@ -348,9 +341,9 @@ class Driver:
                     "keys": batch,
                     "id": mapper_id,
                     "load_data_from_input": True,
-                    "function_pickle_path": pickle_file_path,
-                    "reduce_function_pickle_path": reduce_pickle_file_path,
-                    "partition_function_pickle_path": partition_pickle_file_path
+                    "function_pickle_path": function_pickle_path,
+                    "combiner_function_pickle_path": combiner_function_pickle_path,
+                    "partition_function_pickle_path": partition_function_pickle_path
                 })
             )
         else:
@@ -361,7 +354,7 @@ class Driver:
                     "keys": batch,
                     "id": mapper_id,
                     "load_data_from_input": True,
-                    "function_pickle_path": pickle_file_path
+                    "function_pickle_path": function_pickle_path
                 })
             )
 
@@ -370,7 +363,7 @@ class Driver:
             print("Scheduling pipeline %s" % pipeline_id)
             num_mappers = invoking_pipeline_info[1]
             batches = invoking_pipeline_info[2]
-            functions = invoking_pipeline_info[3]
+            first_function = invoking_pipeline_info[3]
             stage_id = invoking_pipeline_info[4]
             concurrent_lambdas = self.config[StaticVariables.NUM_CONCURRENT_LAMBDAS_FN] \
                 if StaticVariables.NUM_CONCURRENT_LAMBDAS_FN in self.config else StaticVariables.DEFAULT_NUM_CONCURRENT_LAMBDAS
@@ -379,7 +372,7 @@ class Driver:
             print("Number of Mappers: ", num_mappers)
             pool = ThreadPool(num_mappers)
             ids = [i + 1 for i in range(num_mappers)]
-            invoke_lambda_partial = partial(self.invoke_lambda, batches, functions, stage_id)
+            invoke_lambda_partial = partial(self.invoke_lambda, batches, first_function, stage_id)
 
             # Burst request handling
             mappers_executed = 0

@@ -61,7 +61,7 @@ def schedule_same_pipeline_next_stage(stage_configuration, stage_id, shuffling_b
                     "id": i + 1,
                     "load_data_from_input": False,
                     "function_pickle_path": next_stage_config["function_pickle_path"],
-                    "reduce_function_pickle_path": next_stage_config["reduce_function_pickle_path"],
+                    "combiner_function_pickle_path": next_stage_config["combiner_function_pickle_path"],
                     "partition_function_pickle_path": next_stage_config["partition_function_pickle_path"]
                 })
             )
@@ -122,7 +122,7 @@ def schedule_different_pipeline_next_stage(is_serverless_driver, stage_configura
                         "id": i + 1,
                         "load_data_from_input": False,
                         "function_pickle_path": next_stage_config["function_pickle_path"],
-                        "reduce_function_pickle_path": next_stage_config["reduce_function_pickle_path"],
+                        "combiner_function_pickle_path": next_stage_config["combiner_function_pickle_path"],
                         "partition_function_pickle_path": next_stage_config["partition_function_pickle_path"]
                     })
                 )
