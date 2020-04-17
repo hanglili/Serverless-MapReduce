@@ -1,7 +1,7 @@
 import cloudpickle
 import pickle
 
-# from pipeline.house import House
+from pipeline.house import hello
 
 
 # def foo(x):
@@ -17,11 +17,14 @@ import pickle
 #     house.set_size(size)
 
 # with open('cloud_pickle.pkl', 'wb') as f:
-#     cloudpickle.dump(bar, f)
+#     pickle.dump(hello, f)
 
 # del foo
 # del bar
 # del House
+# del hello
 
-with open('cloud_pickle.pkl', 'r') as f:
-    house = cloudpickle.loads(f)
+with open('cloud_pickle.pkl', 'rb') as f:
+    hello = pickle.load(f)
+
+hello(1)
