@@ -54,13 +54,13 @@ config_pipeline_3 = {
 }
 
 serverless_mr = ServerlessMR()
-pipeline1 = serverless_mr.config(config_pipeline_1).map(extract_data_s3)\
+pipeline1 = serverless_mr.config(config_pipeline_1).map(extract_data_s3).combine(reduce_function)\
     .reduce(reduce_function, 4).finish()
 
 pipeline2 = serverless_mr.config(config_pipeline_2).map(extract_data_dynamo_db)\
     .reduce(reduce_function, 2).finish()
 
 pipeline3 = serverless_mr.config(config_pipeline_3).merge([pipeline1, pipeline2]).map(identity_function)\
-    .shuffle(partition).reduce(reduce_function, 5).run()
+    .combine(reduce_function).shuffle(partition).reduce(reduce_function, 5).run()
 
 # pipeline3 = serverless_mr.config(config_pipeline_3).merge([pipeline1, pipeline2]).map(identity_function).run()

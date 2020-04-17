@@ -19,5 +19,5 @@
     "useCombine": true,
     "localTesting": true,
     "localTestingInputPath": "../../input_data/testing_partitioned/s3/",
-    "serverlessDriver": true
+    "serverlessDriver": false
 }
