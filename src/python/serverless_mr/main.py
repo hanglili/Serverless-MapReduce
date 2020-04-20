@@ -190,4 +190,4 @@ class ServerlessMR:
             driver = Driver(self.pipelines, self.total_num_functions)
             driver.run()
 
-        tear_down()
+        # tear_down()

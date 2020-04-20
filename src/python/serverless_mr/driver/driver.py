@@ -189,6 +189,7 @@ class Driver:
         invoking_pipelines_info = {}
         pipelines_last_stage_num_operators = {}
         pipelines_first_last_stage_ids = {}
+        stage_type_of_operations = {}
 
         # The first function should be a map/map_shuffle function
         for pipeline_id, pipeline in self.pipelines.items():
@@ -218,6 +219,7 @@ class Driver:
                 mapping_stage_id_pipeline_id[stage_id] = pipeline_id
                 cur_function = functions[i]
                 cur_function_zip_path = "serverless_mr/%s-%s.zip" % (cur_function.get_string(), stage_id)
+                stage_type_of_operations[stage_id] = cur_function.get_string()
 
                 # Prepare Lambda functions if driver running in local machine
                 if not self.is_serverless:
@@ -266,13 +268,17 @@ class Driver:
 
         coordinator_zip_path = StaticVariables.COORDINATOR_ZIP_PATH
         if not self.is_serverless:
+            # Write locally for faster access
             self._write_config_to_local(adj_list, mapping_stage_id_pipeline_id, pipelines_first_last_stage_ids,
                                         stage_config)
 
             zip.zip_lambda([StaticVariables.COORDINATOR_HANDLER_PATH], coordinator_zip_path)
-        else:
-            self._write_config_to_s3(adj_list, mapping_stage_id_pipeline_id, pipelines_first_last_stage_ids,
-                                     shuffling_bucket, stage_config)
+
+        # Web UI information
+        self._write_config_to_s3(adj_list, mapping_stage_id_pipeline_id, pipelines_first_last_stage_ids,
+                                 shuffling_bucket, stage_config)
+        self.s3_client.put_object(Bucket=shuffling_bucket, Key=StaticVariables.STAGE_TYPE_OF_OPERATIONS,
+                                  Body=json.dumps(stage_type_of_operations))
 
         cur_coordinator_lambda_name = "%s-%s-%s-%s" % (job_name, lambda_name_prefix, "coordinator", stage_id)
         cur_coordinator_lambda = lambda_manager.LambdaManager(self.lambda_client, self.s3_client, region,
@@ -330,7 +336,7 @@ class Driver:
             partition_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % ("partition", stage_id)
             response = self.lambda_client.invoke(
                 FunctionName=first_function_lambda_name,
-                InvocationType='Event',
+                InvocationType='RequestResponse',
                 Payload=json.dumps({
                     "keys": batch,
                     "id": mapper_id,
@@ -340,10 +346,11 @@ class Driver:
                     "partition_function_pickle_path": partition_function_pickle_path
                 })
             )
+            print("The response is", response)
         else:
             response = self.lambda_client.invoke(
                 FunctionName=first_function_lambda_name,
-                InvocationType='Event',
+                InvocationType='RequestResponse',
                 Payload=json.dumps({
                     "keys": batch,
                     "id": mapper_id,
@@ -351,6 +358,7 @@ class Driver:
                     "function_pickle_path": function_pickle_path
                 })
             )
+            print("The response is", response)
 
     def _invoke_pipelines(self, invoking_pipelines_info):
         for pipeline_id, invoking_pipeline_info in invoking_pipelines_info.items():
@@ -474,7 +482,7 @@ class Driver:
 
         # 5. View one of the reducer results
         print(cur_output_handler.get_output(3, self.static_job_info))
-        self.map_phase_state.delete_state_table(StaticVariables.STAGE_STATE_DYNAMODB_TABLE_NAME)
+        # self.map_phase_state.delete_state_table(StaticVariables.STAGE_STATE_DYNAMODB_TABLE_NAME)
         
-        in_degree_obj = in_degree.InDegree(in_lambda=self.is_serverless)
-        in_degree_obj.delete_in_degree_table(StaticVariables.IN_DEGREE_DYNAMODB_TABLE_NAME)
+        # in_degree_obj = in_degree.InDegree(in_lambda=self.is_serverless)
+        # in_degree_obj.delete_in_degree_table(StaticVariables.IN_DEGREE_DYNAMODB_TABLE_NAME)

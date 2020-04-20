@@ -40,6 +40,9 @@ class StaticVariables:
     STAGE_STATE_DYNAMODB_TABLE_NAME = "stage-state"
     STAGE_STATE_PATH = "serverless_mr/utils/stage_state.py"
 
+    # S3 file locations - Web UI
+    STAGE_TYPE_OF_OPERATIONS = "serverless_mr/web-ui/stage-type-of-operations.json"
+
     # Lambda handler paths
     MAP_HANDLER_FUNCTION_PATH = "serverless_mr/job/map_handler.lambda_handler"
     MAP_SHUFFLE_HANDLER_FUNCTION_PATH = "serverless_mr/job/map_shuffle_handler.lambda_handler"

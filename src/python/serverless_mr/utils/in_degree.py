@@ -69,6 +69,14 @@ class InDegree:
             )
         print("In degree table initialised successfully")
 
+    def read_in_degree_table(self, table_name):
+        in_degrees = {}
+        projection_expression = "pipeline_id, in_degree"
+        response = self.client.scan(TableName=table_name, ProjectionExpression=projection_expression)
+        for record in response['Items']:
+            in_degrees[record['pipeline_id']['N']] = record['in_degree']['N']
+        return in_degrees
+
     def delete_in_degree_table(self, table_name):
         self.client.delete_table(
             TableName=table_name

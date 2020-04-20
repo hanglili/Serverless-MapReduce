@@ -68,15 +68,23 @@ class StageState:
                 }
             )
 
-        # -1 stage_id stores the current stage id
-        self.client.put_item(
-            TableName=table_name,
-            Item={
-                'stage_id': {'N': str(-1)},
-                'current_stage_id': {'N': str(1)}
-            }
-        )
+        # stage_id of -1 stores the current stage id
+        # self.client.put_item(
+        #     TableName=table_name,
+        #     Item={
+        #         'stage_id': {'N': str(-1)},
+        #         'current_stage_id': {'N': str(1)}
+        #     }
+        # )
         print("Stage state table initialised successfully")
+
+    def read_state_table(self, table_name):
+        stage_states = {}
+        projection_expression = "stage_id, num_completed_operators"
+        response = self.client.scan(TableName=table_name, ProjectionExpression=projection_expression)
+        for record in response['Items']:
+            stage_states[record['stage_id']['N']] = record['num_completed_operators']['N']
+        return stage_states
 
     def delete_state_table(self, table_name):
         self.client.delete_table(

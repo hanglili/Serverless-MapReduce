@@ -6,14 +6,14 @@ from serverless_mr.static.static_variables import StaticVariables
 
 
 class LambdaManager(object):
-    def __init__(self, lambda_client, s3, region, code_path, job_id, filename, handler,
+    def __init__(self, lambda_client, s3, region, code_path, job_id, function_name, handler,
                  memory_limit=StaticVariables.DEFAULT_LAMBDA_MEMORY_LIMIT):
         self.lambda_client = lambda_client
         self.region = region
         self.s3 = s3
         self.code_file = code_path
         self.job_id = job_id
-        self.function_name = filename
+        self.function_name = function_name
         self.handler = handler
         self.role = os.environ.get("serverless_mapreduce_role")
         self.memory = memory_limit
