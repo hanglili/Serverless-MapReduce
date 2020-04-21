@@ -79,8 +79,8 @@ def copy_job_function(function):
 
 
 def tear_down():
-    config_dirname = "configuration"
-    delete_dir(config_dirname)
+    # config_dirname = "configuration"
+    # delete_dir(config_dirname)
     delete_files("job", ["map.py", "reduce.py", "partition.py"])
 
 
@@ -190,4 +190,4 @@ class ServerlessMR:
             driver = Driver(self.pipelines, self.total_num_functions)
             driver.run()
 
-        # tear_down()
+        tear_down()

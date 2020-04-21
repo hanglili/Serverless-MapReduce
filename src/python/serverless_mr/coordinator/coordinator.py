@@ -103,7 +103,7 @@ def schedule_different_pipeline_next_stage(is_serverless_driver, stage_configura
 
     in_degree_obj = in_degree.InDegree(in_lambda=True)
     for dependent_pipeline_id in adj_list[str(cur_pipeline_id)]:
-        response = in_degree_obj.decrement_in_degree_table(StaticVariables.IN_DEGREE_DYNAMODB_TABLE_NAME,
+        response = in_degree_obj.decrement_in_degree_table(StaticVariables.IN_DEGREE_DYNAMODB_TABLE_NAME % job_name,
                                                            dependent_pipeline_id)
         dependent_in_degree = int(response["Attributes"]["in_degree"]["N"])
         if dependent_in_degree == 0:
@@ -183,7 +183,7 @@ def lambda_handler(event, _):
 
     print("The event obj key is", s3_obj_key)
     num_operators = cur_stage_config["num_operators"]
-    response = cur_map_phase_state.increment_num_completed_operators(StaticVariables.STAGE_STATE_DYNAMODB_TABLE_NAME,
+    response = cur_map_phase_state.increment_num_completed_operators(StaticVariables.STAGE_STATE_DYNAMODB_TABLE_NAME % job_name,
                                                                      stage_id)
     num_completed_operators = int(response["Attributes"]["num_completed_operators"]["N"])
     print("In stage %s, number of operators completed: %s" % (stage_id, num_completed_operators))

@@ -35,13 +35,16 @@ class StaticVariables:
     STATIC_INIT_PATH = "serverless_mr/static/__init__.py"
     OUTPUT_PREFIX = "stage"
     REDUCE_OUTPUT_PREFIX_S3 = "stage"
-    IN_DEGREE_DYNAMODB_TABLE_NAME = "in-degree"
+    IN_DEGREE_DYNAMODB_TABLE_NAME = "%s-in-degree"
     IN_DEGREE_PATH = "serverless_mr/utils/in_degree.py"
-    STAGE_STATE_DYNAMODB_TABLE_NAME = "stage-state"
+    STAGE_STATE_DYNAMODB_TABLE_NAME = "%s-stage-state"
     STAGE_STATE_PATH = "serverless_mr/utils/stage_state.py"
 
     # S3 file locations - Web UI
-    STAGE_TYPE_OF_OPERATIONS = "serverless_mr/web-ui/stage-type-of-operations.json"
+    S3_JOBS_INFORMATION_BUCKET_NAME = "serverless-mapreduce-job-information"
+    S3_UI_GENERAL_JOB_INFORMATION_PATH = "web-ui/%s/static-job-info.json"
+    S3_UI_STAGE_CONFIGURATION_PATH = "web-ui/%s/stage-config.json"
+    S3_UI_DAG_INFORMATION_PATH = "web-ui/%s/dag-information.json"
 
     # Lambda handler paths
     MAP_HANDLER_FUNCTION_PATH = "serverless_mr/job/map_handler.lambda_handler"

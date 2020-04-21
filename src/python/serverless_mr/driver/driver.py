@@ -6,6 +6,7 @@ import os
 import pickle
 import glob
 
+from datetime import datetime
 from collections import defaultdict
 from serverless_mr.utils import lambda_utils, zip, input_handler, output_handler, stage_state, in_degree
 from serverless_mr.aws_lambda import lambda_manager
@@ -66,6 +67,43 @@ def pickle_functions_and_zip_stage(cur_function_zip_path, cur_function, stage_id
     return rel_function_paths
 
 
+def construct_dag_information(pipelines_dependencies, stage_mapping, pipeline_first_last_stages,
+                              stage_type_of_operations):
+    dag_data = {}
+    nodes = []
+    for i in range(1, len(stage_mapping) + 1):
+        current_node = {'id': i, 'pipeline': -stage_mapping[i],
+                        'type': stage_type_of_operations[i]}
+        nodes.append(current_node)
+    for i in range(1, len(pipeline_first_last_stages) + 1):
+        current_node = {'id': -i}
+        nodes.append(current_node)
+
+    edges = []
+    for i in range(1, len(stage_type_of_operations)):
+        if stage_mapping[i] == stage_mapping[i + 1]:
+            current_edge = {'source': i, 'target': i + 1}
+            edges.append(current_edge)
+        else:
+            current_pipeline_id = stage_mapping[i]
+            for dependent_pipeline_id in pipelines_dependencies[current_pipeline_id]:
+                first_stage_id = pipeline_first_last_stages[dependent_pipeline_id][0]
+                current_edge = {'source': i, 'target': first_stage_id}
+                edges.append(current_edge)
+
+    dag_data['nodes'] = nodes
+    dag_data['edges'] = edges
+    return dag_data
+
+
+def populate_static_job_info(static_job_info, total_num_pipelines, total_num_stages):
+    static_job_info["completed"] = False
+    static_job_info["submissionTime"] = str(datetime.now())
+    static_job_info["duration"] = -1
+    static_job_info["totalNumPipelines"] = total_num_pipelines
+    static_job_info["totalNumStages"] = total_num_stages
+
+
 class Driver:
 
     def __init__(self, pipelines, total_num_functions, is_serverless=False):
@@ -78,7 +116,8 @@ class Driver:
         self.total_num_functions = total_num_functions
         self.map_phase_state = stage_state.StageState(self.is_serverless)
         self._initialise_stage_state(total_num_functions)
-        self.set_up_shuffling_bucket()
+        self.set_up_bucket(self.static_job_info[StaticVariables.SHUFFLING_BUCKET_FN])
+        self.set_up_bucket(StaticVariables.S3_JOBS_INFORMATION_BUCKET_NAME)
 
     def _set_aws_clients(self):
         if self.static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
@@ -122,18 +161,18 @@ class Driver:
             self.lambda_client = boto3.client('lambda', config=self.lambda_config)
 
     def _initialise_stage_state(self, num_stages):
-        self.map_phase_state.create_state_table(StaticVariables.STAGE_STATE_DYNAMODB_TABLE_NAME)
-        self.map_phase_state.initialise_state_table(StaticVariables.STAGE_STATE_DYNAMODB_TABLE_NAME,
+        job_name = self.static_job_info[StaticVariables.JOB_NAME_FN]
+        self.map_phase_state.create_state_table(StaticVariables.STAGE_STATE_DYNAMODB_TABLE_NAME % job_name)
+        self.map_phase_state.initialise_state_table(StaticVariables.STAGE_STATE_DYNAMODB_TABLE_NAME % job_name,
                                                     num_stages)
 
-    def set_up_shuffling_bucket(self):
-        shuffling_bucket = self.static_job_info[StaticVariables.SHUFFLING_BUCKET_FN]
-        self.s3_client.create_bucket(Bucket=shuffling_bucket)
+    def set_up_bucket(self, bucket_name):
+        self.s3_client.create_bucket(Bucket=bucket_name)
         self.s3_client.put_bucket_acl(
             ACL='public-read-write',
-            Bucket=shuffling_bucket,
+            Bucket=bucket_name,
         )
-        print("Shuffling bucket created successfully")
+        print("%s Bucket created successfully" % bucket_name)
 
     # Get all keys to be processed
     def _get_all_keys(self, static_job_info):
@@ -268,17 +307,20 @@ class Driver:
 
         coordinator_zip_path = StaticVariables.COORDINATOR_ZIP_PATH
         if not self.is_serverless:
-            # Write locally for faster access
             self._write_config_to_local(adj_list, mapping_stage_id_pipeline_id, pipelines_first_last_stage_ids,
                                         stage_config)
 
             zip.zip_lambda([StaticVariables.COORDINATOR_HANDLER_PATH], coordinator_zip_path)
+        else:
+            self._write_config_to_s3(adj_list, mapping_stage_id_pipeline_id, pipelines_first_last_stage_ids,
+                                     stage_config, shuffling_bucket)
 
         # Web UI information
-        self._write_config_to_s3(adj_list, mapping_stage_id_pipeline_id, pipelines_first_last_stage_ids,
-                                 shuffling_bucket, stage_config)
-        self.s3_client.put_object(Bucket=shuffling_bucket, Key=StaticVariables.STAGE_TYPE_OF_OPERATIONS,
-                                  Body=json.dumps(stage_type_of_operations))
+        dag_information = construct_dag_information(adj_list, mapping_stage_id_pipeline_id,
+                                                    pipelines_first_last_stage_ids, stage_type_of_operations)
+        populate_static_job_info(self.static_job_info, len(pipelines_first_last_stage_ids), len(stage_type_of_operations))
+        self._write_web_ui_info(dag_information, stage_config, self.static_job_info,
+                                StaticVariables.S3_JOBS_INFORMATION_BUCKET_NAME, job_name)
 
         cur_coordinator_lambda_name = "%s-%s-%s-%s" % (job_name, lambda_name_prefix, "coordinator", stage_id)
         cur_coordinator_lambda = lambda_manager.LambdaManager(self.lambda_client, self.s3_client, region,
@@ -292,8 +334,9 @@ class Driver:
         function_lambdas.append(cur_coordinator_lambda)
 
         in_degree_obj = in_degree.InDegree(in_lambda=self.is_serverless)
-        in_degree_obj.create_in_degree_table(StaticVariables.IN_DEGREE_DYNAMODB_TABLE_NAME)
-        in_degree_obj.initialise_in_degree_table(StaticVariables.IN_DEGREE_DYNAMODB_TABLE_NAME, in_degrees)
+        in_degree_table_name = StaticVariables.IN_DEGREE_DYNAMODB_TABLE_NAME % job_name
+        in_degree_obj.create_in_degree_table(in_degree_table_name)
+        in_degree_obj.initialise_in_degree_table(in_degree_table_name, in_degrees)
 
         if not self.is_serverless:
             delete_files(glob.glob(StaticVariables.LAMBDA_ZIP_GLOB_PATH))
@@ -301,8 +344,19 @@ class Driver:
 
         return function_lambdas, invoking_pipelines_info, num_operators
 
+    def _write_web_ui_info(self, dag_information, stage_config, static_job_info, bucket_name, job_name):
+        self.s3_client.put_object(Bucket=bucket_name,
+                                  Key=(StaticVariables.S3_UI_STAGE_CONFIGURATION_PATH % job_name),
+                                  Body=json.dumps(stage_config))
+        self.s3_client.put_object(Bucket=bucket_name,
+                                  Key=(StaticVariables.S3_UI_DAG_INFORMATION_PATH % job_name),
+                                  Body=json.dumps(dag_information))
+        self.s3_client.put_object(Bucket=bucket_name,
+                                  Key=(StaticVariables.S3_UI_GENERAL_JOB_INFORMATION_PATH % job_name),
+                                  Body=json.dumps(static_job_info))
+
     def _write_config_to_s3(self, adj_list, mapping_stage_id_pipeline_id, pipelines_first_last_stage_ids,
-                            shuffling_bucket, stage_config):
+                            stage_config, shuffling_bucket):
         self.s3_client.put_object(Bucket=shuffling_bucket, Key=StaticVariables.STAGE_CONFIGURATION_PATH,
                                   Body=json.dumps(stage_config))
         self.s3_client.put_object(Bucket=shuffling_bucket, Key=StaticVariables.PIPELINE_DEPENDENCIES_PATH,
@@ -462,6 +516,22 @@ class Driver:
         print("Total Cost:", total_lambda_cost + total_intermediate_s3_cost + last_stage_database_cost)
         print("Total Lines:", total_lines)
 
+    def _update_duration(self):
+        job_name = self.static_job_info[StaticVariables.JOB_NAME_FN]
+        s3_job_info_path = StaticVariables.S3_UI_GENERAL_JOB_INFORMATION_PATH % job_name
+        response = self.s3_client.get_object(Bucket=StaticVariables.S3_JOBS_INFORMATION_BUCKET_NAME,
+                                             Key=s3_job_info_path)
+        contents = response['Body'].read()
+        cur_static_job_info = json.loads(contents)
+        submission_time = datetime.strptime(cur_static_job_info["submissionTime"], "%Y-%m-%d %H:%M:%S.%f")
+        duration = datetime.now() - submission_time
+        cur_static_job_info['duration'] = str(duration)
+        cur_static_job_info['completed'] = True
+
+        self.s3_client.put_object(Bucket=StaticVariables.S3_JOBS_INFORMATION_BUCKET_NAME,
+                                  Key=s3_job_info_path,
+                                  Body=json.dumps(cur_static_job_info))
+
     def run(self):
         # 1. Create the aws_lambda functions
         function_lambdas, invoking_pipelines_info, num_outputs = self._create_lambdas()
@@ -483,6 +553,8 @@ class Driver:
         # 5. View one of the reducer results
         print(cur_output_handler.get_output(3, self.static_job_info))
         # self.map_phase_state.delete_state_table(StaticVariables.STAGE_STATE_DYNAMODB_TABLE_NAME)
+
+        self._update_duration()
         
         # in_degree_obj = in_degree.InDegree(in_lambda=self.is_serverless)
         # in_degree_obj.delete_in_degree_table(StaticVariables.IN_DEGREE_DYNAMODB_TABLE_NAME)
