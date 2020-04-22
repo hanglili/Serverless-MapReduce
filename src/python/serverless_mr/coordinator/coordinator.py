@@ -3,7 +3,7 @@ import json
 import os
 
 from serverless_mr.static.static_variables import StaticVariables
-from serverless_mr.utils import stage_state, in_degree
+from serverless_mr.utils import stage_state, in_degree, stage_progress
 
 # create an S3 and Lambda session
 static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
@@ -50,6 +50,11 @@ def schedule_same_pipeline_next_stage(stage_configuration, stage_id, shuffling_b
         keys_bins = get_map_shuffle_outputs(next_stage_num_operators, shuffling_bucket, job_name, stage_id)
     else:
         keys_bins = get_map_reduce_outputs(shuffling_bucket, job_name, [stage_id])
+
+    stage_progress_obj = stage_progress.StageProgress(in_lambda=True)
+    stage_progress_table_name = StaticVariables.STAGE_PROGRESS_DYNAMODB_TABLE_NAME % job_name
+    total_num_jobs = sum([len(keys_bin) for keys_bin in keys_bins])
+    stage_progress_obj.update_total_num_keys(stage_progress_table_name, stage_id + 1, total_num_jobs)
 
     if next_stage_config["stage_type"] == 1:
         for i in range(len(keys_bins)):
@@ -102,6 +107,8 @@ def schedule_different_pipeline_next_stage(is_serverless_driver, stage_configura
         pipeline_first_last_stage_ids = json.loads(contents)
 
     in_degree_obj = in_degree.InDegree(in_lambda=True)
+    stage_progress_obj = stage_progress.StageProgress(in_lambda=True)
+    stage_progress_table_name = StaticVariables.STAGE_PROGRESS_DYNAMODB_TABLE_NAME % job_name
     for dependent_pipeline_id in adj_list[str(cur_pipeline_id)]:
         response = in_degree_obj.decrement_in_degree_table(StaticVariables.IN_DEGREE_DYNAMODB_TABLE_NAME % job_name,
                                                            dependent_pipeline_id)
@@ -113,6 +120,10 @@ def schedule_different_pipeline_next_stage(is_serverless_driver, stage_configura
             dependent_stage_ids = next_stage_config["dependent_last_stage_ids"]
             # The last stages of a pipeline is assumed to be always either a map or reduce.
             keys_bins = get_map_reduce_outputs(shuffling_bucket, job_name, dependent_stage_ids)
+
+            total_num_jobs = sum([len(keys_bin) for keys_bin in keys_bins])
+            stage_progress_obj.update_total_num_keys(stage_progress_table_name, next_pipeline_first_stage_id, total_num_jobs)
+
             if next_stage_config["stage_type"] == 1:
                 for i in range(len(keys_bins)):
                     response = lambda_client.invoke(

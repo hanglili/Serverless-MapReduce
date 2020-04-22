@@ -8,7 +8,7 @@ import glob
 
 from datetime import datetime
 from collections import defaultdict
-from serverless_mr.utils import lambda_utils, zip, input_handler, output_handler, stage_state, in_degree
+from serverless_mr.utils import lambda_utils, zip, input_handler, output_handler, stage_state, in_degree, stage_progress
 from serverless_mr.aws_lambda import lambda_manager
 from multiprocessing.dummy import Pool as ThreadPool
 from functools import partial
@@ -98,7 +98,7 @@ def construct_dag_information(pipelines_dependencies, stage_mapping, pipeline_fi
 
 def populate_static_job_info(static_job_info, total_num_pipelines, total_num_stages):
     static_job_info["completed"] = False
-    static_job_info["submissionTime"] = str(datetime.now())
+    static_job_info["submissionTime"] = str(datetime.utcnow())
     static_job_info["duration"] = -1
     static_job_info["totalNumPipelines"] = total_num_pipelines
     static_job_info["totalNumStages"] = total_num_stages
@@ -338,6 +338,11 @@ class Driver:
         in_degree_obj.create_in_degree_table(in_degree_table_name)
         in_degree_obj.initialise_in_degree_table(in_degree_table_name, in_degrees)
 
+        stage_progress_obj = stage_progress.StageProgress(in_lambda=self.is_serverless)
+        stage_progress_table_name = StaticVariables.STAGE_PROGRESS_DYNAMODB_TABLE_NAME % job_name
+        stage_progress_obj.create_progress_table(stage_progress_table_name)
+        stage_progress_obj.initialise_progress_table(stage_progress_table_name, stage_id - 1)
+
         if not self.is_serverless:
             delete_files(glob.glob(StaticVariables.LAMBDA_ZIP_GLOB_PATH))
             delete_files(glob.glob(StaticVariables.FUNCTIONS_PICKLE_GLOB_PATH))
@@ -390,7 +395,7 @@ class Driver:
             partition_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % ("partition", stage_id)
             response = self.lambda_client.invoke(
                 FunctionName=first_function_lambda_name,
-                InvocationType='RequestResponse',
+                InvocationType='Event',
                 Payload=json.dumps({
                     "keys": batch,
                     "id": mapper_id,
@@ -404,7 +409,7 @@ class Driver:
         else:
             response = self.lambda_client.invoke(
                 FunctionName=first_function_lambda_name,
-                InvocationType='RequestResponse',
+                InvocationType='Event',
                 Payload=json.dumps({
                     "keys": batch,
                     "id": mapper_id,
@@ -415,6 +420,9 @@ class Driver:
             print("The response is", response)
 
     def _invoke_pipelines(self, invoking_pipelines_info):
+        job_name = self.static_job_info[StaticVariables.JOB_NAME_FN]
+        stage_progress_obj = stage_progress.StageProgress(in_lambda=self.is_serverless)
+        stage_progress_table_name = StaticVariables.STAGE_PROGRESS_DYNAMODB_TABLE_NAME % job_name
         for pipeline_id, invoking_pipeline_info in invoking_pipelines_info.items():
             print("Scheduling pipeline %s" % pipeline_id)
             num_mappers = invoking_pipeline_info[1]
@@ -424,6 +432,8 @@ class Driver:
             concurrent_lambdas = self.config[StaticVariables.NUM_CONCURRENT_LAMBDAS_FN] \
                 if StaticVariables.NUM_CONCURRENT_LAMBDAS_FN in self.config else StaticVariables.DEFAULT_NUM_CONCURRENT_LAMBDAS
 
+            total_num_jobs = sum([len(batch) for batch in batches])
+            stage_progress_obj.update_total_num_keys(stage_progress_table_name, stage_id, total_num_jobs)
             # Exec Parallel
             print("Number of Mappers: ", num_mappers)
             pool = ThreadPool(num_mappers)
@@ -524,7 +534,7 @@ class Driver:
         contents = response['Body'].read()
         cur_static_job_info = json.loads(contents)
         submission_time = datetime.strptime(cur_static_job_info["submissionTime"], "%Y-%m-%d %H:%M:%S.%f")
-        duration = datetime.now() - submission_time
+        duration = datetime.utcnow() - submission_time
         cur_static_job_info['duration'] = str(duration)
         cur_static_job_info['completed'] = True
 

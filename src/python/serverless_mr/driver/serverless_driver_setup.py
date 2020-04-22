@@ -4,6 +4,7 @@ import pickle
 import os
 import glob
 
+from datetime import datetime
 from serverless_mr.driver.driver import set_up_local_input_data, pickle_functions_and_zip_stage
 from serverless_mr.static.static_variables import StaticVariables
 from serverless_mr.utils import zip
@@ -64,6 +65,15 @@ class ServerlessDriverSetup:
 
         self.pipelines = pipelines
         self.total_num_functions = total_num_functions
+        self.set_up_bucket(StaticVariables.S3_JOBS_INFORMATION_BUCKET_NAME)
+
+    def set_up_bucket(self, bucket_name):
+        self.s3_client.create_bucket(Bucket=bucket_name)
+        self.s3_client.put_bucket_acl(
+            ACL='public-read-write',
+            Bucket=bucket_name,
+        )
+        print("%s Bucket created successfully" % bucket_name)
 
     # Serverless set up
     def register_driver(self):
@@ -100,6 +110,19 @@ class ServerlessDriverSetup:
                                                          self.job_name, self.driver_lambda_name,
                                                          StaticVariables.SERVERLESS_DRIVER_HANDLER_FUNCTION_PATH)
         serverless_driver.update_code_or_create_on_no_exist(self.total_num_functions)
+
+        registered_job_information = {'jobName': self.job_name, 'driverLambdaName': self.driver_lambda_name,
+                                      'registeredTime': str(datetime.utcnow()),
+                                      'shufflingBucket': self.static_job_info[StaticVariables.SHUFFLING_BUCKET_FN],
+                                      'inputSource': self.static_job_info[StaticVariables.INPUT_SOURCE_FN],
+                                      "outputSource": self.static_job_info[StaticVariables.OUTPUT_SOURCE_FN],
+                                      'totalNumPipelines': len(self.pipelines), 'totalNumStages': stage_id - 1}
+        self.s3_client.put_object(Bucket=StaticVariables.S3_JOBS_INFORMATION_BUCKET_NAME,
+                                  Key=(StaticVariables.S3_UI_REGISTERED_JOB_INFORMATION_PATH % self.job_name),
+                                  Body=json.dumps(registered_job_information))
+        self.s3_client.put_object(Bucket=StaticVariables.S3_JOBS_INFORMATION_BUCKET_NAME,
+                                  Key=(StaticVariables.S3_UI_REGISTERED_JOB_DRIVER_CONFIG_PATH % self.job_name),
+                                  Body=json.dumps(self.config))
 
         delete_files(glob.glob(StaticVariables.FUNCTIONS_PICKLE_GLOB_PATH))
         delete_files(glob.glob(StaticVariables.LAMBDA_ZIP_GLOB_PATH))

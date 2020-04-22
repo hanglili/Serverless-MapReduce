@@ -4,9 +4,10 @@ import resource
 import time
 import os
 import pickle
+import random
 
 from serverless_mr.static.static_variables import StaticVariables
-from serverless_mr.utils import output_handler
+from serverless_mr.utils import output_handler, stage_progress
 
 
 def lambda_handler(event, _):
@@ -38,6 +39,9 @@ def lambda_handler(event, _):
 
     print("Stage:", stage_id)
 
+    stage_progress_obj = stage_progress.StageProgress(in_lambda=True)
+    stage_progress_table_name = StaticVariables.STAGE_PROGRESS_DYNAMODB_TABLE_NAME % job_name
+
     # aggr
     line_count = 0
     intermediate_data = []
@@ -55,6 +59,11 @@ def lambda_handler(event, _):
 
     intermediate_data.sort(key=lambda x: x[0])
 
+    begin_time = time.time()
+    interval_time = random.randint(60, 180)
+    interval_num_keys_processed = 0
+    average_num_keys = float(len(intermediate_data) / len(reduce_keys))
+
     cur_key = None
     cur_values = []
     outputs = []
@@ -70,10 +79,24 @@ def lambda_handler(event, _):
             cur_key = key
             cur_values = [value]
 
+        interval_num_keys_processed += 1
+        current_time = time.time()
+        if int(current_time - begin_time) > interval_time:
+            begin_time = current_time
+            interval_time = random.randint(1, 3)
+            interval_num_files_processed = int(interval_num_keys_processed / average_num_keys)
+            stage_progress_obj.increase_num_processed_keys(stage_progress_table_name,
+                                                           stage_id, interval_num_files_processed)
+            interval_num_keys_processed = interval_num_keys_processed % average_num_keys
+
     if cur_key is not None:
         cur_key_outputs = []
         reduce_function(cur_key_outputs, (cur_key, cur_values))
         outputs += cur_key_outputs
+
+    interval_num_files_processed = int(interval_num_keys_processed / average_num_keys)
+    stage_progress_obj.increase_num_processed_keys(stage_progress_table_name,
+                                                   stage_id, interval_num_files_processed)
 
     time_in_secs = (time.time() - start_time)
     # timeTaken = time_in_secs * 1000000000 # in 10^9

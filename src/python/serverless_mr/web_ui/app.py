@@ -5,9 +5,10 @@ import boto3
 from datetime import datetime
 from flask import Flask, jsonify, render_template, request
 from flask_cors import CORS, cross_origin
-from serverless_mr.utils import in_degree, stage_state
+from serverless_mr.utils import in_degree, stage_state, stage_progress
 from serverless_mr.static.static_variables import StaticVariables
 from serverless_mr.data_sources import input_handler_s3
+from botocore.client import Config
 
 
 app = Flask(__name__)
@@ -56,28 +57,77 @@ def get_jobs_info():
     prefix = "web-ui/"
     for obj in client.list_objects(Bucket=StaticVariables.S3_JOBS_INFORMATION_BUCKET_NAME,
                                    Prefix=prefix)["Contents"]:
-        if not obj["Key"].endswith('/') and "static-job-info.json" in obj["Key"]:
+        if not obj["Key"].endswith('/') and \
+                ("static-job-info.json" in obj["Key"] or "registered-job-info.json" in obj["Key"]):
             job_keys_list.append(obj["Key"])
 
     jobs_information = {}
     completed = []
     active = []
+    registered = []
     for job_key in job_keys_list:
         response = client.get_object(Bucket=StaticVariables.S3_JOBS_INFORMATION_BUCKET_NAME,
                                      Key=job_key)
         contents = response['Body'].read()
-        cur_static_job_info = json.loads(contents)
-        if cur_static_job_info["completed"]:
-            completed.append(cur_static_job_info)
+        cur_job_info = json.loads(contents)
+        if "static-job-info.json" in job_key:
+            if cur_job_info["completed"]:
+                completed.append(cur_job_info)
+            else:
+                submission_time = datetime.strptime(cur_job_info["submissionTime"], "%Y-%m-%d %H:%M:%S.%f")
+                duration = datetime.utcnow() - submission_time
+                cur_job_info['duration'] = str(duration)
+                active.append(cur_job_info)
         else:
-            submission_time = datetime.strptime(cur_static_job_info["submissionTime"], "%Y-%m-%d %H:%M:%S.%f")
-            duration = datetime.now() - submission_time
-            cur_static_job_info['duration'] = str(duration)
-            active.append(cur_static_job_info)
+            registered.append(cur_job_info)
 
     jobs_information["completed"] = completed
     jobs_information["active"] = active
+    jobs_information["registered"] = registered
     return jsonify(jobs_information)
+
+
+@app.route("/invoke-job", methods=['GET'])
+@cross_origin()
+def invoke_job():
+    job_name = request.args.get('job-name')
+    driver_lambda_name = request.args.get('driver-lambda-name')
+    static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
+    if static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
+        local_endpoint_url = 'http://localhost:4572'
+        client = boto3.client('s3', aws_access_key_id='', aws_secret_access_key='',
+                                   region_name=StaticVariables.DEFAULT_REGION,
+                                   endpoint_url=local_endpoint_url)
+    else:
+        client = boto3.client('s3')
+    s3_driver_config_key = StaticVariables.S3_UI_REGISTERED_JOB_DRIVER_CONFIG_PATH % job_name
+    response = client.get_object(Bucket=StaticVariables.S3_JOBS_INFORMATION_BUCKET_NAME,
+                                 Key=s3_driver_config_key)
+    contents = response['Body'].read()
+    config = json.loads(contents)
+    region = config[StaticVariables.REGION_FN] \
+        if StaticVariables.REGION_FN in config else StaticVariables.DEFAULT_REGION
+    lambda_read_timeout = config[StaticVariables.LAMBDA_READ_TIMEOUT_FN] \
+        if StaticVariables.LAMBDA_READ_TIMEOUT_FN in config else StaticVariables.DEFAULT_LAMBDA_READ_TIMEOUT
+    boto_max_connections = config[StaticVariables.BOTO_MAX_CONNECTIONS_FN] \
+        if StaticVariables.BOTO_MAX_CONNECTIONS_FN in config else StaticVariables.DEFAULT_BOTO_MAX_CONNECTIONS
+
+    # Setting longer timeout for reading aws_lambda results and larger connections pool
+    lambda_config = Config(read_timeout=lambda_read_timeout,
+                           max_pool_connections=boto_max_connections,
+                           region_name=region)
+    if static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
+        lambda_client = boto3.client('lambda', aws_access_key_id='', aws_secret_access_key='',
+                                          region_name=region,
+                                          endpoint_url='http://localhost:4574', config=lambda_config)
+    else:
+        lambda_client = boto3.client('lambda', config=lambda_config)
+    response = lambda_client.invoke(
+        FunctionName=driver_lambda_name,
+        InvocationType='Event',
+        Payload=json.dumps({})
+    )
+    return response
 
 
 @app.route("/in-degree", methods=['GET'])
@@ -87,6 +137,15 @@ def get_in_degree_info():
     in_degree_obj = in_degree.InDegree(in_lambda=False)
     in_degrees = in_degree_obj.read_in_degree_table(StaticVariables.IN_DEGREE_DYNAMODB_TABLE_NAME % job_name)
     return jsonify(in_degrees)
+
+
+@app.route("/stage-progress", methods=['GET'])
+@cross_origin()
+def get_stage_progress():
+    job_name = request.args.get('job-name')
+    stage_progress_obj = stage_progress.StageProgress(in_lambda=False)
+    stages_progress = stage_progress_obj.read_progress_table(StaticVariables.STAGE_PROGRESS_DYNAMODB_TABLE_NAME % job_name)
+    return jsonify(stages_progress)
 
 
 @app.route("/num-completed-operators", methods=['GET'])

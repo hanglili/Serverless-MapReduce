@@ -45,6 +45,12 @@ class StaticVariables:
     S3_UI_GENERAL_JOB_INFORMATION_PATH = "web-ui/%s/static-job-info.json"
     S3_UI_STAGE_CONFIGURATION_PATH = "web-ui/%s/stage-config.json"
     S3_UI_DAG_INFORMATION_PATH = "web-ui/%s/dag-information.json"
+    S3_UI_REGISTERED_JOB_INFORMATION_PATH = "web-ui/%s/registered-job-info.json"
+    S3_UI_REGISTERED_JOB_DRIVER_CONFIG_PATH = "web-ui/%s/driver.json"
+
+    # DynamoDB table names - Web UI
+    STAGE_PROGRESS_DYNAMODB_TABLE_NAME = "%s-stage-progress"
+    STAGE_PROGRESS_PATH = "serverless_mr/utils/stage_progress.py"
 
     # Lambda handler paths
     MAP_HANDLER_FUNCTION_PATH = "serverless_mr/job/map_handler.lambda_handler"

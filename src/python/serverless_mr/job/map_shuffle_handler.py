@@ -4,10 +4,11 @@ import resource
 import time
 import os
 import pickle
+import random
 
 
 from serverless_mr.static.static_variables import StaticVariables
-from serverless_mr.utils import input_handler
+from serverless_mr.utils import input_handler, stage_progress
 
 
 def lambda_handler(event, _):
@@ -48,11 +49,18 @@ def lambda_handler(event, _):
 
     print("Stage:", stage_id)
 
+    stage_progress_obj = stage_progress.StageProgress(in_lambda=True)
+    stage_progress_table_name = StaticVariables.STAGE_PROGRESS_DYNAMODB_TABLE_NAME % job_name
+
     # aggr
     line_count = 0
     err = ''
 
     # INPUT CSV => OUTPUT JSON
+
+    begin_time = time.time()
+    interval_time = random.randint(1, 3)
+    interval_num_keys_processed = 0
 
     intermediate_data = []
     if load_data_from_input:
@@ -69,6 +77,15 @@ def lambda_handler(event, _):
                 line_count += len(input_value.split('\n')) - 1
             elif static_job_info[StaticVariables.INPUT_SOURCE_TYPE_FN] == "dynamodb":
                 line_count += 1
+
+            interval_num_keys_processed += 1
+            current_time = time.time()
+            if int(current_time - begin_time) > interval_time:
+                begin_time = current_time
+                interval_time = random.randint(1, 3)
+                stage_progress_obj.increase_num_processed_keys(stage_progress_table_name,
+                                                               stage_id, interval_num_keys_processed)
+                interval_num_keys_processed = 0
     else:
         for input_key in src_keys:
             response = s3_client.get_object(Bucket=shuffling_bucket, Key=input_key)
@@ -78,6 +95,18 @@ def lambda_handler(event, _):
             map_function(intermediate_data, input_pair)
 
             line_count += len(input_value)
+
+            interval_num_keys_processed += 1
+            current_time = time.time()
+            if int(current_time - begin_time) > interval_time:
+                begin_time = current_time
+                interval_time = random.randint(1, 3)
+                stage_progress_obj.increase_num_processed_keys(stage_progress_table_name,
+                                                               stage_id, interval_num_keys_processed)
+                interval_num_keys_processed = 0
+
+    stage_progress_obj.increase_num_processed_keys(stage_progress_table_name,
+                                                   stage_id, interval_num_keys_processed)
 
     if use_combine:
 
