@@ -1,7 +1,9 @@
 import json
 import boto3
+import os
 
 
+from localstack.utils.aws import aws_stack
 from datetime import datetime
 from flask import Flask, jsonify, render_template, request
 from flask_cors import CORS, cross_origin
@@ -127,7 +129,49 @@ def invoke_job():
         InvocationType='Event',
         Payload=json.dumps({})
     )
-    return response
+    return jsonify(response)
+
+
+@app.route("/schedule-job", methods=['GET'])
+@cross_origin()
+def schedule_job():
+    job_name = request.args.get('job-name')
+    driver_lambda_name = request.args.get('driver-lambda-name')
+    schedule_expression = request.args.get('schedule-expression')
+    static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
+    if static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
+        # local_endpoint_url = 'http://localhost:4586'
+        # client = boto3.client('events',
+        #                       region_name=StaticVariables.DEFAULT_REGION,
+        #                       endpoint_url=local_endpoint_url)
+        client = aws_stack.connect_to_service('events')
+    else:
+        client = boto3.client('events')
+
+    # Put an event rule
+    response = client.put_rule(
+        Name='%s-scheduling-rule' % job_name,
+        # EventPattern=json.dumps({'Hello': 'hello'}),
+        RoleArn=os.environ.get("serverless_mapreduce_role"),
+        # ScheduleExpression='rate(30 minutes)',
+        # ScheduleExpression='cron(35 11 * * ? *)',
+        ScheduleExpression=schedule_expression,
+        # ScheduleExpression='rate(5 minute)',
+        State='ENABLED'
+    )
+    print(response['RuleArn'])
+
+    response = client.put_targets(
+        Rule='%s-scheduling-rule' % job_name,
+        Targets=[
+            {
+                'Arn': driver_lambda_name,
+                'Id': 'myCloudWatchEventsTarget',
+            }
+        ]
+    )
+    print(response)
+    return jsonify(response)
 
 
 @app.route("/in-degree", methods=['GET'])

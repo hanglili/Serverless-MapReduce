@@ -10,7 +10,10 @@ trust_role = {
       "Sid": "",
       "Effect": "Allow",
       "Principal": {
-        "Service": "lambda.amazonaws.com"
+        "Service": [
+            "lambda.amazonaws.com",
+            "events.amazonaws.com"
+        ]
       },
       "Action": "sts:AssumeRole"
     }

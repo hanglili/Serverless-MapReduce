@@ -35,6 +35,12 @@ config_pipeline_1 = {
     "localTestingInputPath": "../../input_data/testing_partitioned/s3/"
 }
 
+online_config_pipeline_1 = {
+    "inputSourceType": "s3",
+    "inputSource": "serverless-mapreduce-storage",
+    "inputPrefix": "testing_partitioned",
+}
+
 config_pipeline_2 = {
     "inputSourceType": "dynamodb",
     "inputSource": "serverless-mapreduce-storage-input",
