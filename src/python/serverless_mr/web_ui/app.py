@@ -13,18 +13,20 @@ from serverless_mr.data_sources import input_handler_s3
 from botocore.client import Config
 
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='./templates/public', template_folder="./templates/static")
 cors = CORS(app)
 app.config['CORS_HEADERS'] = 'Content-Type'
 
 
-@app.route('/')
+@app.route('/hello-world')
 @cross_origin()
 def hello_world():
     return jsonify('ServerlessMR Web Application')
 
 
+@app.route('/')
 @app.route('/index')
+@app.route('/admin/table')
 @cross_origin()
 def index():
     return render_template("index.html")
@@ -129,7 +131,8 @@ def invoke_job():
         InvocationType='Event',
         Payload=json.dumps({})
     )
-    return jsonify(response)
+    print(response)
+    return jsonify(response['ResponseMetadata'])
 
 
 @app.route("/schedule-job", methods=['GET'])

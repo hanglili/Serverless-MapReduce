@@ -49,7 +49,7 @@ const config = {
               //         loader: 'file-loader',
               //     },
               // ],
-              test: /\.(woff(2)?|png|jpe?g|gif|svg)(\?v=\d+\.\d+\.\d+)?$/,
+              test: /\.(png|jpe?g|gif|svg)(\?v=\d+\.\d+\.\d+)?$/,
               use: [
                   {
                       loader: 'file-loader',
