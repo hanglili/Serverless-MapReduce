@@ -57,8 +57,7 @@ class Admin extends Component {
       title: <span data-notify="icon" className="pe-7s-gift" />,
       message: (
         <div>
-          Welcome to <b>Light Bootstrap Dashboard</b> - a beautiful freebie for
-          every web developer.
+          Welcome to <b>ServerlessMR WebUI</b>
         </div>
       ),
       level: level,
@@ -68,7 +67,7 @@ class Admin extends Component {
   };
   getRoutes = routes => {
     return routes.map((prop, key) => {
-      if (prop.layout === "/admin") {
+      if (prop.layout === "/dev") {
         return (
           <Route
             path={prop.layout + prop.path}

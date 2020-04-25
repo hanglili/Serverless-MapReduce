@@ -40,14 +40,14 @@ const dashboardRoutes = [
     name: "Dashboard",
     icon: "pe-7s-note2",
     component: TableList,
-    layout: "/admin"
+    layout: "/dev"
   },
   {
     path: "/job-information",
     name: "Job Information",
     icon: "pe-7s-monitor",
     component: JobInfo,
-    layout: "/admin"
+    layout: "/dev"
   }
 ];
 

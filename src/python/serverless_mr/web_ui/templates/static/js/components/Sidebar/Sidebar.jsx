@@ -56,14 +56,14 @@ class Sidebar extends Component {
             null
           )}
         <div className="logo">
-          <a
-            href="https://github.com/hanglili/Serverless-MapReduce"
-            className="simple-text logo-mini"
-          >
-            <div className="logo-img">
-              <img src={logo} alt="logo_image" />
-            </div>
-          </a>
+          {/*<a*/}
+          {/*  href="https://github.com/hanglili/Serverless-MapReduce"*/}
+          {/*  className="simple-text logo-mini"*/}
+          {/*>*/}
+          {/*  <div className="logo-img">*/}
+          {/*    <img src={logo} alt="logo_image" />*/}
+          {/*  </div>*/}
+          {/*</a>*/}
           <a
             href="https://github.com/hanglili/Serverless-MapReduce"
             className="simple-text logo-normal"

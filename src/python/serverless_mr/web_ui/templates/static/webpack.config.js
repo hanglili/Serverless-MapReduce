@@ -7,7 +7,7 @@ const config = {
     output:{
         path: resolve('../public/'),
         filename: 'bundle.js',
-        publicPath: '../public/'
+        publicPath: 'dev/public/'
         // publicPath: resolve('../public')
 },
     resolve: {

@@ -3,19 +3,21 @@ import boto3
 import os
 
 
-from localstack.utils.aws import aws_stack
+# from localstack.utils.aws import aws_stack
 from datetime import datetime
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, render_template, request, url_for, send_from_directory
 from flask_cors import CORS, cross_origin
-from serverless_mr.utils import in_degree, stage_state, stage_progress
-from serverless_mr.static.static_variables import StaticVariables
-from serverless_mr.data_sources import input_handler_s3
-from botocore.client import Config
+# from serverless_mr.utils import in_degree, stage_state, stage_progress
+# from serverless_mr.static.static_variables import StaticVariables
+# from serverless_mr.data_sources import input_handler_s3
+# from botocore.client import Config
 
 
-app = Flask(__name__, static_folder='./templates/public', template_folder="./templates/static")
+# app = Flask(__name__, static_folder='./templates/public', template_folder="./templates/static")
+app = Flask(__name__, template_folder="./templates/static")
 cors = CORS(app)
 app.config['CORS_HEADERS'] = 'Content-Type'
+# app.config["APPLICATION_ROOT"] = "/dev"
 
 
 @app.route('/hello-world')
@@ -24,9 +26,25 @@ def hello_world():
     return jsonify('ServerlessMR Web Application')
 
 
+@app.route("/url")
+@cross_origin()
+def url():
+    return "The URL for this page is {}".format(url_for("/"))
+
+
+# @app.route('/public/bundle.js')
+# def custom_static():
+#     return send_from_directory('templates/public', 'bundle.js')
+
+
+@app.route('/public/<path:filename>')
+def custom_static(filename):
+    return send_from_directory('templates/public', filename)
+
+
 @app.route('/')
 @app.route('/index')
-@app.route('/admin/table')
+@app.route('/dev/table')
 @cross_origin()
 def index():
     return render_template("index.html")

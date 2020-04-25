@@ -31,8 +31,8 @@ import AdminLayout from "./layouts/Admin.jsx";
 ReactDOM.render(
   <BrowserRouter>
     <Switch>
-      <Route path="/admin" render={props => <AdminLayout {...props} />} />
-      <Redirect from="/" to="/admin/table" />
+      <Route path="/dev/table" render={props => <AdminLayout {...props} />} />
+      <Redirect from="/" to="/dev/table" />
     </Switch>
   </BrowserRouter>,
   document.getElementById("root")
