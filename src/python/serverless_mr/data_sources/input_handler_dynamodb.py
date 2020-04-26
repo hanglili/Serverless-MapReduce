@@ -10,9 +10,8 @@ id_cnt = 1
 
 class InputHandlerDynamoDB:
 
-    def __init__(self, in_lambda):
-        static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
-        if static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
+    def __init__(self, in_lambda, is_local_testing):
+        if is_local_testing:
             if in_lambda:
                 local_endpoint_url = 'http://%s:4569' % os.environ['LOCALSTACK_HOSTNAME']
             else:

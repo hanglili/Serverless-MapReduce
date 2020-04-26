@@ -39,7 +39,8 @@ def lambda_handler(event, _):
 
     print("Stage:", stage_id)
 
-    stage_progress_obj = stage_progress.StageProgress(in_lambda=True)
+    stage_progress_obj = stage_progress.StageProgress(in_lambda=True,
+                                                      is_local_testing=static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN])
     stage_progress_table_name = StaticVariables.STAGE_PROGRESS_DYNAMODB_TABLE_NAME % job_name
 
     # aggr
@@ -112,6 +113,7 @@ def lambda_handler(event, _):
 
     if stage_id == total_num_stages:
         cur_output_handler = output_handler.get_output_handler(static_job_info[StaticVariables.OUTPUT_SOURCE_TYPE_FN],
+                                                               static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN],
                                                                in_lambda=True)
         cur_output_handler.write_output(reducer_id, outputs, metadata, static_job_info)
     else:

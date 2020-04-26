@@ -49,7 +49,8 @@ def lambda_handler(event, _):
 
     print("Stage:", stage_id)
 
-    stage_progress_obj = stage_progress.StageProgress(in_lambda=True)
+    stage_progress_obj = stage_progress.StageProgress(in_lambda=True,
+                                                      is_local_testing=static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN])
     stage_progress_table_name = StaticVariables.STAGE_PROGRESS_DYNAMODB_TABLE_NAME % job_name
 
     # aggr
@@ -65,6 +66,7 @@ def lambda_handler(event, _):
     intermediate_data = []
     if load_data_from_input:
         cur_input_handler = input_handler.get_input_handler(static_job_info[StaticVariables.INPUT_SOURCE_TYPE_FN],
+                                                            static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN],
                                                             in_lambda=True)
         input_source = static_job_info[StaticVariables.INPUT_SOURCE_FN]
         for input_key in src_keys:

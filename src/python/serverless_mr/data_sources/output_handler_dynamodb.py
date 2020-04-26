@@ -10,10 +10,9 @@ class OutputHandlerDynamoDB:
     METADATA_TABLE_KEY_NAME = "id"
     METADATA_TABLE_COLUMN_NAME = "metadata"
 
-    def __init__(self, in_lambda):
+    def __init__(self, in_lambda, is_local_testing):
         # S3 client required to calculate the cost of S3 shuffling bucket
-        static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
-        if static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
+        if is_local_testing:
             if in_lambda:
                 local_endpoint_url = 'http://%s:4569' % os.environ['LOCALSTACK_HOSTNAME']
                 s3_local_endpoint_url = 'http://%s:4572' % os.environ['LOCALSTACK_HOSTNAME']

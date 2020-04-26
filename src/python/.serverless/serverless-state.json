@@ -1,8 +1,8 @@
 {
   "service": {
-    "service": "hang",
+    "service": "webui",
     "serviceObject": {
-      "name": "hang"
+      "name": "webui"
     },
     "provider": {
       "stage": "dev",
@@ -75,7 +75,7 @@
           "AppLogGroup": {
             "Type": "AWS::Logs::LogGroup",
             "Properties": {
-              "LogGroupName": "/aws/lambda/hang-dev-app"
+              "LogGroupName": "/aws/lambda/webui-dev-app"
             }
           },
           "AppLambdaFunction": {
@@ -85,9 +85,9 @@
                 "S3Bucket": {
                   "Ref": "ServerlessDeploymentBucket"
                 },
-                "S3Key": "serverless/hang/dev/1587904790693-2020-04-26T12:39:50.693Z/hang.zip"
+                "S3Key": "serverless/webui/dev/1587931529538-2020-04-26T20:05:29.538Z/webui.zip"
               },
-              "FunctionName": "hang-dev-app",
+              "FunctionName": "webui-dev-app",
               "Handler": "wsgi_handler.handler",
               "MemorySize": 128,
               "Role": "arn:aws:iam::259503590756:role/serverless_mr_role",
@@ -95,7 +95,8 @@
               "Timeout": 6,
               "Environment": {
                 "Variables": {
-                  "serverless_mapreduce_role": "arn:aws:iam::259503590756:role/serverless_mr_role"
+                  "serverless_mapreduce_role": "arn:aws:iam::259503590756:role/serverless_mr_role",
+                  "local_testing": false
                 }
               }
             },
@@ -103,20 +104,20 @@
               "AppLogGroup"
             ]
           },
-          "AppLambdaVersionvrJXDJQzP74X1KzS593xHHay3DKTHaxaC6AsOrPsfY": {
+          "AppLambdaVersionKxgL2camFlqsBcnZgWWxNiiU9uMJbNYDwg6Jp2HA": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "AppLambdaFunction"
               },
-              "CodeSha256": "O7x4nvaw2RMbQVcveZeQp4GvVbUcM78CsPjBYUaVluE="
+              "CodeSha256": "DslTV8nuYRb8Rm775nzgHM94ZR2mdlGaXx47X8+pc78="
             }
           },
           "ApiGatewayRestApi": {
             "Type": "AWS::ApiGateway::RestApi",
             "Properties": {
-              "Name": "dev-hang",
+              "Name": "dev-webui",
               "EndpointConfiguration": {
                 "Types": [
                   "EDGE"
@@ -229,7 +230,7 @@
               "MethodResponses": []
             }
           },
-          "ApiGatewayDeployment1587904742933": {
+          "ApiGatewayDeployment1587931479270": {
             "Type": "AWS::ApiGateway::Deployment",
             "Properties": {
               "RestApiId": {
@@ -289,7 +290,7 @@
           "AppLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "AppLambdaVersionvrJXDJQzP74X1KzS593xHHay3DKTHaxaC6AsOrPsfY"
+              "Ref": "AppLambdaVersionKxgL2camFlqsBcnZgWWxNiiU9uMJbNYDwg6Jp2HA"
             }
           },
           "ServiceEndpoint": {
@@ -401,7 +402,8 @@
       "app": {
         "handler": "wsgi_handler.handler",
         "environment": {
-          "serverless_mapreduce_role": "arn:aws:iam::259503590756:role/serverless_mr_role"
+          "serverless_mapreduce_role": "arn:aws:iam::259503590756:role/serverless_mr_role",
+          "local_testing": false
         },
         "events": [
           {
@@ -411,22 +413,22 @@
             "http": "ANY {proxy+}"
           }
         ],
-        "name": "hang-dev-app",
+        "name": "webui-dev-app",
         "package": {},
         "memory": 128,
         "timeout": 6,
         "runtime": "python3.7",
         "vpc": {},
-        "versionLogicalId": "AppLambdaVersionvrJXDJQzP74X1KzS593xHHay3DKTHaxaC6AsOrPsfY"
+        "versionLogicalId": "AppLambdaVersionKxgL2camFlqsBcnZgWWxNiiU9uMJbNYDwg6Jp2HA"
       }
     },
     "serviceFilename": "serverless.yml",
     "layers": {},
     "isDashboardMonitoringPreconfigured": false,
-    "artifact": "/Users/hanglili/Imperial/4Y/IndividualProject/serverless-mr/src/python/.serverless/hang.zip"
+    "artifact": "/Users/hanglili/Imperial/4Y/IndividualProject/serverless-mr/src/python/.serverless/webui.zip"
   },
   "package": {
-    "artifactDirectoryName": "serverless/hang/dev/1587904790693-2020-04-26T12:39:50.693Z",
-    "artifact": "hang.zip"
+    "artifactDirectoryName": "serverless/webui/dev/1587931529538-2020-04-26T20:05:29.538Z",
+    "artifact": "webui.zip"
   }
 }

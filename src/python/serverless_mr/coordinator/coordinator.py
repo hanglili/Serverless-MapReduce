@@ -51,7 +51,8 @@ def schedule_same_pipeline_next_stage(stage_configuration, stage_id, shuffling_b
     else:
         keys_bins = get_map_reduce_outputs(shuffling_bucket, job_name, [stage_id])
 
-    stage_progress_obj = stage_progress.StageProgress(in_lambda=True)
+    stage_progress_obj = stage_progress.StageProgress(in_lambda=True,
+                                                      is_local_testing=static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN])
     stage_progress_table_name = StaticVariables.STAGE_PROGRESS_DYNAMODB_TABLE_NAME % job_name
     total_num_jobs = sum([len(keys_bin) for keys_bin in keys_bins])
     stage_progress_obj.update_total_num_keys(stage_progress_table_name, stage_id + 1, total_num_jobs)
@@ -106,8 +107,10 @@ def schedule_different_pipeline_next_stage(is_serverless_driver, stage_configura
         contents = response['Body'].read()
         pipeline_first_last_stage_ids = json.loads(contents)
 
-    in_degree_obj = in_degree.InDegree(in_lambda=True)
-    stage_progress_obj = stage_progress.StageProgress(in_lambda=True)
+    in_degree_obj = in_degree.InDegree(in_lambda=True,
+                                       is_local_testing=static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN])
+    stage_progress_obj = stage_progress.StageProgress(in_lambda=True,
+                                                      is_local_testing=static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN])
     stage_progress_table_name = StaticVariables.STAGE_PROGRESS_DYNAMODB_TABLE_NAME % job_name
     for dependent_pipeline_id in adj_list[str(cur_pipeline_id)]:
         response = in_degree_obj.decrement_in_degree_table(StaticVariables.IN_DEGREE_DYNAMODB_TABLE_NAME % job_name,
@@ -168,7 +171,8 @@ def lambda_handler(event, _):
     if not s3_obj_key.startswith(stage_s3_prefix):
         return
 
-    cur_map_phase_state = stage_state.StageState(in_lambda=True)
+    cur_map_phase_state = stage_state.StageState(in_lambda=True,
+                                                 is_local_testing=static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN])
     # stage_id = cur_map_phase_state.read_current_stage_id(StaticVariables.STAGE_STATE_DYNAMODB_TABLE_NAME)
     stage_id = int(s3_obj_key.split("/")[1].split("-")[1])
     print("Stage:", stage_id)

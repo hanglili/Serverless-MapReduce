@@ -20,12 +20,6 @@ app.config['CORS_HEADERS'] = 'Content-Type'
 
 
 def is_production():
-    """ Determines if app is running on the production server or not.
-    Get Current URI.
-    Extract root location.
-    Compare root location against developer server value 127.0.0.1:5000.
-    :return: (bool) True if code is running on the production server, and False otherwise.
-    """
     root_url = request.url_root
     developer_url = 'http://127.0.0.1:5000/'
     localhost_url = 'http://localhost:5000/'
@@ -40,7 +34,7 @@ def hello_world():
 
 @app.route("/url")
 @cross_origin()
-def url():
+def get_url():
     return "The URL for this page is {}".format(url_for("/"))
 
 
@@ -50,11 +44,13 @@ def url():
 
 
 @app.route('/public/<path:filename>')
+@cross_origin()
 def online_custom_static(filename):
     return send_from_directory('templates/public', filename)
 
 
 @app.route('/dev/public/<path:filename>')
+@cross_origin()
 def local_custom_static(filename):
     return send_from_directory('templates/public', filename)
 
@@ -73,8 +69,8 @@ def index():
 @app.route('/username')
 @cross_origin()
 def get_username():
-    static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
-    if static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
+    is_local_testing = os.environ.get("local_testing") == 'True' or os.environ.get("local_testing") == 'true'
+    if is_local_testing:
         local_endpoint_url = 'http://localhost:4592'
         client = boto3.client('sts', aws_access_key_id='', aws_secret_access_key='',
                               region_name=StaticVariables.DEFAULT_REGION,
@@ -87,12 +83,12 @@ def get_username():
 @app.route("/jobs", methods=['GET'])
 @cross_origin()
 def get_jobs_info():
-    static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
-    if static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
+    is_local_testing = os.environ.get("local_testing") == 'True' or os.environ.get("local_testing") == 'true'
+    if is_local_testing:
         local_endpoint_url = 'http://localhost:4572'
         client = boto3.client('s3', aws_access_key_id='', aws_secret_access_key='',
-                                   region_name=StaticVariables.DEFAULT_REGION,
-                                   endpoint_url=local_endpoint_url)
+                              region_name=StaticVariables.DEFAULT_REGION,
+                              endpoint_url=local_endpoint_url)
     else:
         client = boto3.client('s3')
     job_keys_list = []
@@ -134,12 +130,13 @@ def get_jobs_info():
 def invoke_job():
     job_name = request.args.get('job-name')
     driver_lambda_name = request.args.get('driver-lambda-name')
-    static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
-    if static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
+
+    is_local_testing = os.environ.get("local_testing") == 'True' or os.environ.get("local_testing") == 'true'
+    if is_local_testing:
         local_endpoint_url = 'http://localhost:4572'
         client = boto3.client('s3', aws_access_key_id='', aws_secret_access_key='',
-                                   region_name=StaticVariables.DEFAULT_REGION,
-                                   endpoint_url=local_endpoint_url)
+                              region_name=StaticVariables.DEFAULT_REGION,
+                              endpoint_url=local_endpoint_url)
     else:
         client = boto3.client('s3')
     s3_driver_config_key = StaticVariables.S3_UI_REGISTERED_JOB_DRIVER_CONFIG_PATH % job_name
@@ -158,10 +155,10 @@ def invoke_job():
     lambda_config = Config(read_timeout=lambda_read_timeout,
                            max_pool_connections=boto_max_connections,
                            region_name=region)
-    if static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
+    if is_local_testing:
         lambda_client = boto3.client('lambda', aws_access_key_id='', aws_secret_access_key='',
-                                          region_name=region,
-                                          endpoint_url='http://localhost:4574', config=lambda_config)
+                                     region_name=region,
+                                     endpoint_url='http://localhost:4574', config=lambda_config)
     else:
         lambda_client = boto3.client('lambda', config=lambda_config)
     response = lambda_client.invoke(
@@ -179,8 +176,9 @@ def schedule_job():
     job_name = request.args.get('job-name')
     driver_lambda_name = request.args.get('driver-lambda-name')
     schedule_expression = request.args.get('schedule-expression')
-    static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
-    if static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
+
+    is_local_testing = os.environ.get("local_testing") == 'True' or os.environ.get("local_testing") == 'true'
+    if is_local_testing:
         # local_endpoint_url = 'http://localhost:4586'
         # client = boto3.client('events',
         #                       region_name=StaticVariables.DEFAULT_REGION,
@@ -220,7 +218,9 @@ def schedule_job():
 @cross_origin()
 def get_in_degree_info():
     job_name = request.args.get('job-name')
-    in_degree_obj = in_degree.InDegree(in_lambda=False)
+
+    is_local_testing = os.environ.get("local_testing") == 'True' or os.environ.get("local_testing") == 'true'
+    in_degree_obj = in_degree.InDegree(in_lambda=False, is_local_testing=is_local_testing)
     in_degrees = in_degree_obj.read_in_degree_table(StaticVariables.IN_DEGREE_DYNAMODB_TABLE_NAME % job_name)
     return jsonify(in_degrees)
 
@@ -229,7 +229,9 @@ def get_in_degree_info():
 @cross_origin()
 def get_stage_progress():
     job_name = request.args.get('job-name')
-    stage_progress_obj = stage_progress.StageProgress(in_lambda=False)
+
+    is_local_testing = os.environ.get("local_testing") == 'True' or os.environ.get("local_testing") == 'true'
+    stage_progress_obj = stage_progress.StageProgress(in_lambda=False, is_local_testing=is_local_testing)
     stages_progress = stage_progress_obj.read_progress_table(StaticVariables.STAGE_PROGRESS_DYNAMODB_TABLE_NAME % job_name)
     return jsonify(stages_progress)
 
@@ -238,12 +240,14 @@ def get_stage_progress():
 @cross_origin()
 def get_num_completed_operators():
     job_name = request.args.get('job-name')
-    static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
-    input_handler_s3_obj = input_handler_s3.InputHandlerS3(in_lambda=False)
+
+    is_local_testing = os.environ.get("local_testing") == 'True' or os.environ.get("local_testing") == 'true'
+    input_handler_s3_obj = input_handler_s3.InputHandlerS3(in_lambda=False, is_local_testing=is_local_testing)
     s3_stage_conf_path = StaticVariables.S3_UI_STAGE_CONFIGURATION_PATH % job_name
     stage_config = json.loads(input_handler_s3_obj.read_records_from_input_key(StaticVariables.S3_JOBS_INFORMATION_BUCKET_NAME,
-                                                                               s3_stage_conf_path, static_job_info))
-    stage_state_obj = stage_state.StageState(in_lambda=False)
+                                                                               s3_stage_conf_path, None))
+
+    stage_state_obj = stage_state.StageState(in_lambda=False, is_local_testing=is_local_testing)
     stage_states = stage_state_obj.read_state_table(StaticVariables.STAGE_STATE_DYNAMODB_TABLE_NAME % job_name)
     result = {}
     for stage_id, stage_num_completed in stage_states.items():
@@ -255,11 +259,12 @@ def get_num_completed_operators():
 @cross_origin()
 def get_dag_information():
     job_name = request.args.get('job-name')
-    static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
-    input_handler_s3_obj = input_handler_s3.InputHandlerS3(in_lambda=False)
+
+    is_local_testing = os.environ.get("local_testing") == 'True' or os.environ.get("local_testing") == 'true'
+    input_handler_s3_obj = input_handler_s3.InputHandlerS3(in_lambda=False, is_local_testing=is_local_testing)
     s3_dag_information_path = StaticVariables.S3_UI_DAG_INFORMATION_PATH % job_name
     dag_data = json.loads(input_handler_s3_obj.read_records_from_input_key(StaticVariables.S3_JOBS_INFORMATION_BUCKET_NAME,
-                                                                           s3_dag_information_path, static_job_info))
+                                                                           s3_dag_information_path, None))
     return jsonify(dag_data)
 
 

@@ -26,7 +26,8 @@ def delete_files(filenames):
 
 def set_up_local_input_data(static_job_info):
     if static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
-        cur_input_handler = input_handler.get_input_handler(static_job_info[StaticVariables.INPUT_SOURCE_TYPE_FN])
+        cur_input_handler = input_handler.get_input_handler(static_job_info[StaticVariables.INPUT_SOURCE_TYPE_FN],
+                                                            static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN])
 
         os.chdir(StaticVariables.PROJECT_WORKING_DIRECTORY)
         local_testing_input_path = static_job_info[StaticVariables.LOCAL_TESTING_INPUT_PATH]
@@ -114,7 +115,8 @@ class Driver:
         self._set_lambda_config_and_client()
         self.pipelines = pipelines
         self.total_num_functions = total_num_functions
-        self.map_phase_state = stage_state.StageState(self.is_serverless)
+        self.map_phase_state = stage_state.StageState(self.is_serverless,
+                                                      is_local_testing=self.static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN])
         self._initialise_stage_state(total_num_functions)
         self.set_up_bucket(self.static_job_info[StaticVariables.SHUFFLING_BUCKET_FN])
         self.set_up_bucket(StaticVariables.S3_JOBS_INFORMATION_BUCKET_NAME)
@@ -185,6 +187,7 @@ class Driver:
 
         # Fetch all the keys that match the prefix
         cur_input_handler = input_handler.get_input_handler(static_job_info[StaticVariables.INPUT_SOURCE_TYPE_FN],
+                                                            static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN],
                                                             self.is_serverless)
         all_keys = cur_input_handler.get_all_input_keys(static_job_info)
 
@@ -333,12 +336,14 @@ class Driver:
         cur_coordinator_lambda.create_s3_event_source_notification(shuffling_bucket, shuffling_s3_path_prefix)
         function_lambdas.append(cur_coordinator_lambda)
 
-        in_degree_obj = in_degree.InDegree(in_lambda=self.is_serverless)
+        in_degree_obj = in_degree.InDegree(in_lambda=self.is_serverless,
+                                           is_local_testing=self.static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN])
         in_degree_table_name = StaticVariables.IN_DEGREE_DYNAMODB_TABLE_NAME % job_name
         in_degree_obj.create_in_degree_table(in_degree_table_name)
         in_degree_obj.initialise_in_degree_table(in_degree_table_name, in_degrees)
 
-        stage_progress_obj = stage_progress.StageProgress(in_lambda=self.is_serverless)
+        stage_progress_obj = stage_progress.StageProgress(in_lambda=self.is_serverless,
+                                                          is_local_testing=self.static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN])
         stage_progress_table_name = StaticVariables.STAGE_PROGRESS_DYNAMODB_TABLE_NAME % job_name
         stage_progress_obj.create_progress_table(stage_progress_table_name)
         stage_progress_obj.initialise_progress_table(stage_progress_table_name, stage_id - 1)
@@ -421,7 +426,8 @@ class Driver:
 
     def _invoke_pipelines(self, invoking_pipelines_info):
         job_name = self.static_job_info[StaticVariables.JOB_NAME_FN]
-        stage_progress_obj = stage_progress.StageProgress(in_lambda=self.is_serverless)
+        stage_progress_obj = stage_progress.StageProgress(in_lambda=self.is_serverless,
+                                                          is_local_testing=self.static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN])
         stage_progress_table_name = StaticVariables.STAGE_PROGRESS_DYNAMODB_TABLE_NAME % job_name
         for pipeline_id, invoking_pipeline_info in invoking_pipelines_info.items():
             print("Scheduling pipeline %s" % pipeline_id)
@@ -552,6 +558,7 @@ class Driver:
 
         # 3. Create output storage and calculate costs - Approx (since we are using exec time reported by our func and not billed ms)
         cur_output_handler = output_handler.get_output_handler(self.static_job_info[StaticVariables.OUTPUT_SOURCE_TYPE_FN],
+                                                               self.static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN],
                                                                self.is_serverless)
         cur_output_handler.create_output_storage(self.static_job_info)
         self._calculate_cost(num_outputs, cur_output_handler, invoking_pipelines_info)
