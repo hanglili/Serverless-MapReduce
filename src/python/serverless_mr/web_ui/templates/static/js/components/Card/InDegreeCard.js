@@ -57,8 +57,17 @@ export class InDegreeCard extends Component {
     try {
       // const response = await fetch('http://localhost:5000/in-degree')
       //   .then(res => res.json()).then(newInDegreeData => this.construct_table(newInDegreeData))
-
-      const res = await fetch('http://localhost:5000/in-degree?'.concat('job-name=', this.state.jobName));
+      const currentPageHost = location.host;
+      const currentPageHostname = location.hostname;
+      const currentPageProtocol = location.protocol;
+      let url = '';
+      if (currentPageHostname === "localhost" || currentPageHostname === "127.0.0.1") {
+        url = `${currentPageProtocol}//${currentPageHost}/in-degree?`;
+      } else {
+        url = `${currentPageProtocol}//${currentPageHostname}/dev/in-degree?`;
+      }
+      url = url.concat('job-name=', this.state.jobName);
+      const res = await fetch(url);
       const newInDegreeData = await res.json();
       const newInDegreeArray = [];
       for(var key in newInDegreeData)

@@ -3,14 +3,13 @@ import boto3
 import os
 
 
-# from localstack.utils.aws import aws_stack
 from datetime import datetime
 from flask import Flask, jsonify, render_template, request, url_for, send_from_directory
 from flask_cors import CORS, cross_origin
-# from serverless_mr.utils import in_degree, stage_state, stage_progress
-# from serverless_mr.static.static_variables import StaticVariables
-# from serverless_mr.data_sources import input_handler_s3
-# from botocore.client import Config
+from botocore.client import Config
+from serverless_mr.utils import in_degree, stage_state, stage_progress
+from serverless_mr.static.static_variables import StaticVariables
+from serverless_mr.data_sources import input_handler_s3
 
 
 # app = Flask(__name__, static_folder='./templates/public', template_folder="./templates/static")
@@ -18,6 +17,19 @@ app = Flask(__name__, template_folder="./templates/static")
 cors = CORS(app)
 app.config['CORS_HEADERS'] = 'Content-Type'
 # app.config["APPLICATION_ROOT"] = "/dev"
+
+
+def is_production():
+    """ Determines if app is running on the production server or not.
+    Get Current URI.
+    Extract root location.
+    Compare root location against developer server value 127.0.0.1:5000.
+    :return: (bool) True if code is running on the production server, and False otherwise.
+    """
+    root_url = request.url_root
+    developer_url = 'http://127.0.0.1:5000/'
+    localhost_url = 'http://localhost:5000/'
+    return root_url != developer_url and root_url != localhost_url
 
 
 @app.route('/hello-world')
@@ -38,7 +50,12 @@ def url():
 
 
 @app.route('/public/<path:filename>')
-def custom_static(filename):
+def online_custom_static(filename):
+    return send_from_directory('templates/public', filename)
+
+
+@app.route('/dev/public/<path:filename>')
+def local_custom_static(filename):
     return send_from_directory('templates/public', filename)
 
 
@@ -47,7 +64,10 @@ def custom_static(filename):
 @app.route('/dev/table')
 @cross_origin()
 def index():
-    return render_template("index.html")
+    if is_production():
+        return render_template("index.html")
+    else:
+        return render_template("index_local.html")
 
 
 @app.route('/username')
@@ -165,6 +185,7 @@ def schedule_job():
         # client = boto3.client('events',
         #                       region_name=StaticVariables.DEFAULT_REGION,
         #                       endpoint_url=local_endpoint_url)
+        from localstack.utils.aws import aws_stack
         client = aws_stack.connect_to_service('events')
     else:
         client = boto3.client('events')

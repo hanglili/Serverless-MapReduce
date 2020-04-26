@@ -58,7 +58,17 @@ export class StageProgressCard extends Component {
 
   async loadNewData() {
     try {
-      const res = await fetch('http://localhost:5000/stage-progress?'.concat('job-name=', this.state.jobName));
+      const currentPageHost = location.host;
+      const currentPageHostname = location.hostname;
+      const currentPageProtocol = location.protocol;
+      let url = '';
+      if (currentPageHostname === "localhost" || currentPageHostname === "127.0.0.1") {
+        url = `${currentPageProtocol}//${currentPageHost}/stage-progress?`;
+      } else {
+        url = `${currentPageProtocol}//${currentPageHostname}/dev/stage-progress?`;
+      }
+      url = url.concat('job-name=', this.state.jobName);
+      const res = await fetch(url);
       const newStageProgressData = await res.json();
       const newStageProgressArray = [];
       for(var key in newStageProgressData)

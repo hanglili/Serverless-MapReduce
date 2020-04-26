@@ -53,7 +53,16 @@ class TableList extends Component {
 
   async loadUsername() {
     try {
-      const res = await fetch('http://localhost:5000/username');
+      const currentPageHost = location.host;
+      const currentPageHostname = location.hostname;
+      const currentPageProtocol = location.protocol;
+      let url = '';
+      if (currentPageHostname === "localhost" || currentPageHostname === "127.0.0.1") {
+        url = `${currentPageProtocol}//${currentPageHost}/username`;
+      } else {
+        url = `${currentPageProtocol}//${currentPageHostname}/dev/username`;
+      }
+      const res = await fetch(url);
       return await res.text();
     } catch(e) {
       console.log(e);
@@ -63,7 +72,16 @@ class TableList extends Component {
 
   async loadNewData() {
     try {
-      const res = await fetch('http://localhost:5000/jobs');
+      const currentPageHost = location.host;
+      const currentPageHostname = location.hostname;
+      const currentPageProtocol = location.protocol;
+      let url = '';
+      if (currentPageHostname === "localhost" || currentPageHostname === "127.0.0.1") {
+        url = `${currentPageProtocol}//${currentPageHost}/jobs`;
+      } else {
+        url = `${currentPageProtocol}//${currentPageHostname}/dev/jobs`;
+      }
+      const res = await fetch(url);
       return await res.json();
     } catch(e) {
       console.log(e);
@@ -74,8 +92,8 @@ class TableList extends Component {
   reformatJobsData(jobsData, fieldNames) {
     const jobArray = [];
     for(var k = 0; k < jobsData.length; k++) {
-      const map = jobsData[k]
-      const currentRow = []
+      const map = jobsData[k];
+      const currentRow = [];
       for(const fieldName of fieldNames) {
         currentRow.push(map[fieldName])
       }
@@ -92,17 +110,17 @@ class TableList extends Component {
       [
         'jobName', 'driverLambdaName', 'shufflingBucket', 'inputSource',
         'outputSource', 'registeredTime', 'totalNumPipelines', 'totalNumStages'
-      ])
+      ]);
     const newCompletedJobArray = this.reformatJobsData(newJobsData.completed,
       [
         'jobName', 'shufflingBucket', 'inputSource', 'outputSource',
         'submissionTime', 'duration', 'totalNumPipelines', 'totalNumStages'
-      ])
+      ]);
     const newActiveJobArray = this.reformatJobsData(newJobsData.active,
       [
         'jobName', 'shufflingBucket', 'inputSource', 'outputSource',
         'submissionTime', 'duration', 'totalNumPipelines', 'totalNumStages'
-      ])
+      ]);
     this.setState({
       'registered': newRegisteredJobArray,
       'completed': newCompletedJobArray,
@@ -117,10 +135,10 @@ class TableList extends Component {
       this.setState({
         'username': username
       })
-    })
+    });
     this.loadNewData().then(newJobsData => {
       this.updateJobsData(newJobsData)
-    })
+    });
     this.interval = setInterval(async () => {
       await this.loadNewData().then(newJobsData => {
         this.updateJobsData(newJobsData)
@@ -137,18 +155,27 @@ class TableList extends Component {
       pathname: "job-information",
       state: { jobName: prop[0] }
     })
-  }
+  };
 
   handleScheduleExpressionChange = (e) => {
     this.setState({
       'scheduleExpression': e.target.value
     });
-  }
+  };
 
   async invokeJob(jobName, driverLambdaName) {
     try {
-      await fetch('http://localhost:5000/invoke-job?'.concat('job-name=', jobName,
-        '&driver-lambda-name=', driverLambdaName));
+      const currentPageHost = location.host;
+      const currentPageHostname = location.hostname;
+      const currentPageProtocol = location.protocol;
+      let url = '';
+      if (currentPageHostname === "localhost" || currentPageHostname === "127.0.0.1") {
+        url = `${currentPageProtocol}//${currentPageHost}/invoke-job?`;
+      } else {
+        url = `${currentPageProtocol}//${currentPageHostname}/dev/invoke-job?`;
+      }
+      url = url.concat('job-name=', jobName, '&driver-lambda-name=', driverLambdaName);
+      await fetch(url);
     } catch(e) {
       console.log(e);
     }
@@ -156,8 +183,20 @@ class TableList extends Component {
 
   async invokeSchedule(jobName, driverLambdaName, scheduleExpression) {
     try {
-      await fetch('http://localhost:5000/schedule-job?'.concat('job-name=', jobName,
-        '&driver-lambda-name=', driverLambdaName, '&schedule-expression=', scheduleExpression));
+      const currentPageHost = location.host;
+      const currentPageHostname = location.hostname;
+      const currentPageProtocol = location.protocol;
+      let url = '';
+      if (currentPageHostname === "localhost" || currentPageHostname === "127.0.0.1") {
+        url = `${currentPageProtocol}//${currentPageHost}/schedule-job?`;
+      } else {
+        url = `${currentPageProtocol}//${currentPageHostname}/dev/schedule-job?`;
+      }
+      url = url.concat('job-name=', jobName, '&driver-lambda-name=', driverLambdaName,
+          '&schedule-expression=', scheduleExpression);
+      await fetch(url);
+      // await fetch('http://localhost:5000/schedule-job?'.concat('job-name=', jobName,
+      //   '&driver-lambda-name=', driverLambdaName, '&schedule-expression=', scheduleExpression));
     } catch(e) {
       console.log(e);
     }

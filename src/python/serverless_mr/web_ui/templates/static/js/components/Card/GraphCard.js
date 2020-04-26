@@ -17,7 +17,17 @@ export class GraphCard extends Component {
 
   async loadNewData() {
     try {
-      const res = await fetch('http://localhost:5000/dag?'.concat('job-name=', this.state.jobName));
+      const currentPageHost = location.host;
+      const currentPageHostname = location.hostname;
+      const currentPageProtocol = location.protocol;
+      let url = '';
+      if (currentPageHostname === "localhost" || currentPageHostname === "127.0.0.1") {
+        url = `${currentPageProtocol}//${currentPageHost}/dag?`;
+      } else {
+        url = `${currentPageProtocol}//${currentPageHostname}/dev/dag?`;
+      }
+      url = url.concat('job-name=', this.state.jobName);
+      const res = await fetch(url);
       return await res.json()
     } catch(e) {
       console.log(e);

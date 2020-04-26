@@ -55,7 +55,17 @@ export class StageStateCard extends Component {
 
   async loadNewData() {
     try {
-      const res = await fetch('http://localhost:5000/num-completed-operators?'.concat('job-name=', this.state.jobName));
+      const currentPageHost = location.host;
+      const currentPageHostname = location.hostname;
+      const currentPageProtocol = location.protocol;
+      let url = '';
+      if (currentPageHostname === "localhost" || currentPageHostname === "127.0.0.1") {
+        url = `${currentPageProtocol}//${currentPageHost}/num-completed-operators?`;
+      } else {
+        url = `${currentPageProtocol}//${currentPageHostname}/dev/num-completed-operators?`;
+      }
+      url = url.concat('job-name=', this.state.jobName);
+      const res = await fetch(url);
       const newStageStateData = await res.json();
       const newStageStateArray = [];
       for(var key in newStageStateData)
