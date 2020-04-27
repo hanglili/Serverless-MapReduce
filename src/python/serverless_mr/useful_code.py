@@ -162,3 +162,49 @@ print("Command output:\n---\n{}\n---".format(result.stdout.decode('UTF-8')))
 #     ExpressionAttributeValues={':increment': {'N': '1'}},
 #     ReturnValues="UPDATED_NEW"
 # )
+
+# create_webapp_lambda.py
+# import boto3
+# import json
+#
+# from serverless_mr.static.static_variables import StaticVariables
+#
+#
+# static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
+# if static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
+#     local_endpoint_url = 'http://localhost:4569'
+#     gateway_client = boto3.client('apigateway', aws_access_key_id='', aws_secret_access_key='',
+#                           region_name=StaticVariables.DEFAULT_REGION,
+#                           endpoint_url=local_endpoint_url)
+# else:
+#     gateway_client = boto3.client('apigateway')
+
+# test.py
+# from collections import namedtuple
+# from random import choice
+#
+# from flask import Flask, jsonify
+#
+# Quote = namedtuple("Quote", ("text", "author"))
+#
+# quotes = [
+#     Quote("Talk is cheap. Show me the code.", "Linus Torvalds"),
+#     Quote("Programs must be written for people to read, and only incidentally for machines to execute.", "Harold Abelson"),
+#     Quote("Always code as if the guy who ends up maintaining your code will be a violent psychopath who knows where you live",
+#           "John Woods"),
+#     Quote("Give a man a program, frustrate him for a day. Teach a man to program, frustrate him for a lifetime.", "Muhammad Waseem"),
+#     Quote("Progress is possible only if we train ourselves to think about programs without thinking of them as pieces of executable code. ",
+#           "Edsger W. Dijkstra")
+# ]
+#
+# app = Flask(__name__)
+#
+#
+# @app.route("/", methods=["GET"])
+# def get_hello():
+#     return "Hello world"
+#
+#
+# @app.route("/quote", methods=["GET"])
+# def get_random_quote():
+#     return jsonify(choice(quotes)._asdict())
