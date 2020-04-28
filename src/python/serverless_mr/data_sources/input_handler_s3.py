@@ -1,8 +1,7 @@
 import boto3
-import json
 import os
 
-from serverless_mr.static.static_variables import StaticVariables
+from static.static_variables import StaticVariables
 
 
 class InputHandlerS3:

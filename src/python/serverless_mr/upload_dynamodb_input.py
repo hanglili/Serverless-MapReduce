@@ -1,9 +1,9 @@
 import json
 import glob
 
-from serverless_mr.static.static_variables import StaticVariables
-from serverless_mr.utils import input_handler
-from serverless_mr.main import set_up, tear_down
+from static.static_variables import StaticVariables
+from utils import input_handler
+from main import set_up, tear_down
 
 set_up()
 

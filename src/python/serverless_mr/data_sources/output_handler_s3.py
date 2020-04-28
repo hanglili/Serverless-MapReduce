@@ -2,7 +2,7 @@ import boto3
 import json
 import os
 
-from serverless_mr.static.static_variables import StaticVariables
+from static.static_variables import StaticVariables
 
 
 class OutputHandlerS3:
@@ -46,8 +46,8 @@ class OutputHandlerS3:
     def list_objects_for_checking_finish(self, static_job_info):
         job_name = static_job_info[StaticVariables.JOB_NAME_FN]
         output_source = static_job_info[StaticVariables.SHUFFLING_BUCKET_FN] \
-            if StaticVariables.OUTPUT_SOURCE_FN not in static_job_info else static_job_info[
-            StaticVariables.OUTPUT_SOURCE_FN]
+            if StaticVariables.OUTPUT_SOURCE_FN not in static_job_info \
+            else static_job_info[StaticVariables.OUTPUT_SOURCE_FN]
         reduce_output_full_prefix = "%s/%s" % (job_name, StaticVariables.REDUCE_OUTPUT_PREFIX_S3) \
             if StaticVariables.OUTPUT_PREFIX_FN not in static_job_info \
             else static_job_info[StaticVariables.OUTPUT_PREFIX_FN]
@@ -61,6 +61,9 @@ class OutputHandlerS3:
         last_stage_keys = response[string_index]
         if len(last_stage_keys) == num_final_dst_operators:
             for last_stage_key in last_stage_keys:
+                print("The response is", response)
+                print("The output bucket is", output_bucket)
+                print("The last stage key is", last_stage_key)
                 # Even though metadata processing time is written as processingTime,
                 # AWS does not accept uppercase letter metadata key
                 lambda_time += float(self.client.get_object(Bucket=output_bucket, Key=last_stage_key["Key"])

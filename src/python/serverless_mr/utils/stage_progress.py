@@ -4,7 +4,7 @@ import os
 import decimal
 import time
 
-from serverless_mr.static.static_variables import StaticVariables
+from static.static_variables import StaticVariables
 
 
 # Helper class to convert a DynamoDB item to JSON.

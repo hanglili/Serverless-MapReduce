@@ -3,21 +3,31 @@ import importlib.resources
 import os
 import shutil
 import inspect
+import sys
 
 from pathlib import Path
-from serverless_mr.driver.driver import Driver
-from serverless_mr.functions.map_function import MapFunction
-from serverless_mr.functions.map_shuffle_function import MapShuffleFunction
-from serverless_mr.functions.reduce_function import ReduceFunction
-from serverless_mr.driver.serverless_driver_setup import ServerlessDriverSetup
-from serverless_mr.static.static_variables import StaticVariables
-from serverless_mr.utils.pipeline import Pipeline
-from serverless_mr.default.partition import default_partition
-
 
 project_working_dir = os.getcwd()
 library_dir = Path(os.path.dirname(os.path.realpath(__file__)))
-library_working_dir = library_dir.parent
+library_working_dir = library_dir
+sys.path.insert(0, str(library_working_dir))
+for path in sys.path:
+    print("Sys path:", path)
+
+from driver.driver import Driver
+from functions.map_function import MapFunction
+from functions.map_shuffle_function import MapShuffleFunction
+from functions.reduce_function import ReduceFunction
+from driver.serverless_driver_setup import ServerlessDriverSetup
+from static.static_variables import StaticVariables
+from utils.pipeline import Pipeline
+from default.partition import default_partition
+
+
+# project_working_dir = os.getcwd()
+# library_dir = Path(os.path.dirname(os.path.realpath(__file__)))
+# library_working_dir = library_dir
+# library_working_dir = library_dir.parent
 
 
 def find_filepath(package_name, filename):
@@ -64,7 +74,9 @@ def set_up():
     # map_function_(outputs, [1, '127.0.0.1, dasda, dasda, 1.0, dasdsa'])
     # print(outputs)
 
+
 def copy_job_function(function):
+    print("Library working directory is", library_working_dir)
     inspect_object = inspect.getfile(function)
     rel_filepath = os.path.relpath(inspect_object)
     print("The path of the function is", rel_filepath)
@@ -94,6 +106,7 @@ class ServerlessMR:
         self.cur_last_map_index = -1
         self.last_partition_function = None
         self.last_combine_function = None
+        self.rel_function_paths = []
 
     def config(self, pipeline_specific_config):
         self.cur_pipeline.set_config(pipeline_specific_config)
@@ -101,6 +114,7 @@ class ServerlessMR:
 
     def map(self, map_function):
         rel_function_path = copy_job_function(map_function)
+        self.rel_function_paths.append(rel_function_path)
         self.cur_pipeline.add_function(MapFunction(map_function, rel_function_path))
         self.total_num_functions += 1
         self.cur_last_map_index = self.cur_pipeline.get_num_functions() - 1

@@ -1,0 +1,79 @@
+# serverless.yml
+
+service: webui
+
+provider:
+  name: aws
+  runtime: python3.7
+  stage: dev
+  region: us-east-1
+  memorySize: 128
+  role: arn:aws:iam::259503590756:role/serverless_mr_role
+
+plugins:
+#  - serverless-localstack
+  - serverless-python-requirements
+  - serverless-wsgi
+custom:
+  wsgi:
+    app: web_ui/app.app
+    packRequirements: false
+#  pythonRequirements:
+#    dockerizePip: non-linux
+#    layer: true
+#  localstack:
+#    debug: true
+#    stages:
+#      # list of stages for which the plugin should be enabled
+#      - local
+#    host: http://localhost  # optional - LocalStack host to connect to
+#    autostart: true  # optional - start LocalStack in Docker on Serverless deploy
+##    endpoints:
+#      # This section is optional - can be used for customizing the target endpoints
+##      S3: http://localhost:4572
+##      DynamoDB: http://localhost:4569
+##      CloudFormation: http://localhost:4581
+##      Elasticsearch: http://localhost:4571
+##      ES: http://localhost:4578
+##      SNS: http://localhost:4575
+##      SQS: http://localhost:4576
+##      Lambda: http://localhost:4574
+##      Kinesis: http://localhost:4568
+##      APIGateway: http://localhost:4567
+##    lambda:
+#      # Enable this flag to improve performance
+##      mountCode: True
+#    docker:
+#      # Enable this flag to run "docker ..." commands as sudo
+#      sudo: False
+##  stages:
+##    - local
+#package:
+#  individually: true
+
+functions:
+  app:
+    handler: wsgi_handler.handler
+    environment:
+      serverless_mapreduce_role: arn:aws:iam::259503590756:role/serverless_mr_role
+      local_testing: false
+    events:
+      - http: ANY /
+      - http: 'ANY {proxy+}'
+
+package:
+  exclude:
+    - node_modules/**
+    - web_ui/templates/static/node_modules/**
+    - "*/**"
+  include:
+    - web_ui/*
+    - web_ui/templates/public/**
+    - web_ui/templates/static/index.html
+    - static/**
+    - utils/in_degree.py
+    - utils/stage_state.py
+    - utils/stage_progress.py
+    - utils/__init__.py
+    - data_sources/input_handler_s3.py
+    - data_sources/__init__.py

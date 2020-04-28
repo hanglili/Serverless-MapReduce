@@ -8,14 +8,14 @@ import glob
 
 from datetime import datetime
 from collections import defaultdict
-from serverless_mr.utils import lambda_utils, zip, input_handler, output_handler, stage_state, in_degree, stage_progress
-from serverless_mr.aws_lambda import lambda_manager
+from utils import lambda_utils, zip, input_handler, output_handler, stage_state, in_degree, stage_progress
+from aws_lambda import lambda_manager
 from multiprocessing.dummy import Pool as ThreadPool
 from functools import partial
 from botocore.client import Config
-from serverless_mr.static.static_variables import StaticVariables
-from serverless_mr.functions.map_shuffle_function import MapShuffleFunction
-from serverless_mr.functions.reduce_function import ReduceFunction
+from static.static_variables import StaticVariables
+from functions.map_shuffle_function import MapShuffleFunction
+from functions.reduce_function import ReduceFunction
 
 
 def delete_files(filenames):
@@ -51,16 +51,16 @@ def create_stage_config_file(num_operators, stage_type, invoking_lambda_name,
 
 
 def pickle_functions_and_zip_stage(cur_function_zip_path, cur_function, stage_id):
-    cur_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % (cur_function.get_string(), stage_id)
+    cur_function_pickle_path = 'job/%s-%s.pkl' % (cur_function.get_string(), stage_id)
     rel_function_paths = cur_function.get_rel_function_paths()
     with open(cur_function_pickle_path, 'wb') as f:
         pickle.dump(cur_function.get_function(), f)
     if isinstance(cur_function, MapShuffleFunction):
-        partition_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % ("partition", stage_id)
+        partition_function_pickle_path = 'job/%s-%s.pkl' % ("partition", stage_id)
         with open(partition_function_pickle_path, 'wb') as f:
             pickle.dump(cur_function.get_partition_function(), f)
 
-        combiner_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % ("combiner", stage_id)
+        combiner_function_pickle_path = 'job/%s-%s.pkl' % ("combiner", stage_id)
         with open(combiner_function_pickle_path, 'wb') as f:
             pickle.dump(cur_function.get_combiner_function(), f)
 
@@ -170,6 +170,7 @@ class Driver:
 
     def set_up_bucket(self, bucket_name):
         self.s3_client.create_bucket(Bucket=bucket_name)
+        time.sleep(1)
         self.s3_client.put_bucket_acl(
             ACL='public-read-write',
             Bucket=bucket_name,
@@ -260,7 +261,7 @@ class Driver:
             for i in range(len(functions)):
                 mapping_stage_id_pipeline_id[stage_id] = pipeline_id
                 cur_function = functions[i]
-                cur_function_zip_path = "serverless_mr/%s-%s.zip" % (cur_function.get_string(), stage_id)
+                cur_function_zip_path = "%s-%s.zip" % (cur_function.get_string(), stage_id)
                 stage_type_of_operations[stage_id] = cur_function.get_string()
 
                 # Prepare Lambda functions if driver running in local machine
@@ -282,13 +283,13 @@ class Driver:
                 function_lambdas.append(cur_function_lambda)
 
                 # Coordinator
-                cur_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % (cur_function.get_string(), stage_id)
+                cur_function_pickle_path = 'job/%s-%s.pkl' % (cur_function.get_string(), stage_id)
                 dependent_last_stage_ids = []
                 for dependent_pipeline_id in dependent_pipeline_ids:
                     dependent_last_stage_ids.append(pipelines_first_last_stage_ids[dependent_pipeline_id][1])
                 if isinstance(cur_function, MapShuffleFunction):
-                    partition_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % ("partition", stage_id)
-                    combiner_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % ("combiner", stage_id)
+                    partition_function_pickle_path = 'job/%s-%s.pkl' % ("partition", stage_id)
+                    combiner_function_pickle_path = 'job/%s-%s.pkl' % ("combiner", stage_id)
                     stage_config[stage_id] = \
                         create_stage_config_file(num_operators, 1, cur_function_lambda_name,
                                                  cur_function_pickle_path, dependent_last_stage_ids,
@@ -334,6 +335,7 @@ class Driver:
         cur_coordinator_lambda.add_lambda_permission(random.randint(1, 1000), shuffling_bucket)
         shuffling_s3_path_prefix = "%s/" % job_name
         cur_coordinator_lambda.create_s3_event_source_notification(shuffling_bucket, shuffling_s3_path_prefix)
+        time.sleep(1)
         function_lambdas.append(cur_coordinator_lambda)
 
         in_degree_obj = in_degree.InDegree(in_lambda=self.is_serverless,
@@ -393,11 +395,11 @@ class Driver:
         first_function_lambda_name = "%s-%s-%s-%s" % (job_name, lambda_name_prefix, first_function.get_string(),
                                                       stage_id)
 
-        function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % (first_function.get_string(), stage_id)
+        function_pickle_path = 'job/%s-%s.pkl' % (first_function.get_string(), stage_id)
         batch = [k['Key'] for k in batches[mapper_id - 1]]
         if isinstance(first_function, MapShuffleFunction):
-            combiner_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % ("combiner", stage_id)
-            partition_function_pickle_path = 'serverless_mr/job/%s-%s.pkl' % ("partition", stage_id)
+            combiner_function_pickle_path = 'job/%s-%s.pkl' % ("combiner", stage_id)
+            partition_function_pickle_path = 'job/%s-%s.pkl' % ("partition", stage_id)
             response = self.lambda_client.invoke(
                 FunctionName=first_function_lambda_name,
                 InvocationType='Event',

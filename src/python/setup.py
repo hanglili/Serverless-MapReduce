@@ -4,8 +4,8 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="serverless-mr", # Replace with your own username
-    version="4.1.0",
+    name="serverless-mr",
+    version="6.3.0",
     author="Hang Li Li",
     author_email="hl4716@ic.ac.uk",
     description="Serverless Map Reduce",
@@ -21,9 +21,14 @@ setuptools.setup(
                  ".serverless", "cloudpickle", "configuration", "pipeline", "user_main.*", "test_trigger.*"]
     ),
     package_data={
-        '': ['templates/static/*.html', 'templates/public/*.*'],
+        '': ['templates/static/*.html', 'templates/public/*.*', 'requirements.txt', 'package.json', 'serverless.yml']
     },
-    data_files=[('.', ['requirements.txt', 'package.json', 'serverless.yml'])],
+    install_requires=[
+        'flask==1.1.2',
+        'flask-cors'
+        # 'flask-cors==3.0.3'
+    ],
+    # data_files=[('.', ['requirements.txt', 'package.json', 'serverless.yml'])],
     # include_package_data=True,
     classifiers=[
         "Programming Language :: Python :: 3",

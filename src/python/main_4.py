@@ -35,7 +35,7 @@ def run_lambda():
     # init
     bucket = "serverless-mapreduce-storage"
     region = "us-east-1"
-    map_zip_name = "serverless_mr/job/map.zip"
+    map_zip_name = "job/map.zip"
     lambda_name = "mapper5"
     job_id = "job"
     lambda_memory = 1536
@@ -49,10 +49,10 @@ def run_lambda():
                            region_name=region)
     lambda_client = boto3.client('lambda', endpoint_url='http://localhost:4574', config=lambda_config)
 
-    zip.zip_lambda(["serverless_mr/job/dummy_handler.py"], map_zip_name)
+    zip.zip_lambda(["job/dummy_handler.py"], map_zip_name)
     l_mapper = lambda_manager.LambdaManager(lambda_client, s3_client, region,
                                             map_zip_name, job_id,
-                                            lambda_name, "serverless_mr/job/dummy_handler.py")
+                                            lambda_name, "job/dummy_handler.py")
     l_mapper.update_code_or_create_on_no_exist(1)
 
     s3_client.put_bucket_notification_configuration(

@@ -6,8 +6,8 @@ import os
 import pickle
 import random
 
-from serverless_mr.static.static_variables import StaticVariables
-from serverless_mr.utils import output_handler, stage_progress
+from static.static_variables import StaticVariables
+from utils import output_handler, stage_progress
 
 
 def lambda_handler(event, _):

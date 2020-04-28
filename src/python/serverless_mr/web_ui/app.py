@@ -1,15 +1,25 @@
 import json
 import boto3
 import os
+import sys
+
+from pathlib import Path
+
+project_working_dir = os.getcwd()
+library_dir = Path(os.path.dirname(os.path.realpath(__file__)))
+library_working_dir = library_dir.parent
+sys.path.insert(0, str(library_working_dir))
+for path in sys.path:
+    print("Sys path:", path)
 
 
 from datetime import datetime
 from flask import Flask, jsonify, render_template, request, url_for, send_from_directory
 from flask_cors import CORS, cross_origin
 from botocore.client import Config
-from serverless_mr.utils import in_degree, stage_state, stage_progress
-from serverless_mr.static.static_variables import StaticVariables
-from serverless_mr.data_sources import input_handler_s3
+from utils import in_degree, stage_state, stage_progress
+from static.static_variables import StaticVariables
+from data_sources import input_handler_s3
 
 
 # app = Flask(__name__, static_folder='./templates/public', template_folder="./templates/static")
@@ -266,6 +276,10 @@ def get_dag_information():
     dag_data = json.loads(input_handler_s3_obj.read_records_from_input_key(StaticVariables.S3_JOBS_INFORMATION_BUCKET_NAME,
                                                                            s3_dag_information_path, None))
     return jsonify(dag_data)
+
+
+def start_web_ui():
+    app.run()
 
 
 if __name__ == '__main__':

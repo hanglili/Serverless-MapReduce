@@ -5,10 +5,10 @@ import os
 import glob
 
 from datetime import datetime
-from serverless_mr.driver.driver import set_up_local_input_data, pickle_functions_and_zip_stage
-from serverless_mr.static.static_variables import StaticVariables
-from serverless_mr.utils import zip
-from serverless_mr.aws_lambda import lambda_manager
+from driver.driver import set_up_local_input_data, pickle_functions_and_zip_stage
+from static.static_variables import StaticVariables
+from utils import zip
+from aws_lambda import lambda_manager
 from botocore.client import Config
 
 
@@ -90,7 +90,7 @@ class ServerlessDriverSetup:
                 set_up_local_input_data(pipeline_static_job_info)
             for i in range(len(functions)):
                 cur_function = functions[i]
-                cur_function_zip_path = "serverless_mr/%s-%s.zip" % (cur_function.get_string(), stage_id)
+                cur_function_zip_path = "%s-%s.zip" % (cur_function.get_string(), stage_id)
 
                 # Prepare Lambda functions if driver running in local machine
                 rel_function_paths = pickle_functions_and_zip_stage(cur_function_zip_path, cur_function, stage_id)

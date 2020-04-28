@@ -1,9 +1,8 @@
 import boto3
-import json
 import os
 import time
 
-from serverless_mr.static.static_variables import StaticVariables
+from static.static_variables import StaticVariables
 
 id_cnt = 1
 

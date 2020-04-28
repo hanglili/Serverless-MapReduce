@@ -1,7 +1,7 @@
 import glob
 import subprocess
 
-from serverless_mr.static.static_variables import StaticVariables
+from static.static_variables import StaticVariables
 
 
 def zip_lambda(filenames, zip_name):
@@ -31,6 +31,5 @@ def zip_driver_lambda(zip_name, function_filepaths):
     for filepath in function_filepaths:
         globed_results += glob.glob(filepath)
     # faster to zip with shell exec
-    project_name = "serverless_mr"
-    subprocess.call(['zip', zip_name] + glob.glob("%s/*" % project_name) + glob.glob("%s/*/*" % project_name)
+    subprocess.call(['zip', zip_name] + glob.glob("*") + glob.glob("*/*")
                     + globed_results)

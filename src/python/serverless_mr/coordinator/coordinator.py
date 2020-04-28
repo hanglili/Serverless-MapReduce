@@ -2,8 +2,8 @@ import boto3
 import json
 import os
 
-from serverless_mr.static.static_variables import StaticVariables
-from serverless_mr.utils import stage_state, in_degree, stage_progress
+from static.static_variables import StaticVariables
+from utils import stage_state, in_degree, stage_progress
 
 # create an S3 and Lambda session
 static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())

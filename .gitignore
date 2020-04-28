@@ -1,7 +1,9 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
+/__pycache__/
 *.py[cod]
 *$py.class
+*.pyc
 
 # C extensions
 *.so
@@ -119,6 +121,11 @@ venv.bak/
 
 # mkdocs documentation
 /site
+
+# Node modules
+node_modules/
+.serverless/
+package-lock.json
 
 # mypy
 .mypy_cache/

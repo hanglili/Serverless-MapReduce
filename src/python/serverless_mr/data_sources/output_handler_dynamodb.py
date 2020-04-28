@@ -3,7 +3,7 @@ import json
 import os
 import time
 
-from serverless_mr.static.static_variables import StaticVariables
+from static.static_variables import StaticVariables
 
 
 class OutputHandlerDynamoDB:

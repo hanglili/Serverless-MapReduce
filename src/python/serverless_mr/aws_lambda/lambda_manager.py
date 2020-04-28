@@ -2,7 +2,7 @@ import boto3
 import os
 import json
 
-from serverless_mr.static.static_variables import StaticVariables
+from static.static_variables import StaticVariables
 
 
 class LambdaManager(object):
@@ -89,7 +89,7 @@ class LambdaManager(object):
 
     def create_s3_event_source_notification(self, bucket, prefix):
         print("The function arn is %s, with bucket %s and prefix %s" % (self.function_arn, bucket, prefix))
-        self.s3.put_bucket_notification_configuration(
+        response = self.s3.put_bucket_notification_configuration(
             Bucket=bucket,
             NotificationConfiguration={
                 'LambdaFunctionConfigurations': [
@@ -112,6 +112,7 @@ class LambdaManager(object):
                 # 'QueueConfigurations' : []
             }
         )
+        print("Response of create s3 event notification:", response)
 
     def delete_function(self):
         self.lambda_client.delete_function(FunctionName=self.function_name)

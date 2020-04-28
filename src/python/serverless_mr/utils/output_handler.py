@@ -1,5 +1,5 @@
-from serverless_mr.data_sources.output_handler_dynamodb import OutputHandlerDynamoDB
-from serverless_mr.data_sources.output_handler_s3 import OutputHandlerS3
+from data_sources.output_handler_dynamodb import OutputHandlerDynamoDB
+from data_sources.output_handler_s3 import OutputHandlerS3
 
 
 def get_output_handler(output_source_type, is_local_testing, in_lambda=False):

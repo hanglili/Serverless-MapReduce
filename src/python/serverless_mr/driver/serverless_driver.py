@@ -2,8 +2,8 @@ import json
 import pickle
 import os
 
-from serverless_mr.driver.driver import Driver
-from serverless_mr.static.static_variables import StaticVariables
+from driver.driver import Driver
+from static.static_variables import StaticVariables
 
 
 def lambda_handler(event, _):
