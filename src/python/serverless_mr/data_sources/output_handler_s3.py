@@ -1,6 +1,7 @@
 import boto3
 import json
 import os
+import time
 
 from static.static_variables import StaticVariables
 
@@ -24,6 +25,7 @@ class OutputHandlerS3:
             if StaticVariables.OUTPUT_SOURCE_FN not in static_job_info \
             else static_job_info[StaticVariables.OUTPUT_SOURCE_FN]
         self.client.create_bucket(Bucket=output_bucket)
+        time.sleep(1)
         self.client.put_bucket_acl(
             ACL='public-read-write',
             Bucket=output_bucket,

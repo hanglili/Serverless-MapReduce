@@ -37,6 +37,7 @@ def lambda_handler(event, _):
 
     stage_id = int(os.environ.get("stage_id"))
     total_num_stages = int(os.environ.get("total_num_stages"))
+    coordinator_lambda_name = os.environ.get("coordinator_lambda_name")
 
     print("Stage:", stage_id)
 
@@ -123,3 +124,12 @@ def lambda_handler(event, _):
         mapper_filename = "%s/%s-%s/%s" % (job_name, StaticVariables.OUTPUT_PREFIX, stage_id, mapper_id)
         s3_client.put_object(Bucket=shuffling_bucket, Key=mapper_filename,
                              Body=json.dumps(outputs), Metadata=metadata)
+
+        lambda_client = boto3.client('lambda')
+        lambda_client.invoke(
+            FunctionName=coordinator_lambda_name,
+            InvocationType='Event',
+            Payload=json.dumps({
+                'stage_id': stage_id
+            })
+        )

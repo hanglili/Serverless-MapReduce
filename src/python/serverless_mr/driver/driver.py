@@ -233,6 +233,7 @@ class Driver:
         pipelines_last_stage_num_operators = {}
         pipelines_first_last_stage_ids = {}
         stage_type_of_operations = {}
+        cur_coordinator_lambda_name = "%s-%s-%s" % (job_name, lambda_name_prefix, "coordinator")
 
         # The first function should be a map/map_shuffle function
         for pipeline_id, pipeline in self.pipelines.items():
@@ -276,10 +277,14 @@ class Driver:
                                                                    cur_function.get_handler_function_path())
                 if isinstance(cur_function, MapShuffleFunction):
                     assert i + 1 < len(functions) and isinstance(functions[i+1], ReduceFunction)
-                    cur_function_lambda.update_code_or_create_on_no_exist(self.total_num_functions, stage_id=stage_id,
+                    cur_function_lambda.update_code_or_create_on_no_exist(self.total_num_functions,
+                                                                          coordinator_lambda_name=cur_coordinator_lambda_name,
+                                                                          stage_id=stage_id,
                                                                           num_reducers=functions[i+1].get_num_reducers())
                 else:
-                    cur_function_lambda.update_code_or_create_on_no_exist(self.total_num_functions, stage_id=stage_id)
+                    cur_function_lambda.update_code_or_create_on_no_exist(self.total_num_functions,
+                                                                          coordinator_lambda_name=cur_coordinator_lambda_name,
+                                                                          stage_id=stage_id)
                 function_lambdas.append(cur_function_lambda)
 
                 # Coordinator
@@ -326,16 +331,15 @@ class Driver:
         self._write_web_ui_info(dag_information, stage_config, self.static_job_info,
                                 StaticVariables.S3_JOBS_INFORMATION_BUCKET_NAME, job_name)
 
-        cur_coordinator_lambda_name = "%s-%s-%s-%s" % (job_name, lambda_name_prefix, "coordinator", stage_id)
         cur_coordinator_lambda = lambda_manager.LambdaManager(self.lambda_client, self.s3_client, region,
                                                               coordinator_zip_path, job_name,
                                                               cur_coordinator_lambda_name,
                                                               StaticVariables.COORDINATOR_HANDLER_FUNCTION_PATH)
         cur_coordinator_lambda.update_code_or_create_on_no_exist(self.total_num_functions)
-        cur_coordinator_lambda.add_lambda_permission(random.randint(1, 1000), shuffling_bucket)
-        shuffling_s3_path_prefix = "%s/" % job_name
-        cur_coordinator_lambda.create_s3_event_source_notification(shuffling_bucket, shuffling_s3_path_prefix)
-        time.sleep(1)
+        # cur_coordinator_lambda.add_lambda_permission(random.randint(1, 1000), shuffling_bucket)
+        # shuffling_s3_path_prefix = "%s/" % job_name
+        # cur_coordinator_lambda.create_s3_event_source_notification(shuffling_bucket, shuffling_s3_path_prefix)
+        # time.sleep(1)
         function_lambdas.append(cur_coordinator_lambda)
 
         in_degree_obj = in_degree.InDegree(in_lambda=self.is_serverless,

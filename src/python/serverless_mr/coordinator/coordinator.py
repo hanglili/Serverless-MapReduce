@@ -164,18 +164,21 @@ def lambda_handler(event, _):
     # start_time = time.time()
 
     # Shuffling Bucket (we just got a notification from this bucket)
-    shuffling_bucket = event['Records'][0]['s3']['bucket']['name']
-    s3_obj_key = event['Records'][0]['s3']['object']['key']
+    # shuffling_bucket = event['Records'][0]['s3']['bucket']['name']
+    # s3_obj_key = event['Records'][0]['s3']['object']['key']
+    stage_id = event['stage_id']
+
     job_name = static_job_info[StaticVariables.JOB_NAME_FN]
-    stage_s3_prefix = "%s/%s-" % (job_name, StaticVariables.OUTPUT_PREFIX)
-    if not s3_obj_key.startswith(stage_s3_prefix):
-        return
+    shuffling_bucket = static_job_info[StaticVariables.SHUFFLING_BUCKET_FN]
+    # stage_s3_prefix = "%s/%s-" % (job_name, StaticVariables.OUTPUT_PREFIX)
+    # if not s3_obj_key.startswith(stage_s3_prefix):
+    #     return
 
     cur_map_phase_state = stage_state.StageState(in_lambda=True,
                                                  is_local_testing=static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN])
     # stage_id = cur_map_phase_state.read_current_stage_id(StaticVariables.STAGE_STATE_DYNAMODB_TABLE_NAME)
-    stage_id = int(s3_obj_key.split("/")[1].split("-")[1])
-    print("Stage:", stage_id)
+    # stage_id = int(s3_obj_key.split("/")[1].split("-")[1])
+    # print("Stage:", stage_id)
     is_serverless_driver = static_job_info[StaticVariables.SERVERLESS_DRIVER_FLAG_FN]
     if not is_serverless_driver:
         with open(StaticVariables.STAGE_CONFIGURATION_PATH) as json_file:
@@ -186,17 +189,17 @@ def lambda_handler(event, _):
         stage_configuration = json.loads(contents)
 
     cur_stage_config = stage_configuration[str(stage_id)]
-    if cur_stage_config["stage_type"] == 1:
-        next_stage_num_operators = stage_configuration[str(stage_id + 1)]["num_operators"]
-        bin_s3_path = "bin-%s" % next_stage_num_operators
-        shuffle_stage_s3_prefix = "%s/%s-%s/%s/" % (job_name, StaticVariables.OUTPUT_PREFIX,
-                                                    stage_id, bin_s3_path)
-        print("The current shuffle stage s3 prefix is", shuffle_stage_s3_prefix)
-        print("The obj obj key is", s3_obj_key)
-        if not s3_obj_key.startswith(shuffle_stage_s3_prefix):
-            return
+    # if cur_stage_config["stage_type"] == 1:
+        # next_stage_num_operators = stage_configuration[str(stage_id + 1)]["num_operators"]
+        # bin_s3_path = "bin-%s" % next_stage_num_operators
+        # shuffle_stage_s3_prefix = "%s/%s-%s/%s/" % (job_name, StaticVariables.OUTPUT_PREFIX,
+                                                    # stage_id, bin_s3_path)
+        # print("The current shuffle stage s3 prefix is", shuffle_stage_s3_prefix)
+        # print("The obj obj key is", s3_obj_key)
+        # if not s3_obj_key.startswith(shuffle_stage_s3_prefix):
+            # return
 
-    print("The event obj key is", s3_obj_key)
+    # print("The event obj key is", s3_obj_key)
     num_operators = cur_stage_config["num_operators"]
     response = cur_map_phase_state.increment_num_completed_operators(StaticVariables.STAGE_STATE_DYNAMODB_TABLE_NAME % job_name,
                                                                      stage_id)
