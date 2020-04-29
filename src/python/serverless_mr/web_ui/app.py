@@ -228,10 +228,12 @@ def schedule_job():
 @cross_origin()
 def get_in_degree_info():
     job_name = request.args.get('job-name')
+    submission_time = request.args.get('submission-time')
 
     is_local_testing = os.environ.get("local_testing") == 'True' or os.environ.get("local_testing") == 'true'
     in_degree_obj = in_degree.InDegree(in_lambda=False, is_local_testing=is_local_testing)
-    in_degrees = in_degree_obj.read_in_degree_table(StaticVariables.IN_DEGREE_DYNAMODB_TABLE_NAME % job_name)
+    in_degrees = in_degree_obj.read_in_degree_table(StaticVariables.IN_DEGREE_DYNAMODB_TABLE_NAME
+                                                    % (job_name, submission_time))
     return jsonify(in_degrees)
 
 
@@ -239,10 +241,12 @@ def get_in_degree_info():
 @cross_origin()
 def get_stage_progress():
     job_name = request.args.get('job-name')
+    submission_time = request.args.get('submission-time')
 
     is_local_testing = os.environ.get("local_testing") == 'True' or os.environ.get("local_testing") == 'true'
     stage_progress_obj = stage_progress.StageProgress(in_lambda=False, is_local_testing=is_local_testing)
-    stages_progress = stage_progress_obj.read_progress_table(StaticVariables.STAGE_PROGRESS_DYNAMODB_TABLE_NAME % job_name)
+    stages_progress = stage_progress_obj.read_progress_table(StaticVariables.STAGE_PROGRESS_DYNAMODB_TABLE_NAME
+                                                             % (job_name, submission_time))
     return jsonify(stages_progress)
 
 
@@ -250,15 +254,17 @@ def get_stage_progress():
 @cross_origin()
 def get_num_completed_operators():
     job_name = request.args.get('job-name')
+    submission_time = request.args.get('submission-time')
 
     is_local_testing = os.environ.get("local_testing") == 'True' or os.environ.get("local_testing") == 'true'
     input_handler_s3_obj = input_handler_s3.InputHandlerS3(in_lambda=False, is_local_testing=is_local_testing)
-    s3_stage_conf_path = StaticVariables.S3_UI_STAGE_CONFIGURATION_PATH % job_name
+    s3_stage_conf_path = StaticVariables.S3_UI_STAGE_CONFIGURATION_PATH % (job_name, submission_time)
     stage_config = json.loads(input_handler_s3_obj.read_records_from_input_key(StaticVariables.S3_JOBS_INFORMATION_BUCKET_NAME,
                                                                                s3_stage_conf_path, None))
 
     stage_state_obj = stage_state.StageState(in_lambda=False, is_local_testing=is_local_testing)
-    stage_states = stage_state_obj.read_state_table(StaticVariables.STAGE_STATE_DYNAMODB_TABLE_NAME % job_name)
+    stage_states = stage_state_obj.read_state_table(StaticVariables.STAGE_STATE_DYNAMODB_TABLE_NAME
+                                                    % (job_name, submission_time))
     result = {}
     for stage_id, stage_num_completed in stage_states.items():
         result[stage_id] = [stage_num_completed, stage_config[stage_id]["num_operators"]]
@@ -269,10 +275,11 @@ def get_num_completed_operators():
 @cross_origin()
 def get_dag_information():
     job_name = request.args.get('job-name')
+    submission_time = request.args.get('submission-time')
 
     is_local_testing = os.environ.get("local_testing") == 'True' or os.environ.get("local_testing") == 'true'
     input_handler_s3_obj = input_handler_s3.InputHandlerS3(in_lambda=False, is_local_testing=is_local_testing)
-    s3_dag_information_path = StaticVariables.S3_UI_DAG_INFORMATION_PATH % job_name
+    s3_dag_information_path = StaticVariables.S3_UI_DAG_INFORMATION_PATH % (job_name, submission_time)
     dag_data = json.loads(input_handler_s3_obj.read_records_from_input_key(StaticVariables.S3_JOBS_INFORMATION_BUCKET_NAME,
                                                                            s3_dag_information_path, None))
     return jsonify(dag_data)

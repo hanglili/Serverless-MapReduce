@@ -24,7 +24,8 @@ export class StageProgressCard extends Component {
     super(props);
     this.state = {
       content: this.props.content,
-      jobName: this.props.jobName
+      jobName: this.props.jobName,
+      submissionTime: this.props.submissionTime
     }
   }
 
@@ -67,7 +68,7 @@ export class StageProgressCard extends Component {
       } else {
         url = `${currentPageProtocol}//${currentPageHostname}/dev/stage-progress?`;
       }
-      url = url.concat('job-name=', this.state.jobName);
+      url = url.concat('job-name=', this.state.jobName, '&submission-time=', this.state.submissionTime);
       const res = await fetch(url);
       const newStageProgressData = await res.json();
       const newStageProgressArray = [];

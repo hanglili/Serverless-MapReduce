@@ -115,6 +115,7 @@ class Driver:
         self._set_lambda_config_and_client()
         self.pipelines = pipelines
         self.total_num_functions = total_num_functions
+        self.submission_time = datetime.utcnow().strftime("%Y-%m-%d_%H.%M.%S")
         self.map_phase_state = stage_state.StageState(self.is_serverless,
                                                       is_local_testing=self.static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN])
         self._initialise_stage_state(total_num_functions)
@@ -122,7 +123,6 @@ class Driver:
         self.set_up_bucket(self.static_job_info[StaticVariables.SHUFFLING_BUCKET_FN])
         self.delete_s3_objects(self.static_job_info[StaticVariables.SHUFFLING_BUCKET_FN], prefix)
         self.set_up_bucket(StaticVariables.S3_JOBS_INFORMATION_BUCKET_NAME)
-        self.submission_time = datetime.utcnow().strftime("%Y-%m-%d_%H.%M.%S")
 
     def _set_aws_clients(self):
         if self.static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
@@ -167,10 +167,10 @@ class Driver:
 
     def _initialise_stage_state(self, num_stages):
         job_name = self.static_job_info[StaticVariables.JOB_NAME_FN]
-        self.map_phase_state.delete_state_table(StaticVariables.STAGE_STATE_DYNAMODB_TABLE_NAME % job_name)
-        self.map_phase_state.create_state_table(StaticVariables.STAGE_STATE_DYNAMODB_TABLE_NAME % job_name)
-        self.map_phase_state.initialise_state_table(StaticVariables.STAGE_STATE_DYNAMODB_TABLE_NAME % job_name,
-                                                    num_stages)
+        table_name = StaticVariables.STAGE_STATE_DYNAMODB_TABLE_NAME % (job_name, self.submission_time)
+        self.map_phase_state.delete_state_table(table_name)
+        self.map_phase_state.create_state_table(table_name)
+        self.map_phase_state.initialise_state_table(table_name, num_stages)
 
     def delete_s3_objects(self, bucket_name, prefix):
         response = self.s3_client.list_objects(Bucket=bucket_name, Prefix=prefix)
@@ -365,14 +365,14 @@ class Driver:
 
         in_degree_obj = in_degree.InDegree(in_lambda=self.is_serverless,
                                            is_local_testing=self.static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN])
-        in_degree_table_name = StaticVariables.IN_DEGREE_DYNAMODB_TABLE_NAME % job_name
+        in_degree_table_name = StaticVariables.IN_DEGREE_DYNAMODB_TABLE_NAME % (job_name, self.submission_time)
         in_degree_obj.delete_in_degree_table(in_degree_table_name)
         in_degree_obj.create_in_degree_table(in_degree_table_name)
         in_degree_obj.initialise_in_degree_table(in_degree_table_name, in_degrees)
 
         stage_progress_obj = stage_progress.StageProgress(in_lambda=self.is_serverless,
                                                           is_local_testing=self.static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN])
-        stage_progress_table_name = StaticVariables.STAGE_PROGRESS_DYNAMODB_TABLE_NAME % job_name
+        stage_progress_table_name = StaticVariables.STAGE_PROGRESS_DYNAMODB_TABLE_NAME % (job_name, self.submission_time)
         stage_progress_obj.delete_progress_table(stage_progress_table_name)
         stage_progress_obj.create_progress_table(stage_progress_table_name)
         stage_progress_obj.initialise_progress_table(stage_progress_table_name, stage_id - 1)
@@ -385,13 +385,16 @@ class Driver:
 
     def _write_web_ui_info(self, dag_information, stage_config, static_job_info, bucket_name, job_name):
         self.s3_client.put_object(Bucket=bucket_name,
-                                  Key=(StaticVariables.S3_UI_STAGE_CONFIGURATION_PATH % job_name),
+                                  Key=(StaticVariables.S3_UI_STAGE_CONFIGURATION_PATH
+                                       % (job_name, self.submission_time)),
                                   Body=json.dumps(stage_config))
         self.s3_client.put_object(Bucket=bucket_name,
-                                  Key=(StaticVariables.S3_UI_DAG_INFORMATION_PATH % job_name),
+                                  Key=(StaticVariables.S3_UI_DAG_INFORMATION_PATH
+                                       % (job_name, self.submission_time)),
                                   Body=json.dumps(dag_information))
         self.s3_client.put_object(Bucket=bucket_name,
-                                  Key=(StaticVariables.S3_UI_GENERAL_JOB_INFORMATION_PATH % job_name),
+                                  Key=(StaticVariables.S3_UI_GENERAL_JOB_INFORMATION_PATH
+                                       % (job_name, self.submission_time)),
                                   Body=json.dumps(static_job_info))
 
     def _write_config_to_s3(self, adj_list, mapping_stage_id_pipeline_id, pipelines_first_last_stage_ids,
@@ -457,7 +460,7 @@ class Driver:
         job_name = self.static_job_info[StaticVariables.JOB_NAME_FN]
         stage_progress_obj = stage_progress.StageProgress(in_lambda=self.is_serverless,
                                                           is_local_testing=self.static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN])
-        stage_progress_table_name = StaticVariables.STAGE_PROGRESS_DYNAMODB_TABLE_NAME % job_name
+        stage_progress_table_name = StaticVariables.STAGE_PROGRESS_DYNAMODB_TABLE_NAME % (job_name, self.submission_time)
         for pipeline_id, invoking_pipeline_info in invoking_pipelines_info.items():
             print("Scheduling pipeline %s" % pipeline_id)
             num_mappers = invoking_pipeline_info[1]
@@ -565,7 +568,7 @@ class Driver:
 
     def _update_duration(self):
         job_name = self.static_job_info[StaticVariables.JOB_NAME_FN]
-        s3_job_info_path = StaticVariables.S3_UI_GENERAL_JOB_INFORMATION_PATH % job_name
+        s3_job_info_path = StaticVariables.S3_UI_GENERAL_JOB_INFORMATION_PATH % (job_name, self.submission_time)
         response = self.s3_client.get_object(Bucket=StaticVariables.S3_JOBS_INFORMATION_BUCKET_NAME,
                                              Key=s3_job_info_path)
         contents = response['Body'].read()

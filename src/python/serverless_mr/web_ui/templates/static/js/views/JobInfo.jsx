@@ -34,7 +34,8 @@ class JobInfo extends Component {
   constructor(props){
     super(props);
     this.state = {
-      jobName: this.props.location.state.jobName
+      jobName: this.props.location.state.jobName,
+      submissionTime: this.props.location.state.submissionTime
     }
   }
 
@@ -48,6 +49,7 @@ class JobInfo extends Component {
                 title="In Degree Information"
                 category="General information of the current selected job"
                 jobName={this.state.jobName}
+                submissionTime={this.state.submissionTime}
                 ctTableFullWidth
                 ctTableResponsive
                 content={
@@ -79,6 +81,7 @@ class JobInfo extends Component {
                   title="Stage State Information"
                   category="General information of the current selected job"
                   jobName={this.state.jobName}
+                  submissionTime={this.state.submissionTime}
                   ctTableFullWidth
                   ctTableResponsive
                   content={
@@ -112,6 +115,7 @@ class JobInfo extends Component {
                 title="Stage progress Information"
                 category="Stage progress Information"
                 jobName={this.state.jobName}
+                submissionTime={this.state.submissionTime}
                 ctTableFullWidth
                 ctTableResponsive
                 content={
@@ -145,6 +149,7 @@ class JobInfo extends Component {
                 title="Pipelines Dependencies Information"
                 category="General information of the current selected job"
                 jobName={this.state.jobName}
+                submissionTime={this.state.submissionTime}
                 ctTableFullWidth
                 ctTableResponsive
                 content={

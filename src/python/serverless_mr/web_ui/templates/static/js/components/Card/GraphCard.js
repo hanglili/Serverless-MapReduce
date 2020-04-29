@@ -11,7 +11,8 @@ export class GraphCard extends Component {
     super(props);
     this.state = {
       content: this.props.content,
-      jobName: this.props.jobName
+      jobName: this.props.jobName,
+      submissionTime: this.props.submissionTime
     }
   }
 
@@ -26,7 +27,7 @@ export class GraphCard extends Component {
       } else {
         url = `${currentPageProtocol}//${currentPageHostname}/dev/dag?`;
       }
-      url = url.concat('job-name=', this.state.jobName);
+      url = url.concat('job-name=', this.state.jobName, '&submission-time=', this.state.submissionTime);
       const res = await fetch(url);
       return await res.json()
     } catch(e) {

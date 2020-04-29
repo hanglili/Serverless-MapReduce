@@ -51,12 +51,13 @@ def lambda_handler(event, _):
     stage_id = int(os.environ.get("stage_id"))
     num_bins = int(os.environ.get("num_reducers"))
     coordinator_lambda_name = os.environ.get("coordinator_lambda_name")
+    submission_time = os.environ.get("submission_time")
 
     print("Stage:", stage_id)
 
     stage_progress_obj = stage_progress.StageProgress(in_lambda=True,
                                                       is_local_testing=static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN])
-    stage_progress_table_name = StaticVariables.STAGE_PROGRESS_DYNAMODB_TABLE_NAME % job_name
+    stage_progress_table_name = StaticVariables.STAGE_PROGRESS_DYNAMODB_TABLE_NAME % (job_name, submission_time)
 
     # aggr
     line_count = 0

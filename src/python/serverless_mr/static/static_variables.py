@@ -35,21 +35,21 @@ class StaticVariables:
     STATIC_INIT_PATH = "static/__init__.py"
     OUTPUT_PREFIX = "stage"
     REDUCE_OUTPUT_PREFIX_S3 = "stage"
-    IN_DEGREE_DYNAMODB_TABLE_NAME = "%s-in-degree"
+    IN_DEGREE_DYNAMODB_TABLE_NAME = "%s-%s-in-degree"
     IN_DEGREE_PATH = "utils/in_degree.py"
-    STAGE_STATE_DYNAMODB_TABLE_NAME = "%s-stage-state"
+    STAGE_STATE_DYNAMODB_TABLE_NAME = "%s-%s-stage-state"
     STAGE_STATE_PATH = "utils/stage_state.py"
 
     # S3 file locations - Web UI
     S3_JOBS_INFORMATION_BUCKET_NAME = "serverless-mapreduce-job-information"
-    S3_UI_GENERAL_JOB_INFORMATION_PATH = "web-ui/%s/static-job-info.json"
-    S3_UI_STAGE_CONFIGURATION_PATH = "web-ui/%s/stage-config.json"
-    S3_UI_DAG_INFORMATION_PATH = "web-ui/%s/dag-information.json"
+    S3_UI_GENERAL_JOB_INFORMATION_PATH = "web-ui/%s/%s/static-job-info.json"
+    S3_UI_STAGE_CONFIGURATION_PATH = "web-ui/%s/%s/stage-config.json"
+    S3_UI_DAG_INFORMATION_PATH = "web-ui/%s/%s/dag-information.json"
     S3_UI_REGISTERED_JOB_INFORMATION_PATH = "web-ui/%s/registered-job-info.json"
     S3_UI_REGISTERED_JOB_DRIVER_CONFIG_PATH = "web-ui/%s/driver.json"
 
     # DynamoDB table names - Web UI
-    STAGE_PROGRESS_DYNAMODB_TABLE_NAME = "%s-stage-progress"
+    STAGE_PROGRESS_DYNAMODB_TABLE_NAME = "%s-%s-stage-progress"
     STAGE_PROGRESS_PATH = "utils/stage_progress.py"
 
     # Lambda handler paths

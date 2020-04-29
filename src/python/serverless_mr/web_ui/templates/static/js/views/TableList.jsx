@@ -151,9 +151,11 @@ class TableList extends Component {
   }
 
   onClickHandler = (e, prop) => {
+    console.log("Hello");
+    console.log(prop[4]);
     this.props.history.push({
       pathname: "job-information",
-      state: { jobName: prop[0] }
+      state: { jobName: prop[0], submissionTime: prop[4] }
     })
   };
 

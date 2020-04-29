@@ -40,7 +40,7 @@ def get_map_shuffle_outputs(num_bins, bucket, job_name, stage_id):
 
     return keys_bins
 
-def schedule_same_pipeline_next_stage(stage_configuration, stage_id, shuffling_bucket, job_name):
+def schedule_same_pipeline_next_stage(stage_configuration, stage_id, shuffling_bucket, job_name, submission_time):
     cur_stage_config = stage_configuration[str(stage_id)]
     next_stage_config = stage_configuration[str(stage_id + 1)]
     invoking_lambda_name = next_stage_config["invoking_lambda_name"]
@@ -53,7 +53,7 @@ def schedule_same_pipeline_next_stage(stage_configuration, stage_id, shuffling_b
 
     stage_progress_obj = stage_progress.StageProgress(in_lambda=True,
                                                       is_local_testing=static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN])
-    stage_progress_table_name = StaticVariables.STAGE_PROGRESS_DYNAMODB_TABLE_NAME % job_name
+    stage_progress_table_name = StaticVariables.STAGE_PROGRESS_DYNAMODB_TABLE_NAME % (job_name, submission_time)
     total_num_jobs = sum([len(keys_bin) for keys_bin in keys_bins])
     stage_progress_obj.update_total_num_keys(stage_progress_table_name, stage_id + 1, total_num_jobs)
 
@@ -90,7 +90,7 @@ def schedule_same_pipeline_next_stage(stage_configuration, stage_id, shuffling_b
 
 
 def schedule_different_pipeline_next_stage(is_serverless_driver, stage_configuration, cur_pipeline_id,
-                                           shuffling_bucket, job_name):
+                                           shuffling_bucket, job_name, submission_time):
     if not is_serverless_driver:
         with open(StaticVariables.PIPELINE_DEPENDENCIES_PATH) as json_file:
             adj_list = json.load(json_file)
@@ -111,9 +111,9 @@ def schedule_different_pipeline_next_stage(is_serverless_driver, stage_configura
                                        is_local_testing=static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN])
     stage_progress_obj = stage_progress.StageProgress(in_lambda=True,
                                                       is_local_testing=static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN])
-    stage_progress_table_name = StaticVariables.STAGE_PROGRESS_DYNAMODB_TABLE_NAME % job_name
+    stage_progress_table_name = StaticVariables.STAGE_PROGRESS_DYNAMODB_TABLE_NAME % (job_name, submission_time)
     for dependent_pipeline_id in adj_list[str(cur_pipeline_id)]:
-        response = in_degree_obj.decrement_in_degree_table(StaticVariables.IN_DEGREE_DYNAMODB_TABLE_NAME % job_name,
+        response = in_degree_obj.decrement_in_degree_table(StaticVariables.IN_DEGREE_DYNAMODB_TABLE_NAME % (job_name, submission_time),
                                                            dependent_pipeline_id)
         dependent_in_degree = int(response["Attributes"]["in_degree"]["N"])
         if dependent_in_degree == 0:
@@ -174,6 +174,8 @@ def lambda_handler(event, _):
     # if not s3_obj_key.startswith(stage_s3_prefix):
     #     return
 
+    submission_time = os.environ.get("submission_time")
+
     cur_map_phase_state = stage_state.StageState(in_lambda=True,
                                                  is_local_testing=static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN])
     # stage_id = cur_map_phase_state.read_current_stage_id(StaticVariables.STAGE_STATE_DYNAMODB_TABLE_NAME)
@@ -201,7 +203,8 @@ def lambda_handler(event, _):
 
     # print("The event obj key is", s3_obj_key)
     num_operators = cur_stage_config["num_operators"]
-    response = cur_map_phase_state.increment_num_completed_operators(StaticVariables.STAGE_STATE_DYNAMODB_TABLE_NAME % job_name,
+    response = cur_map_phase_state.increment_num_completed_operators(StaticVariables.STAGE_STATE_DYNAMODB_TABLE_NAME
+                                                                     % (job_name, submission_time),
                                                                      stage_id)
     num_completed_operators = int(response["Attributes"]["num_completed_operators"]["N"])
     print("In stage %s, number of operators completed: %s" % (stage_id, num_completed_operators))
@@ -217,9 +220,10 @@ def lambda_handler(event, _):
 
         cur_pipeline_id = mapping_stage_id_pipeline_id[str(stage_id)]
         if cur_pipeline_id != mapping_stage_id_pipeline_id[str(stage_id + 1)]:
-            schedule_different_pipeline_next_stage(is_serverless_driver, stage_configuration, cur_pipeline_id, shuffling_bucket, job_name)
+            schedule_different_pipeline_next_stage(is_serverless_driver, stage_configuration, cur_pipeline_id,
+                                                   shuffling_bucket, job_name, submission_time)
         else:
-            schedule_same_pipeline_next_stage(stage_configuration, stage_id, shuffling_bucket, job_name)
+            schedule_same_pipeline_next_stage(stage_configuration, stage_id, shuffling_bucket, job_name, submission_time)
 
         # cur_map_phase_state.increment_current_stage_id(StaticVariables.STAGE_STATE_DYNAMODB_TABLE_NAME)
     else:
