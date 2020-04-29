@@ -56,12 +56,14 @@ def get_url():
 @app.route('/public/<path:filename>')
 @cross_origin()
 def online_custom_static(filename):
+    print("WebUI: Received request for path /public/%s" % filename)
     return send_from_directory('templates/public', filename)
 
 
 @app.route('/dev/public/<path:filename>')
 @cross_origin()
 def local_custom_static(filename):
+    print("WebUI: Received request for path /dev/public/%s" % filename)
     return send_from_directory('templates/public', filename)
 
 
@@ -70,6 +72,7 @@ def local_custom_static(filename):
 @app.route('/dev/table')
 @cross_origin()
 def index():
+    print("WebUI: Received request for path /")
     if is_production():
         return render_template("index.html")
     else:
@@ -79,6 +82,7 @@ def index():
 @app.route('/username')
 @cross_origin()
 def get_username():
+    print("WebUI: Received request for path /username")
     is_local_testing = os.environ.get("local_testing") == 'True' or os.environ.get("local_testing") == 'true'
     if is_local_testing:
         local_endpoint_url = 'http://localhost:4592'
@@ -93,6 +97,7 @@ def get_username():
 @app.route("/jobs", methods=['GET'])
 @cross_origin()
 def get_jobs_info():
+    print("WebUI: Received request for path /jobs")
     is_local_testing = os.environ.get("local_testing") == 'True' or os.environ.get("local_testing") == 'true'
     if is_local_testing:
         local_endpoint_url = 'http://localhost:4572'
@@ -140,6 +145,7 @@ def get_jobs_info():
 def invoke_job():
     job_name = request.args.get('job-name')
     driver_lambda_name = request.args.get('driver-lambda-name')
+    print("WebUI: Received request for path /invoke-job with parameters", job_name, driver_lambda_name)
 
     is_local_testing = os.environ.get("local_testing") == 'True' or os.environ.get("local_testing") == 'true'
     if is_local_testing:
@@ -186,6 +192,7 @@ def schedule_job():
     job_name = request.args.get('job-name')
     driver_lambda_name = request.args.get('driver-lambda-name')
     schedule_expression = request.args.get('schedule-expression')
+    print("WebUI: Received request for path /schedule-job with parameters", job_name, driver_lambda_name, schedule_expression)
 
     is_local_testing = os.environ.get("local_testing") == 'True' or os.environ.get("local_testing") == 'true'
     if is_local_testing:
@@ -229,6 +236,7 @@ def schedule_job():
 def get_in_degree_info():
     job_name = request.args.get('job-name')
     submission_time = request.args.get('submission-time')
+    print("WebUI: Received request for path /in-degree with parameters", job_name, submission_time)
 
     is_local_testing = os.environ.get("local_testing") == 'True' or os.environ.get("local_testing") == 'true'
     in_degree_obj = in_degree.InDegree(in_lambda=False, is_local_testing=is_local_testing)
@@ -242,6 +250,7 @@ def get_in_degree_info():
 def get_stage_progress():
     job_name = request.args.get('job-name')
     submission_time = request.args.get('submission-time')
+    print("WebUI: Received request for path /stage-progress with parameters", job_name, submission_time)
 
     is_local_testing = os.environ.get("local_testing") == 'True' or os.environ.get("local_testing") == 'true'
     stage_progress_obj = stage_progress.StageProgress(in_lambda=False, is_local_testing=is_local_testing)
@@ -255,6 +264,7 @@ def get_stage_progress():
 def get_num_completed_operators():
     job_name = request.args.get('job-name')
     submission_time = request.args.get('submission-time')
+    print("WebUI: Received request for path /num-completed-operators with parameters", job_name, submission_time)
 
     is_local_testing = os.environ.get("local_testing") == 'True' or os.environ.get("local_testing") == 'true'
     input_handler_s3_obj = input_handler_s3.InputHandlerS3(in_lambda=False, is_local_testing=is_local_testing)
@@ -276,6 +286,7 @@ def get_num_completed_operators():
 def get_dag_information():
     job_name = request.args.get('job-name')
     submission_time = request.args.get('submission-time')
+    print("WebUI: Received request for path /dag with parameters", job_name, submission_time)
 
     is_local_testing = os.environ.get("local_testing") == 'True' or os.environ.get("local_testing") == 'true'
     input_handler_s3_obj = input_handler_s3.InputHandlerS3(in_lambda=False, is_local_testing=is_local_testing)
