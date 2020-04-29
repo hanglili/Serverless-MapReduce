@@ -80,22 +80,26 @@ class OutputHandlerDynamoDB:
             }
         )
 
-    def create_output_storage(self, static_job_info):
+    def create_output_storage(self, submission_time, static_job_info):
         job_name = static_job_info[StaticVariables.JOB_NAME_FN]
-        metadata_table_name = "%s-metadata" % job_name
-        output_table_name = static_job_info[StaticVariables.OUTPUT_SOURCE_FN]
+        metadata_table_name = "%s-%s-metadata" % (job_name, submission_time)
+        output_table_name_prefix = static_job_info[StaticVariables.SHUFFLING_BUCKET_FN] \
+            if StaticVariables.OUTPUT_SOURCE_FN not in static_job_info \
+            else static_job_info[StaticVariables.OUTPUT_SOURCE_FN]
+        output_table_name = "%s-%s" % (output_table_name_prefix, submission_time)
         output_partition_key = static_job_info[StaticVariables.OUTPUT_PARTITION_KEY_DYNAMODB]
 
         OutputHandlerDynamoDB.create_table(self.client, output_table_name, output_partition_key)
         OutputHandlerDynamoDB.create_table(self.client, metadata_table_name,
                                            [OutputHandlerDynamoDB.METADATA_TABLE_KEY_NAME, 'S'])
 
-    def write_output(self, reducer_id, outputs, metadata, static_job_info):
+    def write_output(self, reducer_id, outputs, metadata, submission_time, static_job_info):
         job_name = static_job_info[StaticVariables.JOB_NAME_FN]
-        metadata_table_name = "%s-metadata" % job_name
-        output_table_name = static_job_info[StaticVariables.SHUFFLING_BUCKET_FN] \
-            if StaticVariables.OUTPUT_SOURCE_FN not in static_job_info else static_job_info[
-            StaticVariables.OUTPUT_SOURCE_FN]
+        metadata_table_name = "%s-%s-metadata" % (job_name, submission_time)
+        output_table_name_prefix = static_job_info[StaticVariables.SHUFFLING_BUCKET_FN] \
+            if StaticVariables.OUTPUT_SOURCE_FN not in static_job_info \
+            else static_job_info[StaticVariables.OUTPUT_SOURCE_FN]
+        output_table_name = "%s-%s" % (output_table_name_prefix, submission_time)
 
         output_partition_key = static_job_info[StaticVariables.OUTPUT_PARTITION_KEY_DYNAMODB]
         output_column = static_job_info[StaticVariables.OUTPUT_COLUMN_DYNAMODB]
@@ -103,9 +107,9 @@ class OutputHandlerDynamoDB:
         OutputHandlerDynamoDB.put_items(self.client, output_table_name, outputs, output_partition_key, output_column)
         OutputHandlerDynamoDB.put_metadata(self.client, metadata_table_name, json.dumps(metadata), reducer_id)
 
-    def list_objects_for_checking_finish(self, static_job_info):
+    def list_objects_for_checking_finish(self, static_job_info, submission_time):
         job_name = static_job_info[StaticVariables.JOB_NAME_FN]
-        metadata_table_name = "%s-metadata" % job_name
+        metadata_table_name = "%s-%s-metadata" % (job_name, submission_time)
         project_expression = '%s, %s' % (OutputHandlerDynamoDB.METADATA_TABLE_KEY_NAME,
                                          OutputHandlerDynamoDB.METADATA_TABLE_COLUMN_NAME)
 
@@ -115,7 +119,7 @@ class OutputHandlerDynamoDB:
 
         return {}, "Items"
 
-    def check_job_finish(self, response, string_index, num_final_dst_operators, static_job_info):
+    def check_job_finish(self, response, string_index, num_final_dst_operators, submission_time, static_job_info):
         last_stage_keys = []
         reducer_metadata = []
         lambda_time = 0
@@ -125,11 +129,12 @@ class OutputHandlerDynamoDB:
             reducer_metadata.append(json.loads(record[OutputHandlerDynamoDB.METADATA_TABLE_COLUMN_NAME]['S']))
 
         if len(last_stage_keys) == num_final_dst_operators:
-            output_table_name = static_job_info[StaticVariables.SHUFFLING_BUCKET_FN] \
-                if StaticVariables.OUTPUT_SOURCE_FN not in static_job_info else static_job_info[
-                StaticVariables.OUTPUT_SOURCE_FN]
+            output_table_name_prefix = static_job_info[StaticVariables.SHUFFLING_BUCKET_FN] \
+                if StaticVariables.OUTPUT_SOURCE_FN not in static_job_info \
+                else static_job_info[StaticVariables.OUTPUT_SOURCE_FN]
+            output_table_name = "%s-%s" % (output_table_name_prefix, submission_time)
             job_name = static_job_info[StaticVariables.JOB_NAME_FN]
-            metadata_table_name = "%s-metadata" % job_name
+            metadata_table_name = "%s-%s-metadata" % (job_name, submission_time)
             metadata_table_size = self.client.describe_table(TableName=metadata_table_name)['Table']['TableSizeBytes']
             output_table_info = self.client.describe_table(TableName=output_table_name)['Table']
             output_table_item_count = output_table_info['ItemCount']
@@ -156,8 +161,11 @@ class OutputHandlerDynamoDB:
 
         return -1, -1, -1, -1
 
-    def get_output(self, reducer_id, static_job_info):
-        output_table_name = static_job_info[StaticVariables.OUTPUT_SOURCE_FN]
+    def get_output(self, reducer_id, static_job_info, submission_time):
+        output_table_name_prefix = static_job_info[StaticVariables.SHUFFLING_BUCKET_FN] \
+            if StaticVariables.OUTPUT_SOURCE_FN not in static_job_info \
+            else static_job_info[StaticVariables.OUTPUT_SOURCE_FN]
+        output_table_name = "%s-%s" % (output_table_name_prefix, submission_time)
 
         output_partition_key = static_job_info[StaticVariables.OUTPUT_PARTITION_KEY_DYNAMODB]
         output_column = static_job_info[StaticVariables.OUTPUT_COLUMN_DYNAMODB]

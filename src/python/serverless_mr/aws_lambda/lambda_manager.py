@@ -22,7 +22,7 @@ class LambdaManager(object):
 
     # TracingConfig parameter switches X-Ray tracing on/off.
     # Change value to 'Mode':'PassThrough' to switch it off
-    def create_lambda_function(self, stage_id, total_num_stages, coordinator_lambda_name, num_reducers):
+    def create_lambda_function(self, stage_id, total_num_stages, submission_time, coordinator_lambda_name, num_reducers):
         runtime = 'python3.7'
         response = self.lambda_client.create_function(
             FunctionName=self.function_name,
@@ -38,6 +38,7 @@ class LambdaManager(object):
                     "serverless_mapreduce_role": self.role,
                     "stage_id": str(stage_id),
                     "total_num_stages": str(total_num_stages),
+                    'submission_time': str(submission_time),
                     'coordinator_lambda_name': str(coordinator_lambda_name),
                     "num_reducers": str(num_reducers)
                 }
@@ -64,13 +65,13 @@ class LambdaManager(object):
         self.function_arn = arn
         print(response)
 
-    def update_code_or_create_on_no_exist(self, total_num_stages, coordinator_lambda_name="",
-                                          stage_id=-1, num_reducers=-1):
+    def update_code_or_create_on_no_exist(self, total_num_stages, submission_time="",
+                                          coordinator_lambda_name="", stage_id=-1, num_reducers=-1):
         """
         Update if the function exists, else create function
         """
         try:
-            self.create_lambda_function(stage_id, total_num_stages, coordinator_lambda_name, num_reducers)
+            self.create_lambda_function(stage_id, total_num_stages, submission_time, coordinator_lambda_name, num_reducers)
         except Exception as e:
             # parse (Function already exist)
             print("Failed to create lambda:", e)

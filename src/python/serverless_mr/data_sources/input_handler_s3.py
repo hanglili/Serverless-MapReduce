@@ -23,6 +23,8 @@ class InputHandlerS3:
         prefix = static_job_info[StaticVariables.INPUT_PREFIX_FN]
 
         self.client.create_bucket(Bucket=input_bucket)
+        s3_bucket_exists_waiter = self.client.get_waiter('bucket_exists')
+        s3_bucket_exists_waiter.wait(Bucket=input_bucket)
         self.client.put_bucket_acl(
             ACL='public-read-write',
             Bucket=input_bucket,

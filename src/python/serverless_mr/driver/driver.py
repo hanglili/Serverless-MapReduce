@@ -97,9 +97,9 @@ def construct_dag_information(pipelines_dependencies, stage_mapping, pipeline_fi
     return dag_data
 
 
-def populate_static_job_info(static_job_info, total_num_pipelines, total_num_stages):
+def populate_static_job_info(static_job_info, total_num_pipelines, total_num_stages, submission_time):
     static_job_info["completed"] = False
-    static_job_info["submissionTime"] = str(datetime.utcnow())
+    static_job_info["submissionTime"] = submission_time
     static_job_info["duration"] = -1
     static_job_info["totalNumPipelines"] = total_num_pipelines
     static_job_info["totalNumStages"] = total_num_stages
@@ -118,8 +118,11 @@ class Driver:
         self.map_phase_state = stage_state.StageState(self.is_serverless,
                                                       is_local_testing=self.static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN])
         self._initialise_stage_state(total_num_functions)
+        prefix = "%s/" % self.static_job_info[StaticVariables.JOB_NAME_FN]
         self.set_up_bucket(self.static_job_info[StaticVariables.SHUFFLING_BUCKET_FN])
+        self.delete_s3_objects(self.static_job_info[StaticVariables.SHUFFLING_BUCKET_FN], prefix)
         self.set_up_bucket(StaticVariables.S3_JOBS_INFORMATION_BUCKET_NAME)
+        self.submission_time = datetime.utcnow().strftime("%Y-%m-%d_%H.%M.%S")
 
     def _set_aws_clients(self):
         if self.static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
@@ -164,13 +167,27 @@ class Driver:
 
     def _initialise_stage_state(self, num_stages):
         job_name = self.static_job_info[StaticVariables.JOB_NAME_FN]
+        self.map_phase_state.delete_state_table(StaticVariables.STAGE_STATE_DYNAMODB_TABLE_NAME % job_name)
         self.map_phase_state.create_state_table(StaticVariables.STAGE_STATE_DYNAMODB_TABLE_NAME % job_name)
         self.map_phase_state.initialise_state_table(StaticVariables.STAGE_STATE_DYNAMODB_TABLE_NAME % job_name,
                                                     num_stages)
 
+    def delete_s3_objects(self, bucket_name, prefix):
+        response = self.s3_client.list_objects(Bucket=bucket_name, Prefix=prefix)
+        if "Contents" in response:
+            contents = self.s3_client.list_objects(Bucket=bucket_name, Prefix=prefix)["Contents"]
+            delete_keys = []
+            for content in contents:
+                delete_keys.append({'Key': content["Key"]})
+
+            self.s3_client.delete_objects(Bucket=bucket_name, Delete={
+                'Objects': delete_keys
+            })
+
     def set_up_bucket(self, bucket_name):
         self.s3_client.create_bucket(Bucket=bucket_name)
-        time.sleep(1)
+        s3_bucket_exists_waiter = self.s3_client.get_waiter('bucket_exists')
+        s3_bucket_exists_waiter.wait(Bucket=bucket_name)
         self.s3_client.put_bucket_acl(
             ACL='public-read-write',
             Bucket=bucket_name,
@@ -278,11 +295,13 @@ class Driver:
                 if isinstance(cur_function, MapShuffleFunction):
                     assert i + 1 < len(functions) and isinstance(functions[i+1], ReduceFunction)
                     cur_function_lambda.update_code_or_create_on_no_exist(self.total_num_functions,
+                                                                          submission_time=self.submission_time,
                                                                           coordinator_lambda_name=cur_coordinator_lambda_name,
                                                                           stage_id=stage_id,
                                                                           num_reducers=functions[i+1].get_num_reducers())
                 else:
                     cur_function_lambda.update_code_or_create_on_no_exist(self.total_num_functions,
+                                                                          submission_time=self.submission_time,
                                                                           coordinator_lambda_name=cur_coordinator_lambda_name,
                                                                           stage_id=stage_id)
                 function_lambdas.append(cur_function_lambda)
@@ -327,7 +346,8 @@ class Driver:
         # Web UI information
         dag_information = construct_dag_information(adj_list, mapping_stage_id_pipeline_id,
                                                     pipelines_first_last_stage_ids, stage_type_of_operations)
-        populate_static_job_info(self.static_job_info, len(pipelines_first_last_stage_ids), len(stage_type_of_operations))
+        populate_static_job_info(self.static_job_info, len(pipelines_first_last_stage_ids),
+                                 len(stage_type_of_operations), self.submission_time)
         self._write_web_ui_info(dag_information, stage_config, self.static_job_info,
                                 StaticVariables.S3_JOBS_INFORMATION_BUCKET_NAME, job_name)
 
@@ -335,7 +355,8 @@ class Driver:
                                                               coordinator_zip_path, job_name,
                                                               cur_coordinator_lambda_name,
                                                               StaticVariables.COORDINATOR_HANDLER_FUNCTION_PATH)
-        cur_coordinator_lambda.update_code_or_create_on_no_exist(self.total_num_functions)
+        cur_coordinator_lambda.update_code_or_create_on_no_exist(self.total_num_functions,
+                                                                 submission_time=self.submission_time)
         # cur_coordinator_lambda.add_lambda_permission(random.randint(1, 1000), shuffling_bucket)
         # shuffling_s3_path_prefix = "%s/" % job_name
         # cur_coordinator_lambda.create_s3_event_source_notification(shuffling_bucket, shuffling_s3_path_prefix)
@@ -345,12 +366,14 @@ class Driver:
         in_degree_obj = in_degree.InDegree(in_lambda=self.is_serverless,
                                            is_local_testing=self.static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN])
         in_degree_table_name = StaticVariables.IN_DEGREE_DYNAMODB_TABLE_NAME % job_name
+        in_degree_obj.delete_in_degree_table(in_degree_table_name)
         in_degree_obj.create_in_degree_table(in_degree_table_name)
         in_degree_obj.initialise_in_degree_table(in_degree_table_name, in_degrees)
 
         stage_progress_obj = stage_progress.StageProgress(in_lambda=self.is_serverless,
                                                           is_local_testing=self.static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN])
         stage_progress_table_name = StaticVariables.STAGE_PROGRESS_DYNAMODB_TABLE_NAME % job_name
+        stage_progress_obj.delete_progress_table(stage_progress_table_name)
         stage_progress_obj.create_progress_table(stage_progress_table_name)
         stage_progress_obj.initialise_progress_table(stage_progress_table_name, stage_id - 1)
 
@@ -482,10 +505,12 @@ class Driver:
         # Wait for the job to complete so that we can compute total cost ; create a poll every 5 secs
         while True:
             print("Checking whether the job is completed...")
-            response, string_index = cur_output_handler.list_objects_for_checking_finish(self.static_job_info)
+            response, string_index = cur_output_handler.list_objects_for_checking_finish(self.static_job_info,
+                                                                                         self.submission_time)
             if string_index in response:
                 last_stage_lambda_time, last_stage_storage_cost, last_stage_write_cost, last_stage_read_cost = \
-                    cur_output_handler.check_job_finish(response, string_index, num_outputs, self.static_job_info)
+                    cur_output_handler.check_job_finish(response, string_index, num_outputs, self.submission_time,
+                                                        self.static_job_info)
                 if last_stage_lambda_time > -1:
                     total_lambda_time += last_stage_lambda_time
                     last_stage_database_cost = last_stage_storage_cost + last_stage_write_cost + last_stage_read_cost
@@ -545,9 +570,9 @@ class Driver:
                                              Key=s3_job_info_path)
         contents = response['Body'].read()
         cur_static_job_info = json.loads(contents)
-        submission_time = datetime.strptime(cur_static_job_info["submissionTime"], "%Y-%m-%d %H:%M:%S.%f")
+        submission_time = datetime.strptime(cur_static_job_info["submissionTime"], "%Y-%m-%d_%H.%M.%S")
         duration = datetime.utcnow() - submission_time
-        cur_static_job_info['duration'] = str(duration)
+        cur_static_job_info['duration'] = str(duration).split(".")[0]
         cur_static_job_info['completed'] = True
 
         self.s3_client.put_object(Bucket=StaticVariables.S3_JOBS_INFORMATION_BUCKET_NAME,
@@ -566,7 +591,7 @@ class Driver:
         cur_output_handler = output_handler.get_output_handler(self.static_job_info[StaticVariables.OUTPUT_SOURCE_TYPE_FN],
                                                                self.static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN],
                                                                self.is_serverless)
-        cur_output_handler.create_output_storage(self.static_job_info)
+        cur_output_handler.create_output_storage(self.submission_time, self.static_job_info)
         self._calculate_cost(num_outputs, cur_output_handler, invoking_pipelines_info)
 
         # 4. Delete the function lambdas
@@ -574,7 +599,7 @@ class Driver:
             function_lambda.delete_function()
 
         # 5. View one of the reducer results
-        print(cur_output_handler.get_output(3, self.static_job_info))
+        print(cur_output_handler.get_output(3, self.static_job_info, self.submission_time))
         # self.map_phase_state.delete_state_table(StaticVariables.STAGE_STATE_DYNAMODB_TABLE_NAME)
 
         self._update_duration()

@@ -33,6 +33,8 @@ class InDegree:
             self.client = boto3.client('dynamodb')
 
     def create_in_degree_table(self, table_name):
+        waiter = self.client.get_waiter('table_not_exists')
+        waiter.wait(TableName=table_name)
         self.client.create_table(
             AttributeDefinitions=[{
                 'AttributeName': 'pipeline_id',
@@ -77,11 +79,17 @@ class InDegree:
         return in_degrees
 
     def delete_in_degree_table(self, table_name):
-        self.client.delete_table(
-            TableName=table_name
-        )
+        existing_tables = self.client.list_tables()['TableNames']
 
-        print("In degree table deleted successfully")
+        if table_name in existing_tables:
+            self.client.delete_table(
+                TableName=table_name
+            )
+
+            print("In degree table deleted successfully")
+            return
+
+        print("In degree table has not been created")
 
     def decrement_in_degree_table(self, table_name, pipeline_id):
         response = self.client.update_item(

@@ -17,7 +17,7 @@
     "outputPartitionKeyDynamoDB": ["ip", "S"],
     "outputColumnDynamoDB": ["revenue", "S"],
     "useCombine": true,
-    "localTesting": false,
+    "localTesting": true,
     "localTestingInputPath": "../../input_data/testing_partitioned/s3/",
     "serverlessDriver": true
 }

@@ -33,6 +33,8 @@ class StageProgress:
             self.client = boto3.client('dynamodb')
 
     def create_progress_table(self, table_name):
+        waiter = self.client.get_waiter('table_not_exists')
+        waiter.wait(TableName=table_name)
         self.client.create_table(
             AttributeDefinitions=[{
                 'AttributeName': 'stage_id',
@@ -80,11 +82,17 @@ class StageProgress:
         return stage_progress
 
     def delete_progress_table(self, table_name):
-        self.client.delete_table(
-            TableName=table_name
-        )
+        existing_tables = self.client.list_tables()['TableNames']
 
-        print("Stage progress table deleted successfully")
+        if table_name in existing_tables:
+            self.client.delete_table(
+                TableName=table_name
+            )
+
+            print("Stage progress table deleted successfully")
+            return
+
+        print("Stage progress table has not been created")
 
     def update_total_num_keys(self, table_name, stage_id, total_num_keys):
         response = self.client.update_item(

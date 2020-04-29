@@ -122,9 +122,9 @@ def get_jobs_info():
             if cur_job_info["completed"]:
                 completed.append(cur_job_info)
             else:
-                submission_time = datetime.strptime(cur_job_info["submissionTime"], "%Y-%m-%d %H:%M:%S.%f")
+                submission_time = datetime.strptime(cur_job_info["submissionTime"], "%Y-%m-%d_%H.%M.%S")
                 duration = datetime.utcnow() - submission_time
-                cur_job_info['duration'] = str(duration)
+                cur_job_info['duration'] = str(duration).split(".")[0]
                 active.append(cur_job_info)
         else:
             registered.append(cur_job_info)

@@ -29,12 +29,12 @@ from user_job_6.map_3 import identity_function
 #     .reduce(reduce_function, 4).map(remove_dots).map_shuffle(truncate_to_four_chars, partition)\
 #     .reduce(reduce_function, 3).run()
 
-# config_pipeline_1 = {
-#     "inputSourceType": "s3",
-#     "inputSource": "serverless-mapreduce-storage-input",
-#     "inputPrefix": "testing_partitioned",
-#     "localTestingInputPath": "../../input_data/testing_partitioned/s3/"
-# }
+config_pipeline_1 = {
+    "inputSourceType": "s3",
+    "inputSource": "serverless-mapreduce-storage-input",
+    "inputPrefix": "testing_partitioned",
+    "localTestingInputPath": "../../input_data/testing_partitioned/s3/"
+}
 
 online_config_pipeline_1 = {
     "inputSourceType": "s3",
@@ -61,7 +61,7 @@ config_pipeline_2 = {
 # }
 
 serverless_mr = ServerlessMR()
-pipeline1 = serverless_mr.config(online_config_pipeline_1).map(extract_data_s3).combine(reduce_function)\
+pipeline1 = serverless_mr.config(config_pipeline_1).map(extract_data_s3).combine(reduce_function)\
     .reduce(reduce_function, 4).finish()
 
 pipeline2 = serverless_mr.config(config_pipeline_2).map(extract_data_dynamo_db)\

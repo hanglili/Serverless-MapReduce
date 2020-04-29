@@ -69,6 +69,8 @@ class ServerlessDriverSetup:
 
     def set_up_bucket(self, bucket_name):
         self.s3_client.create_bucket(Bucket=bucket_name)
+        s3_bucket_exists_waiter = self.s3_client.get_waiter('bucket_exists')
+        s3_bucket_exists_waiter.wait(Bucket=bucket_name)
         self.s3_client.put_bucket_acl(
             ACL='public-read-write',
             Bucket=bucket_name,
@@ -112,7 +114,7 @@ class ServerlessDriverSetup:
         serverless_driver.update_code_or_create_on_no_exist(self.total_num_functions)
 
         registered_job_information = {'jobName': self.job_name, 'driverLambdaName': self.driver_lambda_name,
-                                      'registeredTime': str(datetime.utcnow()),
+                                      'registeredTime': datetime.utcnow().strftime("%Y-%m-%d_%H.%M.%S"),
                                       'shufflingBucket': self.static_job_info[StaticVariables.SHUFFLING_BUCKET_FN],
                                       'inputSource': self.static_job_info[StaticVariables.INPUT_SOURCE_FN],
                                       "outputSource": self.static_job_info[StaticVariables.OUTPUT_SOURCE_FN],

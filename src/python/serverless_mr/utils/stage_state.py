@@ -33,6 +33,8 @@ class StageState:
             self.client = boto3.client('dynamodb')
 
     def create_state_table(self, table_name):
+        waiter = self.client.get_waiter('table_not_exists')
+        waiter.wait(TableName=table_name)
         self.client.create_table(
             AttributeDefinitions=[{
                 'AttributeName': 'stage_id',
@@ -86,11 +88,17 @@ class StageState:
         return stage_states
 
     def delete_state_table(self, table_name):
-        self.client.delete_table(
-            TableName=table_name
-        )
+        existing_tables = self.client.list_tables()['TableNames']
 
-        print("Stage state table deleted successfully")
+        if table_name in existing_tables:
+            self.client.delete_table(
+                TableName=table_name
+            )
+
+            print("Stage state table deleted successfully")
+            return
+
+        print("Stage state table has not been created")
 
     def increment_num_completed_operators(self, table_name, stage_id):
         response = self.client.update_item(

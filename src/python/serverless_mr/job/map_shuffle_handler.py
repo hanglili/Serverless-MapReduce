@@ -37,8 +37,12 @@ def lambda_handler(event, _):
         s3_client = boto3.client('s3', aws_access_key_id='', aws_secret_access_key='',
                                  region_name=StaticVariables.DEFAULT_REGION,
                                  endpoint_url='http://%s:4572' % os.environ['LOCALSTACK_HOSTNAME'])
+        lambda_client = boto3.client('lambda', aws_access_key_id='', aws_secret_access_key='',
+                                     region_name=StaticVariables.DEFAULT_REGION,
+                                     endpoint_url='http://%s:4574' % os.environ['LOCALSTACK_HOSTNAME'])
     else:
         s3_client = boto3.client('s3')
+        lambda_client = boto3.client('lambda')
 
     shuffling_bucket = static_job_info[StaticVariables.SHUFFLING_BUCKET_FN]
     job_name = static_job_info[StaticVariables.JOB_NAME_FN]
@@ -166,7 +170,6 @@ def lambda_handler(event, _):
         s3_client.put_object(Bucket=shuffling_bucket, Key=mapper_filename,
                              Body=json.dumps(output_partitions[i]), Metadata=metadata)
 
-    lambda_client = boto3.client('lambda')
     lambda_client.invoke(
         FunctionName=coordinator_lambda_name,
         InvocationType='Event',

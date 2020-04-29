@@ -11,6 +11,8 @@ outputs = [1, 2, 3]
 def set_up_shuffling_input_bucket(shuffling_input_bucket):
     print("Setting up shuffling input bucket")
     s3_client.create_bucket(Bucket=shuffling_input_bucket)
+    s3_bucket_exists_waiter = s3_client.get_waiter('bucket_exists')
+    s3_bucket_exists_waiter.wait(Bucket=shuffling_input_bucket)
     s3_client.put_bucket_acl(
         ACL='public-read-write',
         Bucket=shuffling_input_bucket,

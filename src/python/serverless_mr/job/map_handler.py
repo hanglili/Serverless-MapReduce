@@ -29,8 +29,12 @@ def lambda_handler(event, _):
         s3_client = boto3.client('s3', aws_access_key_id='', aws_secret_access_key='',
                                  region_name=StaticVariables.DEFAULT_REGION,
                                  endpoint_url='http://%s:4572' % os.environ['LOCALSTACK_HOSTNAME'])
+        lambda_client = boto3.client('lambda', aws_access_key_id='', aws_secret_access_key='',
+                                     region_name=StaticVariables.DEFAULT_REGION,
+                                     endpoint_url='http://%s:4574' % os.environ['LOCALSTACK_HOSTNAME'])
     else:
         s3_client = boto3.client('s3')
+        lambda_client = boto3.client('lambda')
 
     shuffling_bucket = static_job_info[StaticVariables.SHUFFLING_BUCKET_FN]
     job_name = static_job_info[StaticVariables.JOB_NAME_FN]
@@ -38,6 +42,7 @@ def lambda_handler(event, _):
     stage_id = int(os.environ.get("stage_id"))
     total_num_stages = int(os.environ.get("total_num_stages"))
     coordinator_lambda_name = os.environ.get("coordinator_lambda_name")
+    submission_time = os.environ.get("submission_time")
 
     print("Stage:", stage_id)
 
@@ -119,13 +124,12 @@ def lambda_handler(event, _):
         cur_output_handler = output_handler.get_output_handler(static_job_info[StaticVariables.OUTPUT_SOURCE_TYPE_FN],
                                                                static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN],
                                                                in_lambda=True)
-        cur_output_handler.write_output(mapper_id, outputs, metadata, static_job_info)
+        cur_output_handler.write_output(mapper_id, outputs, metadata, submission_time, static_job_info)
     else:
         mapper_filename = "%s/%s-%s/%s" % (job_name, StaticVariables.OUTPUT_PREFIX, stage_id, mapper_id)
         s3_client.put_object(Bucket=shuffling_bucket, Key=mapper_filename,
                              Body=json.dumps(outputs), Metadata=metadata)
 
-        lambda_client = boto3.client('lambda')
         lambda_client.invoke(
             FunctionName=coordinator_lambda_name,
             InvocationType='Event',
