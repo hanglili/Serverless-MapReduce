@@ -7,11 +7,18 @@ from serverless_mr.main import ServerlessMR
 # from user_job_5.partition import partition
 # from user_job_5.reduce import reduce_function
 
-from user_job_6.map import extract_data_dynamo_db
-from user_job_6.map_2 import extract_data_s3
-from user_job_6.reduce import reduce_function
-from user_job_6.partition import partition
-from user_job_6.map_3 import identity_function
+# from user_job_6.map import extract_data_dynamo_db
+# from user_job_6.map_2 import extract_data_s3
+# from user_job_6.reduce import reduce_function
+# from user_job_6.partition import partition
+# from user_job_6.map_3 import identity_function
+
+
+from user_job_7.functions import extract_data_dynamo_db
+from user_job_7.functions import extract_data_s3
+from user_job_7.functions import reduce_function
+from user_job_7.functions import partition
+from user_job_7.functions import identity_function
 
 
 # serverless_mr = ServerlessMR()
