@@ -32,6 +32,7 @@ def set_up_local_input_data(static_job_info):
         os.chdir(StaticVariables.PROJECT_WORKING_DIRECTORY)
         local_testing_input_path = static_job_info[StaticVariables.LOCAL_TESTING_INPUT_PATH]
         local_file_paths = glob.glob(local_testing_input_path + "*")
+        print("The current working directory for local file paths is:", os.getcwd())
         print("The list of local file paths:", local_file_paths)
         cur_input_handler.set_up_local_input_data(local_file_paths, static_job_info)
         os.chdir(StaticVariables.LIBRARY_WORKING_DIRECTORY)

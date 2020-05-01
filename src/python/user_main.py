@@ -14,6 +14,13 @@ from user_job_6.partition import partition
 from user_job_6.map_3 import identity_function
 
 
+# from user_functions.functions import extract_data_dynamo_db
+# from user_functions.functions import extract_data_s3
+# from user_functions.functions import reduce_function
+# from user_functions.functions import partition
+# from user_functions.functions import identity_function
+
+
 # serverless_mr = ServerlessMR()
 # serverless_mr.map(extract_data).map(truncate_decimals).combine(reduce_function).shuffle(partition)\
 #     .reduce(reduce_function, 4).map(remove_dots).map(truncate_to_four_chars).run()
