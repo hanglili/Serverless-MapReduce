@@ -4,12 +4,15 @@ const resolve = require('path').resolve;
 const config = {
     devtool: 'eval-source-map',
     entry: __dirname + '/js/index.jsx',
+    plugins: [
+        new webpack.HashedModuleIdsPlugin(), // so that file hashes don't change unexpectedly
+    ],
     output:{
         path: resolve('../public/'),
-        filename: 'bundle.js',
+        filename: '[name].[contenthash].js',
         publicPath: 'dev/public/'
         // publicPath: resolve('../public')
-},
+    },
     resolve: {
         extensions: ['.js','.jsx','.css','.png','.woff','.ttf','.ico']
     },
@@ -80,6 +83,11 @@ const config = {
                   ]
           },
           ]
+    },
+    optimization: {
+        splitChunks: {
+            chunks: 'all',
+        },
     }
 };
 

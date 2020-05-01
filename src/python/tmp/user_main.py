@@ -18,12 +18,15 @@ from user_functions.functions import extract_data_dynamo_db
 from user_functions.functions import extract_data_s3
 from user_functions.functions import reduce_function
 from user_functions.functions import partition
+from user_functions.functions import truncate_decimals
+from user_functions.functions import remove_dots
+from user_functions.functions import truncate_to_four_chars
 from user_functions.functions import identity_function
 
 
-# serverless_mr = ServerlessMR()
-# serverless_mr.map(extract_data).map(truncate_decimals).combine(reduce_function).shuffle(partition)\
-#     .reduce(reduce_function, 4).map(remove_dots).map(truncate_to_four_chars).run()
+serverless_mr = ServerlessMR()
+serverless_mr.map(extract_data_s3).map(truncate_decimals).combine(reduce_function).shuffle(partition)\
+    .reduce(reduce_function, 4).map(remove_dots).map(truncate_to_four_chars).run()
 
 # serverless_mr.map(extract_data).map(truncate_decimals)\
 #     .reduce(reduce_function, 4).map(remove_dots).map(truncate_to_four_chars).run()
@@ -67,14 +70,14 @@ config_pipeline_2 = {
 #     "outputPrefix": "output"
 # }
 
-serverless_mr = ServerlessMR()
-pipeline1 = serverless_mr.config(online_config_pipeline_1).map(extract_data_s3).combine(reduce_function)\
-    .reduce(reduce_function, 4).finish()
-
-pipeline2 = serverless_mr.config(config_pipeline_2).map(extract_data_dynamo_db)\
-    .reduce(reduce_function, 2).finish()
-
-pipeline3 = serverless_mr.config({}).merge([pipeline1, pipeline2]).map(identity_function)\
-    .combine(reduce_function).shuffle(partition).reduce(reduce_function, 5).run()
+# serverless_mr = ServerlessMR()
+# pipeline1 = serverless_mr.config(online_config_pipeline_1).map(extract_data_s3).combine(reduce_function)\
+#     .reduce(reduce_function, 4).finish()
+#
+# pipeline2 = serverless_mr.config(config_pipeline_2).map(extract_data_dynamo_db)\
+#     .reduce(reduce_function, 2).finish()
+#
+# pipeline3 = serverless_mr.config({}).merge([pipeline1, pipeline2]).map(identity_function)\
+#     .combine(reduce_function).shuffle(partition).reduce(reduce_function, 5).run()
 
 # pipeline3 = serverless_mr.config(config_pipeline_3).merge([pipeline1, pipeline2]).map(identity_function).run()

@@ -1,5 +1,6 @@
 import glob
 import subprocess
+import os
 from zipfile import ZipFile
 
 from static.static_variables import StaticVariables
@@ -56,7 +57,8 @@ def zip_driver_lambda(zip_name, function_filepaths):
     file_paths = globed_results + glob.glob("*") + glob.glob("*/*")
     zip_obj = ZipFile(zip_name, 'w')
     for file_path in file_paths:
-        zip_obj.write(file_path)
+        if not file_path.startswith("node_modules"):
+            zip_obj.write(file_path)
     zip_obj.close()
     # faster to zip with shell exec
     # subprocess.call(['zip', zip_name] + glob.glob("*") + glob.glob("*/*")

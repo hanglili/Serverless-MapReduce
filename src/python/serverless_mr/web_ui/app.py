@@ -111,7 +111,7 @@ def register_job():
 
     # 3. Run user_main.py
     my_env = os.environ.copy()
-    my_env["serverless_mapreduce_role"] = "arn:aws:iam::259503590756:role/serverless_mr_role"
+    # my_env["serverless_mapreduce_role"] = "arn:aws:iam::259503590756:role/serverless_mr_role"
     print(subprocess.call(
         ["python3.7", "user_main.py"], env=my_env
     ))
