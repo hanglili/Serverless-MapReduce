@@ -16,16 +16,69 @@
 
 */
 import React, { Component } from "react";
+import "regenerator-runtime/runtime.js";
 import {
   Grid,
   Row,
-  Col
+  Col,
+  FormControl,
+  ControlLabel,
+  FormGroup
 } from "react-bootstrap";
 
-import { Card } from "components/Card/Card.jsx";
-import { FormInputs } from "components/FormInputs/FormInputs.jsx";
+import { Card } from "../components/Card/Card.jsx";
+import Button from "../components/CustomButton/CustomButton.jsx";
 
 class UserProfile extends Component {
+  constructor(props){
+    super(props);
+    this.state = {
+      driver: "{}",
+      staticJobInfo: "{}",
+      userMain: "{}",
+      functions: "{}"
+    }
+  }
+
+   async registerJob(driver, staticJobInfo, userMain, functions) {
+    try {
+      console.log("Register job parameters");
+      console.log(driver);
+      console.log(staticJobInfo);
+      console.log(userMain);
+      console.log(functions);
+      const currentPageHost = location.host;
+      const currentPageHostname = location.hostname;
+      const currentPageProtocol = location.protocol;
+      let url = '';
+      if (currentPageHostname === "localhost" || currentPageHostname === "127.0.0.1") {
+        url = `${currentPageProtocol}//${currentPageHost}/register-job?`;
+      } else {
+        url = `${currentPageProtocol}//${currentPageHostname}/dev/register-job?`;
+      }
+      // let formBody = new FormData();
+      // formBody.set("driver.json", driver);
+      // formBody.set("static-job-info.json", staticJobInfo);
+      // formBody.set("user_main.py", userMain);
+      // formBody.set("functions.py", functions);
+      let formBody = [];
+      formBody.push("driver.json" + "=" + driver);
+      formBody.push("static-job-info.json" + "=" + staticJobInfo);
+      formBody.push("user_main.py" + "=" + userMain);
+      formBody.push("functions.py" + "=" + functions);
+      await fetch(url, {
+        method: 'POST',
+        body: formBody.join("&"),
+        // body: formBody,
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
+      });
+    } catch(e) {
+      console.log(e);
+    }
+  }
+
   render() {
     return (
       <div className="content">
@@ -33,61 +86,76 @@ class UserProfile extends Component {
           <Row>
             <Col md={8}>
               <Card
-                title="User Information"
+                title="Register Job"
                 content={
                   <form>
-                    <FormInputs
-                      ncols={["col-md-5"]}
-                      properties={[
-                        {
-                          label: "Username",
-                          type: "text",
-                          bsClass: "form-control",
-                          placeholder: "Username",
-                          defaultValue: "hanglili",
-                          disabled: true
-                        }
-                      ]}
-                    />
-                    <FormInputs
-                      ncols={["col-md-6"]}
-                      properties={[
-                        {
-                          label: "Total Uptime",
-                          type: "text",
-                          bsClass: "form-control",
-                          placeholder: "Total Uptime",
-                          defaultValue: 9.1 + "min",
-                          disabled: true
-                        }
-                      ]}
-                    />
-                    <FormInputs
-                      ncols={["col-md-6"]}
-                      properties={[
-                        {
-                          label: "Active Jobs",
-                          type: "text",
-                          bsClass: "form-control",
-                          placeholder: "Active Jobs",
-                          defaultValue: 1,
-                          disabled: true
-                        }
-                      ]}
-                    />
-                    <FormInputs
-                      ncols={["col-md-6"]}
-                      properties={[
-                        {
-                          label: "Completed Jobs",
-                          type: "text",
-                          bsClass: "form-control",
-                          placeholder: "Completed Jobs",
-                          defaultValue: 7,
-                          disabled: true
-                        }
-                      ]}
-                    />
+                    <Row>
+                      <Col md={12}>
+                        <FormGroup controlId="formControlsTextarea">
+                          <ControlLabel>driver.json</ControlLabel>
+                          <FormControl
+                            rows="15"
+                            componentClass="textarea"
+                            bsClass="form-control"
+                            placeholder="{}"
+                            // inputRef={driver => this.setState({ 'driver': driver })}
+                            defaultValue="{}"
+                          />
+                        </FormGroup>
+                      </Col>
+                    </Row>
+                    <Row>
+                      <Col md={12}>
+                        <FormGroup controlId="formControlsTextarea">
+                          <ControlLabel>static-job-info.json</ControlLabel>
+                          <FormControl
+                            rows="15"
+                            componentClass="textarea"
+                            bsClass="form-control"
+                            placeholder="{}"
+                            // inputRef={staticJobInfo => this.setState({ 'staticJobInfo': staticJobInfo } )}
+                            defaultValue="{}"
+                          />
+                        </FormGroup>
+                      </Col>
+                    </Row>
+                    <Row>
+                      <Col md={12}>
+                        <FormGroup controlId="formControlsTextarea">
+                          <ControlLabel>user_main.py</ControlLabel>
+                          <FormControl
+                            rows="15"
+                            componentClass="textarea"
+                            bsClass="form-control"
+                            placeholder=""
+                            // inputRef={userMain => this.setState({ 'userMain': userMain } )}
+                            defaultValue=""
+                          />
+                        </FormGroup>
+                      </Col>
+                    </Row>
+                    <Row>
+                      <Col md={12}>
+                        <FormGroup controlId="formControlsTextarea">
+                          <ControlLabel>functions.py</ControlLabel>
+                          <FormControl
+                            rows="15"
+                            componentClass="textarea"
+                            bsClass="form-control"
+                            placeholder=""
+                            // inputRef={functions => this.setState({ 'functions': functions } )}
+                            defaultValue=""
+                          />
+                        </FormGroup>
+                      </Col>
+                    </Row>
+                    <Button bsStyle="info" pullRight fill onClick={() => {
+                      this.registerJob(this.state.driver, this.state.staticJobInfo,
+                          this.state.userMain, this.state.functions);
+                    }}>
+                      Register Job
+                    </Button>
+                    <div className="clearfix" />
                   </form>
                 }
               />

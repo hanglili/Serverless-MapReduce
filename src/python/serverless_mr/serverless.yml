@@ -60,6 +60,7 @@ functions:
     events:
       - http: ANY /
       - http: 'ANY {proxy+}'
+    timeout: 300
 
 package:
   exclude:

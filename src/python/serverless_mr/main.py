@@ -10,7 +10,15 @@ from pathlib import Path
 project_working_dir = os.getcwd()
 library_dir = Path(os.path.dirname(os.path.realpath(__file__)))
 library_working_dir = library_dir
-sys.path.insert(0, str(library_working_dir))
+print("The current project working directory is", project_working_dir)
+print("The current library working directory is", library_working_dir)
+sys.path.append(str(library_working_dir))
+sys.path.append('/opt/python/lib/python3.7/site-packages')
+sys.path.append('/opt/python')
+sys.path.append('/var/runtime')
+sys.path.append('/var/lang/lib/python37.zip')
+sys.path.append('/opt/python/lib/python3.7/site-packages')
+
 for path in sys.path:
     print("Sys path:", path)
 
@@ -191,11 +199,11 @@ class ServerlessMR:
         is_serverless_driver = static_job_info[StaticVariables.SERVERLESS_DRIVER_FLAG_FN]
 
         if is_serverless_driver:
-            pass
             serverless_driver_setup = ServerlessDriverSetup(self.pipelines, self.total_num_functions)
             serverless_driver_setup.register_driver()
             print("Driver Lambda function successfully registered")
-            command = input("Enter invoke to invoke and other keys to exit: ")
+            # command = input("Enter invoke to invoke and other keys to exit: ")
+            command = "123"
             if command == "invoke":
                 print("Driver invoked and starting job execution")
                 serverless_driver_setup.invoke()

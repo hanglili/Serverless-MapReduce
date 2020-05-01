@@ -16,7 +16,7 @@
 
 */
 // import Dashboard from "views/Dashboard.jsx";
-// import UserProfile from "views/UserProfile.jsx";
+import UserProfile from "./views/UserProfile.jsx";
 import TableList from "./views/TableList.jsx";
 import JobInfo from "./views/JobInfo";
 
@@ -28,18 +28,18 @@ const dashboardRoutes = [
   //   component: Dashboard,
   //   layout: "/admin"
   // },
-  // {
-  //   path: "/user",
-  //   name: "User Profile",
-  //   icon: "pe-7s-user",
-  //   component: UserProfile,
-  //   layout: "/admin"
-  // },
   {
     path: "/table",
     name: "Dashboard",
     icon: "pe-7s-note2",
     component: TableList,
+    layout: "/dev"
+  },
+  {
+    path: "/register-job",
+    name: "Register job",
+    icon: "pe-7s-upload",
+    component: UserProfile,
     layout: "/dev"
   },
   {
