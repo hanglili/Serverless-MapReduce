@@ -40,7 +40,7 @@ config_pipeline_1 = {
     "inputSourceType": "s3",
     "inputSource": "serverless-mapreduce-storage-input",
     "inputPrefix": "testing_partitioned",
-    "localTestingInputPath": "../../input_data/testing_partitioned/s3/"
+    "localTestingInputPath": "../../../../../input_data/testing_partitioned/s3/"
 }
 
 online_config_pipeline_1 = {
@@ -58,7 +58,7 @@ config_pipeline_2 = {
         ["sourceIP", "S"], ["destURL", "S"], ["visitDate", "S"], ["adRevenue", "N"], ["userAgent","S"],
         ["countryCode", "S"], ["languageCode", "S"], ["searchWord", "S"], ["duration", "S"]
     ],
-    "localTestingInputPath": "../../input_data/testing_partitioned/dynamodb/"
+    "localTestingInputPath": "../../../../../input_data/testing_partitioned/dynamodb/"
 }
 
 # config_pipeline_3 = {
@@ -68,7 +68,7 @@ config_pipeline_2 = {
 # }
 
 serverless_mr = ServerlessMR()
-pipeline1 = serverless_mr.config(online_config_pipeline_1).map(extract_data_s3).combine(reduce_function)\
+pipeline1 = serverless_mr.config(config_pipeline_1).map(extract_data_s3).combine(reduce_function)\
     .reduce(reduce_function, 4).finish()
 
 pipeline2 = serverless_mr.config(config_pipeline_2).map(extract_data_dynamo_db)\

@@ -12,12 +12,7 @@ library_dir = Path(os.path.dirname(os.path.realpath(__file__)))
 library_working_dir = library_dir
 print("The current project working directory is", project_working_dir)
 print("The current library working directory is", library_working_dir)
-sys.path.append(str(library_working_dir))
-sys.path.append('/opt/python/lib/python3.7/site-packages')
-sys.path.append('/opt/python')
-sys.path.append('/var/runtime')
-sys.path.append('/var/lang/lib/python37.zip')
-sys.path.append('/opt/python/lib/python3.7/site-packages')
+sys.path.insert(0, str(library_working_dir))
 
 for path in sys.path:
     print("Sys path:", path)
@@ -179,14 +174,6 @@ class ServerlessMR:
         self.cur_pipeline.set_dependent_pipelines_ids(dependent_pipeline_ids)
         return self
 
-    # def merge_map_shuffle(self, map_function, partition_function, dependent_pipeline_ids):
-    #     rel_map_function_path = copy_job_function(map_function)
-    #     rel_partition_function_path = copy_job_function(partition_function)
-    #     self.cur_pipeline.add_function(MergeMapShuffleFunction(map_function, rel_map_function_path,
-    #                                                            partition_function, rel_partition_function_path))
-    #     self.total_num_functions += 1
-    #     return self
-
     def run(self):
         self.finish()
         set_up()
@@ -202,8 +189,7 @@ class ServerlessMR:
             serverless_driver_setup = ServerlessDriverSetup(self.pipelines, self.total_num_functions)
             serverless_driver_setup.register_driver()
             print("Driver Lambda function successfully registered")
-            # command = input("Enter invoke to invoke and other keys to exit: ")
-            command = "123"
+            command = input("Enter invoke to invoke and other keys to exit: ")
             if command == "invoke":
                 print("Driver invoked and starting job execution")
                 serverless_driver_setup.invoke()
