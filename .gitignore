@@ -124,6 +124,7 @@ venv.bak/
 
 # Node modules
 node_modules/
+node_modules/*
 .serverless/
 package-lock.json
 
