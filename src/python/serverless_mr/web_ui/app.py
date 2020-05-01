@@ -55,26 +55,26 @@ def register_job():
     print("WebUI: Received request for path /register-job")
     bucket_name = 'serverless-mr-code'
     TMP_DIR_NAME = '/tmp'
-    # is_local_testing = os.environ.get("local_testing") == 'True' or os.environ.get("local_testing") == 'true'
-    # if is_local_testing:
-    #     local_endpoint_url = 'http://localhost:4572'
-    #     client = boto3.client('s3', aws_access_key_id='', aws_secret_access_key='',
-    #                           region_name=StaticVariables.DEFAULT_REGION,
-    #                           endpoint_url=local_endpoint_url)
-    # else:
-    #     client = boto3.client('s3')
-    #
-    # # 1. Download the S3 code files to /tmp including the user-provided code files.
-    # contents = client.list_objects(Bucket=bucket_name).get("Contents", [])
-    # for content in contents:
-    #     key = content.get('Key')
-    #     print("Current key:", key)
-    #     if not key.endswith("/"):
-    #         dest_pathname = os.path.join(TMP_DIR_NAME, key)
-    #         print("Current destination path:", dest_pathname)
-    #         if not os.path.exists(os.path.dirname(dest_pathname)):
-    #             os.makedirs(os.path.dirname(dest_pathname))
-    #         client.download_file(Bucket=bucket_name, Key=key, Filename=dest_pathname)
+    is_local_testing = os.environ.get("local_testing") == 'True' or os.environ.get("local_testing") == 'true'
+    if is_local_testing:
+        local_endpoint_url = 'http://localhost:4572'
+        client = boto3.client('s3', aws_access_key_id='', aws_secret_access_key='',
+                              region_name=StaticVariables.DEFAULT_REGION,
+                              endpoint_url=local_endpoint_url)
+    else:
+        client = boto3.client('s3')
+
+    # 1. Download the S3 code files to /tmp including the user-provided code files.
+    contents = client.list_objects(Bucket=bucket_name).get("Contents", [])
+    for content in contents:
+        key = content.get('Key')
+        print("Current key:", key)
+        if not key.endswith("/"):
+            dest_pathname = os.path.join(TMP_DIR_NAME, key)
+            print("Current destination path:", dest_pathname)
+            if not os.path.exists(os.path.dirname(dest_pathname)):
+                os.makedirs(os.path.dirname(dest_pathname))
+            client.download_file(Bucket=bucket_name, Key=key, Filename=dest_pathname)
 
     print("Hello")
     content = request.form.to_dict()
@@ -82,13 +82,13 @@ def register_job():
     print(content)
     static_job_info = content['static-job-info.json']
     print("Hello2")
-    # dest_pathname = os.path.join(TMP_DIR_NAME, 'configuration/static-job-info.json')
-    dest_pathname = 'tmp/static-job-info.json'
+    # dest_pathname = 'tmp/static-job-info.json'
+    dest_pathname = os.path.join(TMP_DIR_NAME, 'configuration/static-job-info.json')
     with open(dest_pathname, 'w') as f:
         f.write(static_job_info)
     driver_config = content['driver.json']
-    # dest_pathname = os.path.join(TMP_DIR_NAME, 'configuration/driver.json')
-    dest_pathname = 'tmp/driver.json'
+    # dest_pathname = 'tmp/driver.json'
+    dest_pathname = os.path.join(TMP_DIR_NAME, 'configuration/driver.json')
     with open(dest_pathname, 'w') as f:
         f.write(driver_config)
     # user_main = user_provided_code['user_main.py']
@@ -96,18 +96,18 @@ def register_job():
     # with open(dest_pathname, 'w') as f:
     #     f.write(user_main)
     user_main = content['user_main.py']
-    dest_pathname = 'tmp/user_main.py'
-    # dest_pathname = os.path.join(TMP_DIR_NAME, 'user_main.py')
+    # dest_pathname = 'tmp/user_main.py'
+    dest_pathname = os.path.join(TMP_DIR_NAME, 'user_main.py')
     with open(dest_pathname, 'w') as f:
         f.write(user_main)
     functions = content['functions.py']
-    # dest_pathname = os.path.join(TMP_DIR_NAME, 'user_functions/functions.py')
-    dest_pathname = 'tmp/functions.py'
+    # dest_pathname = 'tmp/functions.py'
+    dest_pathname = os.path.join(TMP_DIR_NAME, 'user_functions/functions.py')
     with open(dest_pathname, 'w') as f:
         f.write(functions)
 
     # 2. Set working directory to /tmp.
-    # os.chdir(TMP_DIR_NAME)
+    os.chdir(TMP_DIR_NAME)
 
     # 3. Run user_main.py
     my_env = os.environ.copy()

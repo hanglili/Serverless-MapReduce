@@ -30,18 +30,9 @@ import { Card } from "../components/Card/Card.jsx";
 import Button from "../components/CustomButton/CustomButton.jsx";
 
 class UserProfile extends Component {
-  constructor(props){
-    super(props);
-    this.state = {
-      driver: "{}",
-      staticJobInfo: "{}",
-      userMain: "{}",
-      functions: "{}"
-    }
-  }
-
    async registerJob(driver, staticJobInfo, userMain, functions) {
     try {
+      let data = new URLSearchParams();
       console.log("Register job parameters");
       console.log(driver);
       console.log(staticJobInfo);
@@ -61,17 +52,22 @@ class UserProfile extends Component {
       // formBody.set("static-job-info.json", staticJobInfo);
       // formBody.set("user_main.py", userMain);
       // formBody.set("functions.py", functions);
-      let formBody = [];
-      formBody.push("driver.json" + "=" + driver);
-      formBody.push("static-job-info.json" + "=" + staticJobInfo);
-      formBody.push("user_main.py" + "=" + userMain);
-      formBody.push("functions.py" + "=" + functions);
+      // let formBody = [];
+      // formBody.push(encodeURIComponent("driver.json") + "=" + encodeURIComponent(driver));
+      // formBody.push(encodeURIComponent("static-job-info.json") + "=" + encodeURIComponent(staticJobInfo));
+      // formBody.push(encodeURIComponent("user_main.py") + "=" + encodeURIComponent(userMain));
+      // formBody.push(encodeURIComponent("functions.py") + "=" + encodeURIComponent(functions));
+      // console.log(formBody);
+      data.append('driver.json', driver);
+      data.append('static-job-info.json', staticJobInfo);
+      data.append('user_main.py', userMain);
+      data.append('functions.py', functions);
       await fetch(url, {
         method: 'POST',
-        body: formBody.join("&"),
-        // body: formBody,
+        // body: formBody.join("&"),
+        body: data,
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded'
+          'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'
         }
       });
     } catch(e) {
@@ -98,7 +94,7 @@ class UserProfile extends Component {
                             componentClass="textarea"
                             bsClass="form-control"
                             placeholder="{}"
-                            // inputRef={driver => this.setState({ 'driver': driver })}
+                            inputRef={node => this.driverNode = node}
                             defaultValue="{}"
                           />
                         </FormGroup>
@@ -112,6 +108,7 @@ class UserProfile extends Component {
                             rows="15"
                             componentClass="textarea"
                             bsClass="form-control"
+                            inputRef={node => this.staticJobInfoNode = node}
                             placeholder="{}"
                             // inputRef={staticJobInfo => this.setState({ 'staticJobInfo': staticJobInfo } )}
                             defaultValue="{}"
@@ -127,7 +124,8 @@ class UserProfile extends Component {
                             rows="15"
                             componentClass="textarea"
                             bsClass="form-control"
-                            placeholder=""
+                            inputRef={node => this.userMainNode = node}
+                            // placeholder=""
                             // inputRef={userMain => this.setState({ 'userMain': userMain } )}
                             defaultValue=""
                           />
@@ -142,7 +140,8 @@ class UserProfile extends Component {
                             rows="15"
                             componentClass="textarea"
                             bsClass="form-control"
-                            placeholder=""
+                            inputRef={node => this.functionsNode = node}
+                            // placeholder=""
                             // inputRef={functions => this.setState({ 'functions': functions } )}
                             defaultValue=""
                           />
@@ -150,8 +149,8 @@ class UserProfile extends Component {
                       </Col>
                     </Row>
                     <Button bsStyle="info" pullRight fill onClick={() => {
-                      this.registerJob(this.state.driver, this.state.staticJobInfo,
-                          this.state.userMain, this.state.functions);
+                      this.registerJob(this.driverNode.value, this.staticJobInfoNode.value,
+                          this.userMainNode.value, this.functionsNode.value);
                     }}>
                       Register Job
                     </Button>
