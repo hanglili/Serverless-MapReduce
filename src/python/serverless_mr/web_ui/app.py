@@ -49,93 +49,87 @@ def get_url():
     return "The URL for this page is {}".format(url_for("/"))
 
 
+def delete_files(dirname, filenames):
+    print("At delete_files, the current working directory is", os.getcwd())
+    for filename in filenames:
+        if dirname == "":
+            dst_file = filename
+        else:
+            dst_file = "%s/%s" % (dirname, filename)
+        print("The file to delete is", dst_file)
+        if os.path.exists(dst_file):
+            os.remove(dst_file)
+
+
 @app.route("/register-job", methods=['POST'])
 @cross_origin()
 def register_job():
     print("WebUI: Received request for path /register-job")
-    bucket_name = 'serverless-mr-code'
-    TMP_DIR_NAME = '/tmp'
+    print("Current working directory is", os.getcwd())
     is_local_testing = os.environ.get("local_testing") == 'True' or os.environ.get("local_testing") == 'true'
     if is_local_testing:
         local_endpoint_url = 'http://localhost:4572'
         client = boto3.client('s3', aws_access_key_id='', aws_secret_access_key='',
                               region_name=StaticVariables.DEFAULT_REGION,
                               endpoint_url=local_endpoint_url)
+        TMP_DIR_NAME = 'web_ui/tmp'
+        os.chdir(library_working_dir)
     else:
         client = boto3.client('s3')
+        TMP_DIR_NAME = '/tmp'
+        bucket_name = 'serverless-mr-code'
+        # 1. Download the S3 code files to /tmp including the user-provided code files.
+        contents = client.list_objects(Bucket=bucket_name).get("Contents", [])
+        for content in contents:
+            key = content.get('Key')
+            print("Current key:", key)
+            if not key.endswith("/"):
+                dest_pathname = os.path.join(TMP_DIR_NAME, key)
+                print("Current destination path:", dest_pathname)
+                if not os.path.exists(os.path.dirname(dest_pathname)):
+                    os.makedirs(os.path.dirname(dest_pathname))
+                client.download_file(Bucket=bucket_name, Key=key, Filename=dest_pathname)
 
-    # 1. Download the S3 code files to /tmp including the user-provided code files.
-    contents = client.list_objects(Bucket=bucket_name).get("Contents", [])
-    for content in contents:
-        key = content.get('Key')
-        print("Current key:", key)
-        if not key.endswith("/"):
-            dest_pathname = os.path.join(TMP_DIR_NAME, key)
-            print("Current destination path:", dest_pathname)
-            if not os.path.exists(os.path.dirname(dest_pathname)):
-                os.makedirs(os.path.dirname(dest_pathname))
-            client.download_file(Bucket=bucket_name, Key=key, Filename=dest_pathname)
-
-    print("Hello")
     content = request.form.to_dict()
-    # user_provided_code = request.get_json()
-    print(content)
+
     static_job_info = content['static-job-info.json']
-    print("Hello2")
-    # dest_pathname = 'tmp/static-job-info.json'
     dest_pathname = os.path.join(TMP_DIR_NAME, 'configuration/static-job-info.json')
     with open(dest_pathname, 'w') as f:
         f.write(static_job_info)
     driver_config = content['driver.json']
-    # dest_pathname = 'tmp/driver.json'
     dest_pathname = os.path.join(TMP_DIR_NAME, 'configuration/driver.json')
     with open(dest_pathname, 'w') as f:
         f.write(driver_config)
-    # user_main = user_provided_code['user_main.py']
-    # dest_pathname = os.path.join(TMP_DIR_NAME, 'user_main.py')
-    # with open(dest_pathname, 'w') as f:
-    #     f.write(user_main)
+
     user_main = content['user_main.py']
-    # dest_pathname = 'tmp/user_main.py'
     dest_pathname = os.path.join(TMP_DIR_NAME, 'user_main.py')
     with open(dest_pathname, 'w') as f:
         f.write(user_main)
+
     functions = content['functions.py']
-    # dest_pathname = 'tmp/functions.py'
     dest_pathname = os.path.join(TMP_DIR_NAME, 'user_functions/functions.py')
     with open(dest_pathname, 'w') as f:
         f.write(functions)
 
-    # 2. Set working directory to /tmp.
+    # 2. Set working directory to /tmp or tmp depending on whether it is a local execution.
     os.chdir(TMP_DIR_NAME)
 
     # 3. Run user_main.py
     my_env = os.environ.copy()
     # my_env["serverless_mapreduce_role"] = "arn:aws:iam::259503590756:role/serverless_mr_role"
-    print(subprocess.call(
+    return_code = subprocess.call(
         ["python3.7", "user_main.py"], env=my_env
-    ))
+    )
 
-    return "Successfully registered"
-    # process = subprocess.Popen(
-    #     ["python", "user_main.py"], env=my_env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
-    # )
-
-    # Poll process for new output until finished
-    # while True:
-    #     nextline = process.stdout.readline()
-    #     if nextline == '' and process.poll() is not None:
-    #         break
-    #     sys.stdout.write(nextline)
-    #     sys.stdout.flush()
-    #
-    # output = process.communicate()[0]
-    # exitCode = process.returncode
-    #
-    # if (exitCode == 0):
-    #     return output
-    # else:
-    #     return "Error"
+    if is_local_testing:
+        delete_files("user_functions", ["functions.py"])
+        delete_files("configuration", ["static-job-info.json", "driver.json"])
+        delete_files("", ["user_main.py"])
+        os.chdir(project_working_dir)
+    if return_code == 0:
+        return "Successfully registered"
+    else:
+        return "Error"
 
 
 # @app.route('/public/bundle.js')
@@ -188,6 +182,7 @@ def get_username():
 @cross_origin()
 def get_jobs_info():
     print("WebUI: Received request for path /jobs")
+    print("Current working directory is", os.getcwd())
     is_local_testing = os.environ.get("local_testing") == 'True' or os.environ.get("local_testing") == 'true'
     if is_local_testing:
         local_endpoint_url = 'http://localhost:4572'

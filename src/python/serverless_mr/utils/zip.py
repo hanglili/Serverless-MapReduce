@@ -56,10 +56,12 @@ def zip_driver_lambda(zip_name, function_filepaths):
 
     file_paths = globed_results + glob.glob("*") + glob.glob("*/*")
     zip_obj = ZipFile(zip_name, 'w')
+    print("Zipping serverless driver code. The filepath are:", file_paths)
     for file_path in file_paths:
         if not file_path.startswith("node_modules"):
             zip_obj.write(file_path)
     zip_obj.close()
+    print("Finished zipping serverless driver code")
     # faster to zip with shell exec
     # subprocess.call(['zip', zip_name] + glob.glob("*") + glob.glob("*/*")
     #                 + globed_results)

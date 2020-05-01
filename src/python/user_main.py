@@ -7,18 +7,18 @@ from serverless_mr.main import ServerlessMR
 # from user_job_5.partition import partition
 # from user_job_5.reduce import reduce_function
 
-# from user_job_6.map import extract_data_dynamo_db
-# from user_job_6.map_2 import extract_data_s3
-# from user_job_6.reduce import reduce_function
-# from user_job_6.partition import partition
-# from user_job_6.map_3 import identity_function
+from user_job_6.map import extract_data_dynamo_db
+from user_job_6.map_2 import extract_data_s3
+from user_job_6.reduce import reduce_function
+from user_job_6.partition import partition
+from user_job_6.map_3 import identity_function
 
 
-from user_functions.functions import extract_data_dynamo_db
-from user_functions.functions import extract_data_s3
-from user_functions.functions import reduce_function
-from user_functions.functions import partition
-from user_functions.functions import identity_function
+# from user_functions.functions import extract_data_dynamo_db
+# from user_functions.functions import extract_data_s3
+# from user_functions.functions import reduce_function
+# from user_functions.functions import partition
+# from user_functions.functions import identity_function
 
 
 # serverless_mr = ServerlessMR()
@@ -68,7 +68,7 @@ config_pipeline_2 = {
 # }
 
 serverless_mr = ServerlessMR()
-pipeline1 = serverless_mr.config(online_config_pipeline_1).map(extract_data_s3).combine(reduce_function)\
+pipeline1 = serverless_mr.config(config_pipeline_1).map(extract_data_s3).combine(reduce_function)\
     .reduce(reduce_function, 4).finish()
 
 pipeline2 = serverless_mr.config(config_pipeline_2).map(extract_data_dynamo_db)\
