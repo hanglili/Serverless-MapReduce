@@ -1,9 +1,9 @@
 {
-    "jobName": "bl-release-3",
+    "jobName": "bl-release-5",
     "lambdaNamePrefix": "BL",
-    "shufflingBucket": "serverless-mapreduce-storage-3",
+    "shufflingBucket": "serverless-mapreduce-storage-5",
     "inputSourceType": "s3",
-    "inputSource": "serverless-mapreduce-storage-input",
+    "inputSource": "serverless-mapreduce-storage",
     "inputPrefix": "testing_partitioned",
     "inputPartitionKeyDynamoDB": ["recordId", "N"],
     "inputProcessingColumnsDynamoDB": [["sourceIP", "S"], ["adRevenue", "N"]],
@@ -12,12 +12,12 @@
         ["countryCode", "S"], ["languageCode", "S"], ["searchWord", "S"], ["duration", "S"]
     ],
     "outputSourceType": "s3",
-    "outputSource": "serverless-mapreduce-storage-output-3",
+    "outputSource": "serverless-mapreduce-storage-output-5",
     "outputPrefix": "output",
     "outputPartitionKeyDynamoDB": ["ip", "S"],
     "outputColumnDynamoDB": ["revenue", "S"],
     "useCombine": true,
-    "localTesting": true,
+    "localTesting": false,
     "localTestingInputPath": "../../input_data/testing_partitioned/s3/",
     "serverlessDriver": true
 }
