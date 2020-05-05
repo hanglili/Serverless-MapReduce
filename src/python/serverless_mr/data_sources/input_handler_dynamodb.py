@@ -133,7 +133,14 @@ class InputHandlerDynamoDB:
         input_table_name = static_job_info[StaticVariables.INPUT_SOURCE_FN]
         response = self.client.describe_table(TableName=input_table_name)
         number_of_records = response['Table']['ItemCount']
-        one_record_avg_size = response['Table']['TableSizeBytes'] / number_of_records
+        if number_of_records == 0:
+            print("Warning: Number of live records in DynamoDB is 0. "
+                  "Note that DynamoDB updates this number every 6 hours.")
+            print("The average size of one record will be assumed to be maximum")
+            # The maximum size of a DynamoDB item is 400KB.
+            one_record_avg_size = 400 * 1024
+        else:
+            one_record_avg_size = response['Table']['TableSizeBytes'] / number_of_records
 
         input_partition_key = static_job_info[StaticVariables.INPUT_PARTITION_KEY_DYNAMODB]
         input_sort_key = static_job_info[StaticVariables.INPUT_SORT_KEY_DYNAMODB] \

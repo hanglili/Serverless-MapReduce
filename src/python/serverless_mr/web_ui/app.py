@@ -3,6 +3,7 @@ import boto3
 import os
 import sys
 import subprocess
+import random
 
 from pathlib import Path
 
@@ -285,12 +286,17 @@ def schedule_job():
         #                       region_name=StaticVariables.DEFAULT_REGION,
         #                       endpoint_url=local_endpoint_url)
         from localstack.utils.aws import aws_stack
-        client = aws_stack.connect_to_service('events')
+        event_client = aws_stack.connect_to_service('events')
+        local_endpoint_url = 'http://localhost:4572'
+        s3_client = boto3.client('s3', aws_access_key_id='', aws_secret_access_key='',
+                              region_name=StaticVariables.DEFAULT_REGION,
+                              endpoint_url=local_endpoint_url)
     else:
-        client = boto3.client('events')
+        event_client = boto3.client('events')
+        s3_client = boto3.client('s3')
 
     # Put an event rule
-    response = client.put_rule(
+    response = event_client.put_rule(
         Name='%s-scheduling-rule' % job_name,
         # EventPattern=json.dumps({'Hello': 'hello'}),
         RoleArn=os.environ.get("serverless_mapreduce_role"),
@@ -300,18 +306,48 @@ def schedule_job():
         # ScheduleExpression='rate(5 minute)',
         State='ENABLED'
     )
-    print(response['RuleArn'])
+    rule_arn = response['RuleArn']
 
-    response = client.put_targets(
+    s3_driver_config_key = StaticVariables.S3_UI_REGISTERED_JOB_DRIVER_CONFIG_PATH % job_name
+    response = s3_client.get_object(Bucket=StaticVariables.S3_JOBS_INFORMATION_BUCKET_NAME,
+                                    Key=s3_driver_config_key)
+    contents = response['Body'].read()
+    config = json.loads(contents)
+    region = config[StaticVariables.REGION_FN] \
+        if StaticVariables.REGION_FN in config else StaticVariables.DEFAULT_REGION
+    if is_local_testing:
+        lambda_client = boto3.client('lambda', aws_access_key_id='', aws_secret_access_key='',
+                                     region_name=region,
+                                     endpoint_url='http://localhost:4574')
+    else:
+        lambda_client = boto3.client('lambda')
+
+    response = lambda_client.get_function(FunctionName=driver_lambda_name)
+    driver_lambda_arn = response['Configuration']['FunctionArn']
+    response = event_client.put_targets(
         Rule='%s-scheduling-rule' % job_name,
         Targets=[
             {
-                'Arn': driver_lambda_name,
+                'Arn': driver_lambda_arn,
                 'Id': 'myCloudWatchEventsTarget',
             }
         ]
     )
     print(response)
+
+    s_id = random.randint(1, 1000)
+    try:
+        response = lambda_client.add_permission(
+            Action='lambda:InvokeFunction',
+            FunctionName=driver_lambda_name,
+            Principal='events.amazonaws.com',
+            StatementId='%s' % s_id,
+            SourceArn=rule_arn
+        )
+        print(response)
+    except Exception as e:
+        print("Failed to add permission to lambda:", e)
+
     return jsonify(response)
 
 

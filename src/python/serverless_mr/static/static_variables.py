@@ -67,7 +67,7 @@ class StaticVariables:
     # Constants
     DEFAULT_REGION = "us-east-1"
     DEFAULT_LAMBDA_MEMORY_LIMIT = 1536
-    DEFAULT_LAMBDA_TIMEOUT = 300
+    DEFAULT_LAMBDA_TIMEOUT = 900
     DEFAULT_LAMBDA_READ_TIMEOUT = 300
     DEFAULT_BOTO_MAX_CONNECTIONS = 1000
     DEFAULT_NUM_CONCURRENT_LAMBDAS = 1000
@@ -83,7 +83,6 @@ class StaticVariables:
     # static-job-info-.json
     JOB_NAME_FN = "jobName"
     SHUFFLING_BUCKET_FN = "shufflingBucket"
-    NUM_REDUCER_FN = "numReducers"
     LAMBDA_NAME_PREFIX_FN = "lambdaNamePrefix"
     INPUT_SOURCE_TYPE_FN = "inputSourceType"
     INPUT_SOURCE_FN = "inputSource"

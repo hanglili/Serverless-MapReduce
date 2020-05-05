@@ -47,7 +47,8 @@ def run_lambda():
     lambda_config = Config(read_timeout=lambda_read_timeout,
                            max_pool_connections=boto_max_connections,
                            region_name=region)
-    lambda_client = boto3.client('lambda', endpoint_url='http://localhost:4574', config=lambda_config)
+    # lambda_client = boto3.client('lambda', endpoint_url='http://localhost:4574', config=lambda_config)
+    lambda_client = boto3.client('lambda', config=lambda_config)
 
     zip.zip_lambda(["job/dummy_handler.py"], map_zip_name)
     l_mapper = lambda_manager.LambdaManager(lambda_client, s3_client, region,
@@ -105,7 +106,7 @@ def run_lambda():
 
 
 if __name__ == "__main__":
-    run_s3()
+    # run_s3()
     run_lambda()
     # if len(sys.argv) < 2:
     #     print("Wrong number of arguments.")

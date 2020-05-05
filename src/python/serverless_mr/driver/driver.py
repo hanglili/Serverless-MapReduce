@@ -588,7 +588,7 @@ class Driver:
         function_lambdas, invoking_pipelines_info, num_outputs = self._create_lambdas()
 
         # Execute
-        # 2. Invoke Mappers and wait until they finish the execution
+        # 2. Invoke Mappers asynchronously
         self._invoke_pipelines(invoking_pipelines_info)
 
         # 3. Create output storage and calculate costs - Approx (since we are using exec time reported by our func and not billed ms)

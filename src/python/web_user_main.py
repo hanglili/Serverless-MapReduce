@@ -68,7 +68,7 @@ config_pipeline_2 = {
 # }
 
 serverless_mr = ServerlessMR()
-pipeline1 = serverless_mr.config(online_config_pipeline_1).map(extract_data_s3).combine(reduce_function)\
+pipeline1 = serverless_mr.config(config_pipeline_1).map(extract_data_s3).combine(reduce_function)\
     .reduce(reduce_function, 4).finish()
 
 pipeline2 = serverless_mr.config(config_pipeline_2).map(extract_data_dynamo_db)\
