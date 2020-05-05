@@ -88,14 +88,31 @@ class UserProfile extends Component {
                     <Row>
                       <Col md={12}>
                         <FormGroup controlId="formControlsTextarea">
-                          <ControlLabel>driver.json</ControlLabel>
+                          <ControlLabel>user_main.py</ControlLabel>
                           <FormControl
                             rows="15"
                             componentClass="textarea"
                             bsClass="form-control"
-                            placeholder="{}"
-                            inputRef={node => this.driverNode = node}
-                            defaultValue="{}"
+                            inputRef={node => this.userMainNode = node}
+                            // placeholder=""
+                            // inputRef={userMain => this.setState({ 'userMain': userMain } )}
+                            defaultValue="from serverless_mr.main import ServerlessMR&#13;&#10;from user_functions.functions import *"
+                          />
+                        </FormGroup>
+                      </Col>
+                    </Row>
+                    <Row>
+                      <Col md={12}>
+                        <FormGroup controlId="formControlsTextarea">
+                          <ControlLabel>user_functions/functions.py</ControlLabel>
+                          <FormControl
+                            rows="15"
+                            componentClass="textarea"
+                            bsClass="form-control"
+                            inputRef={node => this.functionsNode = node}
+                            // placeholder=""
+                            // inputRef={functions => this.setState({ 'functions': functions } )}
+                            defaultValue=""
                           />
                         </FormGroup>
                       </Col>
@@ -111,39 +128,28 @@ class UserProfile extends Component {
                             inputRef={node => this.staticJobInfoNode = node}
                             placeholder="{}"
                             // inputRef={staticJobInfo => this.setState({ 'staticJobInfo': staticJobInfo } )}
+                            defaultValue="{&#13;&#10;
+                                  &quot;jobName&quot;: &quot;bl-release-1&quot;,&#13;&#10;
+                                  &quot;shufflingBucket&quot;: &quot;serverless-mapreduce-storage&quot;,&#13;&#10;
+                                  &quot;inputSourceType&quot;: &quot;s3&quot;,&#13;&#10;
+                                  &quot;inputSource&quot;: &quot;serverless-mapreduce-storage-input&quot;,&#13;&#10;
+                                  &quot;outputSourceType&quot;: &quot;s3&quot;,&#13;&#10;
+                                  &quot;outputSource&quot;: &quot;serverless-mapreduce-storage-output&quot;&#13;&#10;}"
+                          />
+                        </FormGroup>
+                      </Col>
+                    </Row>
+                    <Row>
+                      <Col md={12}>
+                        <FormGroup controlId="formControlsTextarea">
+                          <ControlLabel>driver.json</ControlLabel>
+                          <FormControl
+                            rows="15"
+                            componentClass="textarea"
+                            bsClass="form-control"
+                            placeholder="{}"
+                            inputRef={node => this.driverNode = node}
                             defaultValue="{}"
-                          />
-                        </FormGroup>
-                      </Col>
-                    </Row>
-                    <Row>
-                      <Col md={12}>
-                        <FormGroup controlId="formControlsTextarea">
-                          <ControlLabel>user_main.py</ControlLabel>
-                          <FormControl
-                            rows="15"
-                            componentClass="textarea"
-                            bsClass="form-control"
-                            inputRef={node => this.userMainNode = node}
-                            // placeholder=""
-                            // inputRef={userMain => this.setState({ 'userMain': userMain } )}
-                            defaultValue=""
-                          />
-                        </FormGroup>
-                      </Col>
-                    </Row>
-                    <Row>
-                      <Col md={12}>
-                        <FormGroup controlId="formControlsTextarea">
-                          <ControlLabel>functions.py</ControlLabel>
-                          <FormControl
-                            rows="15"
-                            componentClass="textarea"
-                            bsClass="form-control"
-                            inputRef={node => this.functionsNode = node}
-                            // placeholder=""
-                            // inputRef={functions => this.setState({ 'functions': functions } )}
-                            defaultValue=""
                           />
                         </FormGroup>
                       </Col>

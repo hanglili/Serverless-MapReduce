@@ -20,7 +20,6 @@ class InputHandlerS3:
 
     def set_up_local_input_data(self, input_file_paths, static_job_info):
         input_bucket = static_job_info[StaticVariables.INPUT_SOURCE_FN]
-        prefix = static_job_info[StaticVariables.INPUT_PREFIX_FN]
 
         self.client.create_bucket(Bucket=input_bucket)
         s3_bucket_exists_waiter = self.client.get_waiter('bucket_exists')
@@ -32,7 +31,11 @@ class InputHandlerS3:
 
         for i in range(len(input_file_paths)):
             input_file_path = input_file_paths[i]
-            key = '%s/input-%s' % (prefix, str(i + 1))
+            if StaticVariables.INPUT_PREFIX_FN in static_job_info:
+                prefix = static_job_info[StaticVariables.INPUT_PREFIX_FN]
+                key = '%s/input-%s' % (prefix, str(i + 1))
+            else:
+                key = 'input-%s' % (str(i + 1))
             self.client.upload_file(Filename=input_file_path,
                                     Bucket=input_bucket,
                                     Key=key)
@@ -43,8 +46,12 @@ class InputHandlerS3:
         # Returns all input keys to be processed: a list of format obj where obj is a map of {'Key': ..., 'Size': ...}
         all_keys = []
         input_source = static_job_info[StaticVariables.INPUT_SOURCE_FN]
-        for obj in self.client.list_objects(Bucket=input_source,
-                                            Prefix=static_job_info[StaticVariables.INPUT_PREFIX_FN])['Contents']:
+        if StaticVariables.INPUT_PREFIX_FN in static_job_info:
+            contents = self.client.list_objects(Bucket=input_source,
+                                                Prefix=static_job_info[StaticVariables.INPUT_PREFIX_FN])['Contents']
+        else:
+            contents = self.client.list_objects(Bucket=input_source)['Contents']
+        for obj in contents:
             if not obj['Key'].endswith('/'):
                 all_keys.append(obj)
 

@@ -1,0 +1,20 @@
+{
+    "jobName": "bl-release-1",
+    "lambdaNamePrefix": "BL",
+    "shufflingBucket": "serverless-mapreduce-storage-1",
+    "inputSourceType": "s3",
+    "inputSource": "serverless-mapreduce-storage-input",
+    "inputPrefix": "testing_partitioned",
+    "outputSourceType": "s3",
+    "outputSource": "serverless-mapreduce-storage-output-1",
+    "outputPrefix": "output"
+},
+// Minimum configuration:
+{
+    "jobName": "bl-release-1",
+    "shufflingBucket": "serverless-mapreduce-storage",
+    "inputSourceType": "s3",
+    "inputSource": "serverless-mapreduce-storage-input",
+    "outputSourceType": "s3",
+    "outputSource": "serverless-mapreduce-storage-output"
+}
