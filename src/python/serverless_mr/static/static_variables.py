@@ -106,3 +106,8 @@ class StaticVariables:
     # dynamic variables
     PROJECT_WORKING_DIRECTORY = ""
     LIBRARY_WORKING_DIRECTORY = ""
+
+    # variables for performance testing
+    SETUP_START_TIME = 0
+    TEAR_DOWN_START_TIME = 0
+    JOB_START_TIME = 0

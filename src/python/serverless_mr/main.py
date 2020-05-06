@@ -4,6 +4,7 @@ import os
 import shutil
 import inspect
 import sys
+import time
 
 from pathlib import Path
 
@@ -175,6 +176,7 @@ class ServerlessMR:
         return self
 
     def run(self):
+        StaticVariables.SETUP_START_TIME = time.time()
         self.finish()
         set_up()
         StaticVariables.PROJECT_WORKING_DIRECTORY = project_working_dir
