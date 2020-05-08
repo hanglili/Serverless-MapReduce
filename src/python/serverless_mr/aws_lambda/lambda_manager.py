@@ -1,8 +1,12 @@
 import boto3
 import os
 import json
+import logging
 
 from static.static_variables import StaticVariables
+from utils.setup_logger import logger
+
+logger = logging.getLogger('serverless-mr.lambda-manager')
 
 
 class LambdaManager(object):
@@ -48,7 +52,7 @@ class LambdaManager(object):
             TracingConfig={'Mode': 'PassThrough'}
         )
         self.function_arn = response['FunctionArn']
-        print(response)
+        logger.info("Creation of Lambda function %s - response: %s" % (self.function_name, response))
 
     def update_function(self):
         """
@@ -63,7 +67,7 @@ class LambdaManager(object):
         # parse arn and remove the release number (:n)
         arn = ":".join(updated_arn.split(':')[:-1])
         self.function_arn = arn
-        print(response)
+        logger.info("Update of Lambda function %s - response: %s" % (self.function_name, response))
 
     def update_code_or_create_on_no_exist(self, total_num_stages, submission_time="",
                                           coordinator_lambda_name="", stage_id=-1, num_reducers=-1):
@@ -74,7 +78,7 @@ class LambdaManager(object):
             self.create_lambda_function(stage_id, total_num_stages, submission_time, coordinator_lambda_name, num_reducers)
         except Exception as e:
             # parse (Function already exist)
-            print("Failed to create lambda:", e)
+            logger.warning("Failed to create Lambda function %s: %s" % (self.function_name, e))
             self.update_function()
 
     def add_lambda_permission(self, s_id, bucket):
@@ -86,12 +90,11 @@ class LambdaManager(object):
                 StatementId='%s' % s_id,
                 SourceArn='arn:aws:s3:::' + bucket
             )
-            print(response)
+            logger.info("Adding permission to Lambda function %s - response: %s" % (self.function_name, response))
         except Exception as e:
-            print("Failed to add permission to lambda:", e)
+            logger.info("Failed to add permission to Lambda function %s: %s" % (self.function_name, e))
 
     def create_s3_event_source_notification(self, bucket, prefix):
-        print("The function arn is %s, with bucket %s and prefix %s" % (self.function_arn, bucket, prefix))
         response = self.s3.put_bucket_notification_configuration(
             Bucket=bucket,
             NotificationConfiguration={
@@ -115,7 +118,8 @@ class LambdaManager(object):
                 # 'QueueConfigurations' : []
             }
         )
-        print("Response of create s3 event notification:", response)
+        logger.info("Creating S3 event notification to Lambda function %s - response: %s" %
+                    (self.function_name, response))
 
     def delete_function(self):
         self.lambda_client.delete_function(FunctionName=self.function_name)

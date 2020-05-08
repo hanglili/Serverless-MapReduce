@@ -36,7 +36,7 @@
             "Sid": "IAMPassRoleForCloudWatchEvents",
             "Effect": "Allow",
             "Action": "iam:PassRole",
-            "Resource": "arn:aws:iam::934327132114:role/AWS_Events_Invoke_Targets"
+            "Resource": "arn:aws:iam::259503590756:role/AWS_Events_Invoke_Targets"
         },
         {
             "Sid": "Stmt1475879730000",
@@ -128,7 +128,7 @@
                 "iam:GetRole",
                 "iam:PassRole"
             ],
-            "Resource": "arn:aws:iam::934327132114:role/*"
+            "Resource": "arn:aws:iam::259503590756:role/*"
         }
     ]
 }

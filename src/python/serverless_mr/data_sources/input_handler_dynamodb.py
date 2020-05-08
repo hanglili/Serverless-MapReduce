@@ -1,8 +1,12 @@
 import boto3
 import os
 import time
+import logging
 
 from static.static_variables import StaticVariables
+
+from utils.setup_logger import logger
+logger = logging.getLogger('serverless-mr.input-handler-dynamodb')
 
 id_cnt = 1
 
@@ -125,7 +129,7 @@ class InputHandlerDynamoDB:
             InputHandlerDynamoDB.put_items(self.client, input_table_name, input_filepath,
                                            input_partition_key, input_sort_key, input_columns)
 
-        print("Set up local input data successfully")
+        logger.info("Set up local input data successfully")
 
     def get_all_input_keys(self, static_job_info):
         # Returns all input keys to be processed: a list of format obj where obj is a map of {'Key': ..., 'Size': ...}
@@ -134,9 +138,9 @@ class InputHandlerDynamoDB:
         response = self.client.describe_table(TableName=input_table_name)
         number_of_records = response['Table']['ItemCount']
         if number_of_records == 0:
-            print("Warning: Number of live records in DynamoDB is 0. "
-                  "Note that DynamoDB updates this number every 6 hours.")
-            print("The average size of one record will be assumed to be maximum")
+            logger.warning("Number of live records in DynamoDB is 0. "
+                           "Note that DynamoDB updates this number every 6 hours.")
+            logger.info("The average size of one record will be assumed to be maximum")
             # The maximum size of a DynamoDB item is 400KB.
             one_record_avg_size = 400 * 1024
         else:

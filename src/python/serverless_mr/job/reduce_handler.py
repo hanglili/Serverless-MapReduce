@@ -5,13 +5,22 @@ import time
 import os
 import pickle
 import random
+import logging
 
 from static.static_variables import StaticVariables
 from utils import output_handler, stage_progress
 
+root = logging.getLogger()
+if root.handlers:
+    for handler in root.handlers:
+        root.removeHandler(handler)
+
+from utils.setup_logger import logger
+logger = logging.getLogger('serverless-mr.reduce-handler')
+
 
 def lambda_handler(event, _):
-    print("**************Reduce****************")
+    logger.info("**************Reduce****************")
     start_time = time.time()
 
     reduce_keys = event['keys']
@@ -43,11 +52,13 @@ def lambda_handler(event, _):
     coordinator_lambda_name = os.environ.get("coordinator_lambda_name")
     submission_time = os.environ.get("submission_time")
 
-    print("Stage:", stage_id)
+    logger.info("Stage: %s" % str(stage_id))
 
-    stage_progress_obj = stage_progress.StageProgress(in_lambda=True,
-                                                      is_local_testing=static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN])
-    stage_progress_table_name = StaticVariables.STAGE_PROGRESS_DYNAMODB_TABLE_NAME % (job_name, submission_time)
+    if StaticVariables.OPTIMISATION_FN not in static_job_info \
+            or not static_job_info[StaticVariables.OPTIMISATION_FN]:
+        stage_progress_obj = stage_progress.StageProgress(in_lambda=True,
+                                                          is_local_testing=static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN])
+        stage_progress_table_name = StaticVariables.STAGE_PROGRESS_DYNAMODB_TABLE_NAME % (job_name, submission_time)
 
     # aggr
     line_count = 0
@@ -86,24 +97,28 @@ def lambda_handler(event, _):
             cur_key = key
             cur_values = [value]
 
-        interval_num_keys_processed += 1
-        current_time = time.time()
-        if int(current_time - begin_time) > interval_time:
-            begin_time = current_time
-            interval_time = random.randint(1, 3)
-            interval_num_files_processed = int(interval_num_keys_processed / average_num_keys)
-            stage_progress_obj.increase_num_processed_keys(stage_progress_table_name,
-                                                           stage_id, interval_num_files_processed)
-            interval_num_keys_processed = interval_num_keys_processed % average_num_keys
+        if StaticVariables.OPTIMISATION_FN not in static_job_info \
+                or not static_job_info[StaticVariables.OPTIMISATION_FN]:
+            interval_num_keys_processed += 1
+            current_time = time.time()
+            if int(current_time - begin_time) > interval_time:
+                begin_time = current_time
+                interval_time = random.randint(1, 3)
+                interval_num_files_processed = int(interval_num_keys_processed / average_num_keys)
+                stage_progress_obj.increase_num_processed_keys(stage_progress_table_name,
+                                                               stage_id, interval_num_files_processed)
+                interval_num_keys_processed = interval_num_keys_processed % average_num_keys
 
     if cur_key is not None:
         cur_key_outputs = []
         reduce_function(cur_key_outputs, (cur_key, cur_values))
         outputs += cur_key_outputs
 
-    interval_num_files_processed = int(interval_num_keys_processed / average_num_keys)
-    stage_progress_obj.increase_num_processed_keys(stage_progress_table_name,
-                                                   stage_id, interval_num_files_processed)
+    if StaticVariables.OPTIMISATION_FN not in static_job_info \
+            or not static_job_info[StaticVariables.OPTIMISATION_FN]:
+        interval_num_files_processed = int(interval_num_keys_processed / average_num_keys)
+        stage_progress_obj.increase_num_processed_keys(stage_progress_table_name,
+                                                       stage_id, interval_num_files_processed)
 
     time_in_secs = (time.time() - start_time)
     # timeTaken = time_in_secs * 1000000000 # in 10^9
@@ -116,6 +131,8 @@ def lambda_handler(event, _):
         "memoryUsage": '%s' % resource.getrusage(resource.RUSAGE_SELF).ru_maxrss,
         "numKeys": '%s' % len(reduce_keys)
     }
+
+    logger.info("Reduce sample outputs: %s" % str(outputs[0:10]))
 
     if stage_id == total_num_stages:
         cur_output_handler = output_handler.get_output_handler(static_job_info[StaticVariables.OUTPUT_SOURCE_TYPE_FN],
@@ -134,3 +151,5 @@ def lambda_handler(event, _):
                 'stage_id': stage_id
             })
         )
+
+    logger.info("Reducer %s finishes execution" % str(reducer_id))

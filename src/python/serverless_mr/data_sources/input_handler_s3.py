@@ -1,7 +1,11 @@
 import boto3
 import os
+import logging
 
 from static.static_variables import StaticVariables
+
+from utils.setup_logger import logger
+logger = logging.getLogger('serverless-mr.input-handler-s3')
 
 
 class InputHandlerS3:
@@ -40,7 +44,7 @@ class InputHandlerS3:
                                     Bucket=input_bucket,
                                     Key=key)
 
-        print("Set up local input data successfully")
+        logger.info("Set up local input data successfully")
 
     def get_all_input_keys(self, static_job_info):
         # Returns all input keys to be processed: a list of format obj where obj is a map of {'Key': ..., 'Size': ...}

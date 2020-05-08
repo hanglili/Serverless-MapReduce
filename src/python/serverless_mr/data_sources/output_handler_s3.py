@@ -2,8 +2,12 @@ import boto3
 import json
 import os
 import time
+import logging
 
 from static.static_variables import StaticVariables
+
+from utils.setup_logger import logger
+logger = logging.getLogger('serverless-mr.output-handler-s3')
 
 
 class OutputHandlerS3:
@@ -27,11 +31,11 @@ class OutputHandlerS3:
         self.client.create_bucket(Bucket=output_bucket)
         s3_bucket_exists_waiter = self.client.get_waiter('bucket_exists')
         s3_bucket_exists_waiter.wait(Bucket=output_bucket)
-        self.client.put_bucket_acl(
-            ACL='public-read-write',
-            Bucket=output_bucket,
-        )
-        print("Finished setting up output bucket")
+        # self.client.put_bucket_acl(
+        #     ACL='public-read-write',
+        #     Bucket=output_bucket,
+        # )
+        logger.info("Finished setting up output bucket")
 
     def write_output(self, executor_id, outputs, metadata, submission_time, static_job_info):
         output_source = static_job_info[StaticVariables.SHUFFLING_BUCKET_FN] \
@@ -66,13 +70,16 @@ class OutputHandlerS3:
         s3_size = 0
         last_stage_keys = response[string_index]
         if len(last_stage_keys) == num_final_dst_operators:
+            StaticVariables.TEAR_DOWN_START_TIME = time.time()
+            job_execution_time = StaticVariables.TEAR_DOWN_START_TIME - StaticVariables.JOB_START_TIME
+            logger.info("PERFORMANCE INFO - Job execution time: %s seconds" % str(job_execution_time))
             for last_stage_key in last_stage_keys:
-                print("The response is", response)
-                print("The output bucket is", output_bucket)
-                print("The last stage key is", last_stage_key)
+                logger.info("Response: %s" % response)
+                logger.info("Output bucket is %s" % output_bucket)
+                logger.info("Last stage key is %s" % last_stage_key)
                 # Even though metadata processing time is written as processingTime,
                 # AWS does not accept uppercase letter metadata key
-                lambda_time += float(self.client.get_object(Bucket=output_bucket, Key=last_stage_key["Key"])
+                lambda_time += float(self.client.head_object(Bucket=output_bucket, Key=last_stage_key["Key"])
                                              ['Metadata']['processingtime'])
                 s3_size += last_stage_key["Size"]  # Size is expressed in (int) Bytes
 
@@ -83,8 +90,8 @@ class OutputHandlerS3:
             s3_put_cost = s3_put_ops * 0.005 / 1000
             # S3 GET $0.004/10000
             s3_get_cost = s3_get_ops * 0.004 / 10000
-            print("Last stage number of write ops:", s3_put_ops)
-            print("Last stage number of read ops:", s3_get_ops)
+            logger.info("Last stage number of write ops: %s" % s3_put_ops)
+            logger.info("Last stage number of read ops: %s" % s3_get_ops)
 
             return lambda_time, s3_storage_cost, s3_put_cost, s3_get_cost
         return -1, -1, -1, -1

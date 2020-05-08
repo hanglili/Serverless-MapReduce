@@ -39,6 +39,7 @@ class StaticVariables:
     IN_DEGREE_PATH = "utils/in_degree.py"
     STAGE_STATE_DYNAMODB_TABLE_NAME = "%s-%s-stage-state"
     STAGE_STATE_PATH = "utils/stage_state.py"
+    LOGGER_SETUP_PATH = "utils/setup_logger.py"
 
     # S3 file locations - Web UI
     S3_JOBS_INFORMATION_BUCKET_NAME = "serverless-mapreduce-job-information"
@@ -94,6 +95,7 @@ class StaticVariables:
     LOCAL_TESTING_FLAG_FN = "localTesting"
     LOCAL_TESTING_INPUT_PATH = "localTestingInputPath"
     SERVERLESS_DRIVER_FLAG_FN = "serverlessDriver"
+    OPTIMISATION_FN = "optimisation"
 
     # specific to DynamoDB
     INPUT_PARTITION_KEY_DYNAMODB = "inputPartitionKeyDynamoDB"

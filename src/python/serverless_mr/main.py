@@ -5,6 +5,7 @@ import shutil
 import inspect
 import sys
 import time
+import logging
 
 from pathlib import Path
 
@@ -26,7 +27,9 @@ from driver.serverless_driver_setup import ServerlessDriverSetup
 from static.static_variables import StaticVariables
 from utils.pipeline import Pipeline
 from default.partition import default_partition
+from utils.setup_logger import logger
 
+logger = logging.getLogger('serverless-mr.main')
 
 # project_working_dir = os.getcwd()
 # library_dir = Path(os.path.dirname(os.path.realpath(__file__)))
@@ -80,10 +83,10 @@ def set_up():
 
 
 def copy_job_function(function):
-    print("Library working directory is", library_working_dir)
+    logger.info("Library working directory is %s" % library_working_dir)
     inspect_object = inspect.getfile(function)
     rel_filepath = os.path.relpath(inspect_object)
-    print("The path of the function is", rel_filepath)
+    logger.info("The path of the function is %s" % rel_filepath)
     # dst_file = "%s/%s/%s" % (library_working_dir, "user_job_3", "map.py")
 
     dst_file = "%s/%s" % (library_working_dir, rel_filepath)
@@ -190,13 +193,13 @@ class ServerlessMR:
         if is_serverless_driver:
             serverless_driver_setup = ServerlessDriverSetup(self.pipelines, self.total_num_functions)
             serverless_driver_setup.register_driver()
-            print("Driver Lambda function successfully registered")
+            logger.info("Driver Lambda function successfully registered")
             command = input("Enter invoke to invoke and other keys to exit: ")
             if command == "invoke":
-                print("Driver invoked and starting job execution")
+                logger.info("Driver invoked and starting job execution")
                 serverless_driver_setup.invoke()
         else:
-            print("The total number of functions is", self.total_num_functions)
+            logger.info("The total number of functions is %s" % self.total_num_functions)
             driver = Driver(self.pipelines, self.total_num_functions)
             driver.run()
 

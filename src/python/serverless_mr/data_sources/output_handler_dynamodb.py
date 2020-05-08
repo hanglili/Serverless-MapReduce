@@ -2,8 +2,12 @@ import boto3
 import json
 import os
 import time
+import logging
 
 from static.static_variables import StaticVariables
+
+from utils.setup_logger import logger
+logger = logging.getLogger('serverless-mr.output-handler-dynamodb')
 
 
 class OutputHandlerDynamoDB:
@@ -48,7 +52,7 @@ class OutputHandlerDynamoDB:
                 }
             )
         except client.exceptions.ResourceInUseException as e:
-            print("%s table has already been created" % table_name)
+            logger.warning("%s table has already been created" % table_name)
 
         response = client.describe_table(TableName=table_name)['Table']['TableStatus']
         while response != 'ACTIVE':
@@ -147,15 +151,15 @@ class OutputHandlerDynamoDB:
 
             num_write_ops = len(last_stage_keys) + output_table_item_count
             num_read_ops = 0
-            # DynamoDB costs $0.25/GB/month, if approaximated by 3 cents/GB/month, then per hour it is $0.000052/GB
+            # DynamoDB costs $0.25/GB/month, if approximated by 3 cents/GB/month, then per hour it is $0.000052/GB
             storage_cost = 1 * 0.0000521574022522109 * (dynamodb_size / 1024.0 / 1024.0 / 1024.0)
             # DynamoDB write # $1.25/1000000
             write_cost = num_write_ops * 1.25 / 1000000
             # DynamoDB read # $0.25/1000000
             read_cost = num_read_ops * 0.25 / 1000000
 
-            print("Last stage number of write ops:", num_write_ops)
-            print("Last stage number of read ops:", num_read_ops)
+            logger.info("Last stage number of write ops: %s" % num_write_ops)
+            logger.info("Last stage number of read ops: %s" % num_read_ops)
 
             return lambda_time, storage_cost, write_cost, read_cost
 

@@ -72,7 +72,7 @@ class OutputHandlerS3:
                 print("The last stage key is", last_stage_key)
                 # Even though metadata processing time is written as processingTime,
                 # AWS does not accept uppercase letter metadata key
-                lambda_time += float(self.client.get_object(Bucket=output_bucket, Key=last_stage_key["Key"])
+                lambda_time += float(self.client.head_object(Bucket=output_bucket, Key=last_stage_key["Key"])
                                              ['Metadata']['processingtime'])
                 s3_size += last_stage_key["Size"]  # Size is expressed in (int) Bytes
 

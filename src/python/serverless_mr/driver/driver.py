@@ -5,6 +5,7 @@ import time
 import os
 import pickle
 import glob
+import logging
 
 from datetime import datetime
 from collections import defaultdict
@@ -16,6 +17,10 @@ from botocore.client import Config
 from static.static_variables import StaticVariables
 from functions.map_shuffle_function import MapShuffleFunction
 from functions.reduce_function import ReduceFunction
+from utils.setup_logger import logger
+
+
+logger = logging.getLogger('serverless-mr.driver')
 
 
 def delete_files(filenames):
@@ -32,8 +37,8 @@ def set_up_local_input_data(static_job_info):
         os.chdir(StaticVariables.PROJECT_WORKING_DIRECTORY)
         local_testing_input_path = static_job_info[StaticVariables.LOCAL_TESTING_INPUT_PATH]
         local_file_paths = glob.glob(local_testing_input_path + "*")
-        print("The current working directory for local file paths is:", os.getcwd())
-        print("The list of local file paths:", local_file_paths)
+        logger.info("The current working directory for local file paths is: %s" % os.getcwd())
+        logger.info("The list of local file paths: %s" % local_file_paths)
         cur_input_handler.set_up_local_input_data(local_file_paths, static_job_info)
         os.chdir(StaticVariables.LIBRARY_WORKING_DIRECTORY)
 
@@ -167,11 +172,12 @@ class Driver:
             self.lambda_client = boto3.client('lambda', config=self.lambda_config)
 
     def _initialise_stage_state(self, num_stages):
-        job_name = self.static_job_info[StaticVariables.JOB_NAME_FN]
-        table_name = StaticVariables.STAGE_STATE_DYNAMODB_TABLE_NAME % (job_name, self.submission_time)
-        self.map_phase_state.delete_state_table(table_name)
-        self.map_phase_state.create_state_table(table_name)
-        self.map_phase_state.initialise_state_table(table_name, num_stages)
+        if num_stages > 1:
+            job_name = self.static_job_info[StaticVariables.JOB_NAME_FN]
+            table_name = StaticVariables.STAGE_STATE_DYNAMODB_TABLE_NAME % (job_name, self.submission_time)
+            self.map_phase_state.delete_state_table(table_name)
+            self.map_phase_state.create_state_table(table_name)
+            self.map_phase_state.initialise_state_table(table_name, num_stages)
 
     def delete_s3_objects(self, bucket_name, prefix):
         response = self.s3_client.list_objects(Bucket=bucket_name, Prefix=prefix)
@@ -189,11 +195,11 @@ class Driver:
         self.s3_client.create_bucket(Bucket=bucket_name)
         s3_bucket_exists_waiter = self.s3_client.get_waiter('bucket_exists')
         s3_bucket_exists_waiter.wait(Bucket=bucket_name)
-        self.s3_client.put_bucket_acl(
-            ACL='public-read-write',
-            Bucket=bucket_name,
-        )
-        print("%s Bucket created successfully" % bucket_name)
+        # self.s3_client.put_bucket_acl(
+        #     ACL='public-read-write',
+        #     Bucket=bucket_name,
+        # )
+        logger.info("%s Bucket created successfully" % bucket_name)
 
     # Get all keys to be processed
     def _get_all_keys(self, static_job_info):
@@ -210,12 +216,12 @@ class Driver:
                                                             self.is_serverless)
         all_keys = cur_input_handler.get_all_input_keys(static_job_info)
 
-        print("The number of keys: ", len(all_keys))
+        logger.info("The number of keys: %s" % len(all_keys))
         bsize = lambda_utils.compute_batch_size(all_keys, lambda_memory, concurrent_lambdas,
                                                 static_job_info[StaticVariables.INPUT_SOURCE_TYPE_FN])
-        print("The batch size is: ", bsize)
+        logger.info("The batch size is: %s" % bsize)
         batches = lambda_utils.batch_creator(all_keys, bsize)
-        print("The number of batches is the number of mappers: ", len(batches))
+        logger.info("The number of batches is the number of mappers: %s" % len(batches))
         num_mappers = len(batches)
 
         return all_keys, num_mappers, batches
@@ -246,7 +252,7 @@ class Driver:
         stage_config = {}
         mapping_stage_id_pipeline_id = {}
         adj_list = defaultdict(list)
-        in_degrees = {}
+        self.in_degrees = {}
         invoking_pipelines_info = {}
         pipelines_last_stage_num_operators = {}
         pipelines_first_last_stage_ids = {}
@@ -262,7 +268,7 @@ class Driver:
             dependent_pipeline_ids = pipeline.get_dependent_pipeline_ids()
             for dependent_pipeline_id in dependent_pipeline_ids:
                 adj_list[dependent_pipeline_id].append(pipeline_id)
-                in_degrees[pipeline_id] = in_degrees.get(pipeline_id, 0) + 1
+                self.in_degrees[pipeline_id] = self.in_degrees.get(pipeline_id, 0) + 1
 
             if len(dependent_pipeline_ids) == 0:
                 if not self.is_serverless:
@@ -345,12 +351,14 @@ class Driver:
                                      stage_config, shuffling_bucket)
 
         # Web UI information
-        dag_information = construct_dag_information(adj_list, mapping_stage_id_pipeline_id,
-                                                    pipelines_first_last_stage_ids, stage_type_of_operations)
-        populate_static_job_info(self.static_job_info, len(pipelines_first_last_stage_ids),
-                                 len(stage_type_of_operations), self.submission_time)
-        self._write_web_ui_info(dag_information, stage_config, self.static_job_info,
-                                StaticVariables.S3_JOBS_INFORMATION_BUCKET_NAME, job_name)
+        if StaticVariables.OPTIMISATION_FN not in self.static_job_info \
+                or not self.static_job_info[StaticVariables.OPTIMISATION_FN]:
+            dag_information = construct_dag_information(adj_list, mapping_stage_id_pipeline_id,
+                                                        pipelines_first_last_stage_ids, stage_type_of_operations)
+            populate_static_job_info(self.static_job_info, len(pipelines_first_last_stage_ids),
+                                     len(stage_type_of_operations), self.submission_time)
+            self._write_web_ui_info(dag_information, stage_config, self.static_job_info,
+                                    StaticVariables.S3_JOBS_INFORMATION_BUCKET_NAME, job_name)
 
         cur_coordinator_lambda = lambda_manager.LambdaManager(self.lambda_client, self.s3_client, region,
                                                               coordinator_zip_path, job_name,
@@ -364,19 +372,22 @@ class Driver:
         # time.sleep(1)
         function_lambdas.append(cur_coordinator_lambda)
 
-        in_degree_obj = in_degree.InDegree(in_lambda=self.is_serverless,
-                                           is_local_testing=self.static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN])
-        in_degree_table_name = StaticVariables.IN_DEGREE_DYNAMODB_TABLE_NAME % (job_name, self.submission_time)
-        in_degree_obj.delete_in_degree_table(in_degree_table_name)
-        in_degree_obj.create_in_degree_table(in_degree_table_name)
-        in_degree_obj.initialise_in_degree_table(in_degree_table_name, in_degrees)
+        if len(self.pipelines) > 1:
+            in_degree_obj = in_degree.InDegree(in_lambda=self.is_serverless,
+                                               is_local_testing=self.static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN])
+            in_degree_table_name = StaticVariables.IN_DEGREE_DYNAMODB_TABLE_NAME % (job_name, self.submission_time)
+            in_degree_obj.delete_in_degree_table(in_degree_table_name)
+            in_degree_obj.create_in_degree_table(in_degree_table_name)
+            in_degree_obj.initialise_in_degree_table(in_degree_table_name, self.in_degrees)
 
-        stage_progress_obj = stage_progress.StageProgress(in_lambda=self.is_serverless,
-                                                          is_local_testing=self.static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN])
-        stage_progress_table_name = StaticVariables.STAGE_PROGRESS_DYNAMODB_TABLE_NAME % (job_name, self.submission_time)
-        stage_progress_obj.delete_progress_table(stage_progress_table_name)
-        stage_progress_obj.create_progress_table(stage_progress_table_name)
-        stage_progress_obj.initialise_progress_table(stage_progress_table_name, stage_id - 1)
+        if StaticVariables.OPTIMISATION_FN not in self.static_job_info \
+                or not self.static_job_info[StaticVariables.OPTIMISATION_FN]:
+            stage_progress_obj = stage_progress.StageProgress(in_lambda=self.is_serverless,
+                                                              is_local_testing=self.static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN])
+            stage_progress_table_name = StaticVariables.STAGE_PROGRESS_DYNAMODB_TABLE_NAME % (job_name, self.submission_time)
+            stage_progress_obj.delete_progress_table(stage_progress_table_name)
+            stage_progress_obj.create_progress_table(stage_progress_table_name)
+            stage_progress_obj.initialise_progress_table(stage_progress_table_name, stage_id - 1)
 
         if not self.is_serverless:
             delete_files(glob.glob(StaticVariables.LAMBDA_ZIP_GLOB_PATH))
@@ -443,7 +454,6 @@ class Driver:
                     "partition_function_pickle_path": partition_function_pickle_path
                 })
             )
-            print("The response is", response)
         else:
             response = self.lambda_client.invoke(
                 FunctionName=first_function_lambda_name,
@@ -455,15 +465,16 @@ class Driver:
                     "function_pickle_path": function_pickle_path
                 })
             )
-            print("The response is", response)
 
     def _invoke_pipelines(self, invoking_pipelines_info):
         job_name = self.static_job_info[StaticVariables.JOB_NAME_FN]
-        stage_progress_obj = stage_progress.StageProgress(in_lambda=self.is_serverless,
-                                                          is_local_testing=self.static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN])
-        stage_progress_table_name = StaticVariables.STAGE_PROGRESS_DYNAMODB_TABLE_NAME % (job_name, self.submission_time)
+        if StaticVariables.OPTIMISATION_FN not in self.static_job_info \
+                or not self.static_job_info[StaticVariables.OPTIMISATION_FN]:
+            stage_progress_obj = stage_progress.StageProgress(in_lambda=self.is_serverless,
+                                                              is_local_testing=self.static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN])
+            stage_progress_table_name = StaticVariables.STAGE_PROGRESS_DYNAMODB_TABLE_NAME % (job_name, self.submission_time)
         for pipeline_id, invoking_pipeline_info in invoking_pipelines_info.items():
-            print("Scheduling pipeline %s" % pipeline_id)
+            logger.info("Scheduling pipeline %s" % pipeline_id)
             num_mappers = invoking_pipeline_info[1]
             batches = invoking_pipeline_info[2]
             first_function = invoking_pipeline_info[3]
@@ -471,10 +482,12 @@ class Driver:
             concurrent_lambdas = self.config[StaticVariables.NUM_CONCURRENT_LAMBDAS_FN] \
                 if StaticVariables.NUM_CONCURRENT_LAMBDAS_FN in self.config else StaticVariables.DEFAULT_NUM_CONCURRENT_LAMBDAS
 
-            total_num_jobs = sum([len(batch) for batch in batches])
-            stage_progress_obj.update_total_num_keys(stage_progress_table_name, stage_id, total_num_jobs)
+            if StaticVariables.OPTIMISATION_FN not in self.static_job_info \
+                    or not self.static_job_info[StaticVariables.OPTIMISATION_FN]:
+                total_num_jobs = sum([len(batch) for batch in batches])
+                stage_progress_obj.update_total_num_keys(stage_progress_table_name, stage_id, total_num_jobs)
             # Exec Parallel
-            print("Number of Mappers: ", num_mappers)
+            logger.info("Number of Mappers: %s" % num_mappers)
             pool = ThreadPool(num_mappers)
             ids = [i + 1 for i in range(num_mappers)]
             invoke_lambda_partial = partial(self.invoke_lambda, batches, first_function, stage_id)
@@ -489,7 +502,40 @@ class Driver:
             pool.close()
             pool.join()
 
-            print("Pipeline %s scheduled successfully" % pipeline_id)
+            logger.info("Pipeline %s scheduled successfully" % pipeline_id)
+
+
+    def _calculate_dynamo_tables_cost(self):
+        num_write_ops = 0
+        dynamodb_size = 0
+        num_read_ops = 0
+        job_name = self.static_job_info[StaticVariables.JOB_NAME_FN]
+        if self.total_num_functions > 1:
+            table_name = StaticVariables.STAGE_STATE_DYNAMODB_TABLE_NAME % (job_name, self.submission_time)
+            stage_states = self.map_phase_state.read_state_table(table_name)
+            for stage_id, num_completed_executors in stage_states.items():
+                # Plus the one write at the initialisation of the table
+                num_write_ops += num_completed_executors + 1
+
+            stage_state_table_info = self.dynamodb_client.describe_table(TableName=table_name)['Table']
+            dynamodb_size += stage_state_table_info['TableSizeBytes']
+
+        if len(self.pipelines) > 1:
+            in_degree_table_name = StaticVariables.IN_DEGREE_DYNAMODB_TABLE_NAME % (job_name, self.submission_time)
+            in_degree_table_info = self.dynamodb_client.describe_table(TableName=in_degree_table_name)['Table']
+            dynamodb_size += in_degree_table_info['TableSizeBytes']
+            for pipeline_id, in_degree in self.in_degrees.items():
+                # Plus the one write at the initialisation of the table
+                num_write_ops += in_degree + 1
+
+        # DynamoDB costs $0.25/GB/month, if approximated by 3 cents/GB/month, then per hour it is $0.000052/GB
+        storage_cost = 1 * 0.0000521574022522109 * (dynamodb_size / 1024.0 / 1024.0 / 1024.0)
+        # DynamoDB write # $1.25/1000000
+        write_cost = num_write_ops * 1.25 / 1000000
+        # DynamoDB read # $0.25/1000000
+        read_cost = num_read_ops * 0.25 / 1000000
+
+        return storage_cost, write_cost, read_cost
 
 
     def _calculate_cost(self, num_outputs, cur_output_handler, invoking_pipelines_info):
@@ -508,7 +554,7 @@ class Driver:
 
         # Wait for the job to complete so that we can compute total cost ; create a poll every 5 secs
         while True:
-            print("Checking whether the job is completed...")
+            logger.info("Checking whether the job is completed...")
             response, string_index = cur_output_handler.list_objects_for_checking_finish(self.static_job_info,
                                                                                          self.submission_time)
             if string_index in response:
@@ -519,31 +565,31 @@ class Driver:
                     total_lambda_time += last_stage_lambda_time
                     last_stage_database_cost = last_stage_storage_cost + last_stage_write_cost + last_stage_read_cost
                     break
-            time.sleep(5)
+            time.sleep(0.25)
 
-        print("Job Complete")
-        StaticVariables.TEAR_DOWN_START_TIME = time.time()
-        print("PERFORMANCE INFO: The job execution time is:",
-              StaticVariables.TEAR_DOWN_START_TIME - StaticVariables.JOB_START_TIME)
+        logger.info("Job Complete")
 
-        # response = self.s3_client.list_objects(Bucket=shuffling_bucket, Prefix=job_name)
-        # if "Contents" in response:
-        #     all_stages_key_objs = response["Contents"]
-        #     for all_stage_key_obj in all_stages_key_objs:
-        #         # Even though metadata processing time is written as processingTime,
-        #         # AWS does not accept uppercase letter metadata key
-        #         all_stage_key = all_stage_key_obj["Key"]
-        #         intermediate_s3_size += all_stage_key_obj["Size"]
-        #         intermediate_s3_get_ops += 1
-        #         intermediate_s3_put_ops += 1
-        #         if ("bin" not in all_stage_key) or ("bin-1" in all_stage_key):
-        #             lambda_time = float(self.s3_client.get_object(Bucket=shuffling_bucket,
-        #                                                           Key=all_stage_key)['Metadata']['processingtime'])
-        #             total_lambda_time += lambda_time
-        #             stage_id = int(all_stage_key.split("/")[1].split("-")[1])
-        #             if stage_id in pipelines_first_stage_ids:
-        #                 total_lines += int(self.s3_client.get_object(Bucket=shuffling_bucket,
-        #                                                              Key=all_stage_key)['Metadata']['linecount'])
+        response = self.s3_client.list_objects(Bucket=shuffling_bucket, Prefix=job_name)
+        if "Contents" in response:
+            all_stages_key_objs = response["Contents"]
+            for all_stage_key_obj in all_stages_key_objs:
+                # Even though metadata processing time is written as processingTime,
+                # AWS does not accept uppercase letter metadata key
+                all_stage_key = all_stage_key_obj["Key"]
+                intermediate_s3_size += all_stage_key_obj["Size"]
+                intermediate_s3_get_ops += 1
+                intermediate_s3_put_ops += 1
+                if ("bin" not in all_stage_key) or ("/bin-1/" in all_stage_key):
+                    lambda_time = float(self.s3_client.head_object(Bucket=shuffling_bucket,
+                                                                  Key=all_stage_key)['Metadata']['processingtime'])
+                    total_lambda_time += lambda_time
+                    stage_id = int(all_stage_key.split("/")[1].split("-")[1])
+                    if stage_id in pipelines_first_stage_ids:
+                        num_lines = int(self.s3_client.head_object(Bucket=shuffling_bucket,
+                                                                      Key=all_stage_key)['Metadata']['linecount'])
+                        logger.info("The stage id is %s" % stage_id)
+                        logger.info("The key is %s with %s number of lines" % (all_stage_key, num_lines))
+                        total_lines += num_lines
 
         # S3 Storage cost for shuffling bucket and output bucket - is negligible anyways since S3 costs 3 cents/GB/month
         # Storage cost per GB / hour
@@ -559,16 +605,23 @@ class Driver:
         total_intermediate_s3_cost = (intermediate_s3_get_cost + intermediate_s3_put_cost +
                                       intermediate_s3_storage_cost)
 
-        print("Intermediate Stages total number of s3 GET ops:", intermediate_s3_get_ops)
-        print("Intermediate Stages total number of s3 PUT ops:", intermediate_s3_put_ops)
-        print("********** COST ***********")
-        print("Total Lambda Cost:", total_lambda_cost)
-        print("Intermediate Stages S3 Storage Cost:", intermediate_s3_storage_cost)
-        print("Intermediate Stages S3 Request Cost:", intermediate_s3_get_cost + intermediate_s3_put_cost)
-        print("Total Intermediate Stages S3 Cost:", total_intermediate_s3_cost)
-        print("Total Last Stage Database Cost:", last_stage_database_cost)
-        print("Total Cost:", total_lambda_cost + total_intermediate_s3_cost + last_stage_database_cost)
-        print("Total Lines:", total_lines)
+        # DynamoDB cost - For Stage State, In-degree and Stage-Progress
+        dynamodb_storage_cost, dynamodb_write_cost, dynamodb_read_cost = self._calculate_dynamo_tables_cost()
+        dynamodb_operations_total_cost = dynamodb_storage_cost + dynamodb_write_cost + dynamodb_read_cost
+
+        logger.info("Intermediate Stages total number of s3 GET ops: %s" % intermediate_s3_get_ops)
+        logger.info("Intermediate Stages total number of s3 PUT ops: %s" % intermediate_s3_put_ops)
+        logger.info("********** COST ***********")
+        logger.info("Total Lambda Cost: %s" % total_lambda_cost)
+        logger.info("Intermediate Stages S3 Storage Cost: %s" % intermediate_s3_storage_cost)
+        logger.info("Intermediate Stages S3 Request Cost: %s" % str(intermediate_s3_get_cost + intermediate_s3_put_cost))
+        logger.info("Total Intermediate Stages S3 Cost: %s" % total_intermediate_s3_cost)
+        logger.info("Total Last Stage Database Cost: %s" % last_stage_database_cost)
+        logger.info("DynamoDB Operations Storage Cost: %s" % dynamodb_storage_cost)
+        logger.info("DynamoDB Operations Request Cost: %s" % str(dynamodb_read_cost + dynamodb_write_cost))
+        logger.info("Total DynamoDB Operations Cost: %s" % dynamodb_operations_total_cost)
+        logger.info("Total Cost: %s" % str(total_lambda_cost + total_intermediate_s3_cost + last_stage_database_cost))
+        logger.info("Total Lines: %s" % total_lines)
 
     def _update_duration(self):
         job_name = self.static_job_info[StaticVariables.JOB_NAME_FN]
@@ -600,7 +653,7 @@ class Driver:
                                                                self.is_serverless)
         cur_output_handler.create_output_storage(self.submission_time, self.static_job_info)
         StaticVariables.JOB_START_TIME = time.time()
-        print("PERFORMANCE INFO: The setup time is:", StaticVariables.JOB_START_TIME - StaticVariables.SETUP_START_TIME)
+        logger.info("PERFORMANCE INFO: The setup time is: %s" % (StaticVariables.JOB_START_TIME - StaticVariables.SETUP_START_TIME))
         self._calculate_cost(num_outputs, cur_output_handler, invoking_pipelines_info)
 
         # 4. Delete the function lambdas
@@ -608,10 +661,12 @@ class Driver:
             function_lambda.delete_function()
 
         # 5. View one of the reducer results
-        print(cur_output_handler.get_output(3, self.static_job_info, self.submission_time))
+        # logger.info(cur_output_handler.get_output(3, self.static_job_info, self.submission_time))
         # self.map_phase_state.delete_state_table(StaticVariables.STAGE_STATE_DYNAMODB_TABLE_NAME)
 
-        self._update_duration()
+        if StaticVariables.OPTIMISATION_FN not in self.static_job_info \
+                or not self.static_job_info[StaticVariables.OPTIMISATION_FN]:
+            self._update_duration()
         
         # in_degree_obj = in_degree.InDegree(in_lambda=self.is_serverless)
         # in_degree_obj.delete_in_degree_table(StaticVariables.IN_DEGREE_DYNAMODB_TABLE_NAME)
