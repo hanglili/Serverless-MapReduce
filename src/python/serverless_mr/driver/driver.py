@@ -521,12 +521,13 @@ class Driver:
             dynamodb_size += stage_state_table_info['TableSizeBytes']
 
         if len(self.pipelines) > 1:
-            in_degree_table_name = StaticVariables.IN_DEGREE_DYNAMODB_TABLE_NAME % (job_name, self.submission_time)
-            in_degree_table_info = self.dynamodb_client.describe_table(TableName=in_degree_table_name)['Table']
-            dynamodb_size += in_degree_table_info['TableSizeBytes']
             for pipeline_id, in_degree in self.in_degrees.items():
                 # Plus the one write at the initialisation of the table
                 num_write_ops += in_degree + 1
+
+            in_degree_table_name = StaticVariables.IN_DEGREE_DYNAMODB_TABLE_NAME % (job_name, self.submission_time)
+            in_degree_table_info = self.dynamodb_client.describe_table(TableName=in_degree_table_name)['Table']
+            dynamodb_size += in_degree_table_info['TableSizeBytes']
 
         # DynamoDB costs $0.25/GB/month, if approximated by 3 cents/GB/month, then per hour it is $0.000052/GB
         storage_cost = 1 * 0.0000521574022522109 * (dynamodb_size / 1024.0 / 1024.0 / 1024.0)
