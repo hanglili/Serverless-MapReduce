@@ -35,6 +35,8 @@ class InputHandlerS3:
 
         for i in range(len(input_file_paths)):
             input_file_path = input_file_paths[i]
+            if os.path.isdir(input_file_path):
+                continue
             if StaticVariables.INPUT_PREFIX_FN in static_job_info:
                 prefix = static_job_info[StaticVariables.INPUT_PREFIX_FN]
                 key = '%s/input-%s' % (prefix, str(i + 1))

@@ -71,8 +71,8 @@ class OutputHandlerS3:
         s3_size = 0
         last_stage_keys = response[string_index]
         if len(last_stage_keys) == num_final_dst_operators:
-            StaticVariables.TEAR_DOWN_START_TIME = time.time()
-            job_execution_time = StaticVariables.TEAR_DOWN_START_TIME - StaticVariables.JOB_START_TIME
+            StaticVariables.COST_CALCULATION_START_TIME = time.time()
+            job_execution_time = StaticVariables.COST_CALCULATION_START_TIME - StaticVariables.JOB_START_TIME
             logger.info("PERFORMANCE INFO - Job execution time: %s seconds" % str(job_execution_time))
             for last_stage_key in last_stage_keys:
                 logger.info("Response: %s" % response)
@@ -93,6 +93,7 @@ class OutputHandlerS3:
             s3_get_cost = s3_get_ops * 0.004 / 10000
             logger.info("Last stage number of write ops: %s" % s3_put_ops)
             logger.info("Last stage number of read ops: %s" % s3_get_ops)
+            logger.info("Last stage avg Lambda execution time: %s" % str(lambda_time / num_final_dst_operators))
 
             return lambda_time, s3_storage_cost, s3_put_cost, s3_get_cost
         return -1, -1, -1, -1

@@ -46,7 +46,7 @@ def set_up_local_input_data(static_job_info):
 
         os.chdir(StaticVariables.PROJECT_WORKING_DIRECTORY)
         local_testing_input_path = static_job_info[StaticVariables.LOCAL_TESTING_INPUT_PATH]
-        local_file_paths = glob.glob(local_testing_input_path + "*")
+        local_file_paths = glob.glob(local_testing_input_path + "**", recursive=True)
         logger.info("The current working directory for local file paths is: %s" % os.getcwd())
         logger.info("The list of local file paths: %s" % local_file_paths)
         cur_input_handler.set_up_local_input_data(local_file_paths, static_job_info)
@@ -581,6 +581,8 @@ class Driver:
 
         logger.info("Job Complete")
 
+        executors_total_time = {}
+        executors_count = {}
         response = self.s3_client.list_objects(Bucket=shuffling_bucket, Prefix=job_name)
         if "Contents" in response:
             all_stages_key_objs = response["Contents"]
@@ -593,20 +595,35 @@ class Driver:
                 intermediate_s3_put_ops += 1
                 if ("bin" not in all_stage_key) or ("/bin-1/" in all_stage_key):
                     lambda_time = float(self.s3_client.head_object(Bucket=shuffling_bucket,
-                                                                  Key=all_stage_key)['Metadata']['processingtime'])
+                                                                   Key=all_stage_key)['Metadata']['processingtime'])
                     total_lambda_time += lambda_time
                     stage_id = int(all_stage_key.split("/")[1].split("-")[1])
+                    executors_total_time[stage_id] = executors_total_time.get(stage_id, 0) + lambda_time
+                    executors_count[stage_id] = executors_count.get(stage_id, 0) + 1
                     if stage_id in pipelines_first_stage_ids:
                         num_lines = int(self.s3_client.head_object(Bucket=shuffling_bucket,
                                                                       Key=all_stage_key)['Metadata']['linecount'])
-                        logger.info("The stage id is %s" % stage_id)
+                        logger.info("Stage: %s" % stage_id)
                         logger.info("The key is %s with %s number of lines" % (all_stage_key, num_lines))
                         total_lines += num_lines
 
+        for stage_id in executors_total_time.keys():
+            cur_stage_avg_executor_time = executors_total_time[stage_id] / executors_count[stage_id]
+            logger.info("Average executor time at stage %s: %s" % (stage_id, cur_stage_avg_executor_time))
+
+        coordinator_execution_info = "coordinator-info/%s" % (job_name)
+        response = self.s3_client.list_objects(Bucket=shuffling_bucket, Prefix=coordinator_execution_info)
+        if "Contents" in response:
+            contents = response["Contents"]
+            for content in contents:
+                coordinator_info_key = content["Key"]
+                lambda_time = float(self.s3_client.head_object(Bucket=shuffling_bucket,
+                                                               Key=coordinator_info_key)['Metadata']['processingtime'])
+                total_lambda_time += lambda_time
+
         # S3 Storage cost for shuffling bucket and output bucket - is negligible anyways since S3 costs 3 cents/GB/month
         # Storage cost per GB / hour
-        intermediate_s3_storage_cost = 1 * 0.0000521574022522109 \
-                                              * (intermediate_s3_size / 1024.0 / 1024.0 / 1024.0)
+        intermediate_s3_storage_cost = 1 * 0.0000521574022522109 * (intermediate_s3_size / 1024.0 / 1024.0 / 1024.0)
         # S3 PUT # 0.005/1000
         intermediate_s3_put_cost = intermediate_s3_put_ops * 0.005 / 1000
         # S3 GET # $0.004/10000
@@ -619,7 +636,7 @@ class Driver:
 
         # DynamoDB cost - For Stage State, In-degree and Stage-Progress
         dynamodb_storage_cost, dynamodb_write_cost, dynamodb_read_cost = self._calculate_dynamo_tables_cost()
-        dynamodb_operations_total_cost = dynamodb_storage_cost + dynamodb_write_cost + dynamodb_read_cost
+        total_dynamodb_operations_cost = dynamodb_storage_cost + dynamodb_write_cost + dynamodb_read_cost
 
         logger.info("Intermediate Stages total number of s3 GET ops: %s" % intermediate_s3_get_ops)
         logger.info("Intermediate Stages total number of s3 PUT ops: %s" % intermediate_s3_put_ops)
@@ -631,9 +648,14 @@ class Driver:
         logger.info("Total Last Stage Database Cost: %s" % last_stage_database_cost)
         logger.info("DynamoDB Operations Storage Cost: %s" % dynamodb_storage_cost)
         logger.info("DynamoDB Operations Request Cost: %s" % str(dynamodb_read_cost + dynamodb_write_cost))
-        logger.info("Total DynamoDB Operations Cost: %s" % dynamodb_operations_total_cost)
-        logger.info("Total Cost: %s" % str(total_lambda_cost + total_intermediate_s3_cost + last_stage_database_cost))
+        logger.info("Total DynamoDB Operations Cost: %s" % total_dynamodb_operations_cost)
+        logger.info("Total Cost: %s" % str(total_lambda_cost + total_intermediate_s3_cost
+                                           + last_stage_database_cost + total_dynamodb_operations_cost))
         logger.info("Total Lines: %s" % total_lines)
+
+        StaticVariables.TEAR_DOWN_START_TIME = time.time()
+        cost_calculation_time = StaticVariables.TEAR_DOWN_START_TIME - StaticVariables.COST_CALCULATION_START_TIME
+        logger.info("PERFORMANCE INFO - Cost Calculation time: %s seconds" % str(cost_calculation_time))
 
     def _update_duration(self):
         job_name = self.static_job_info[StaticVariables.JOB_NAME_FN]
@@ -665,20 +687,27 @@ class Driver:
                                                                self.is_serverless)
         cur_output_handler.create_output_storage(self.submission_time, self.static_job_info)
         StaticVariables.JOB_START_TIME = time.time()
-        logger.info("PERFORMANCE INFO: The setup time is: %s" % (StaticVariables.JOB_START_TIME - StaticVariables.SETUP_START_TIME))
+        logger.info("PERFORMANCE INFO: Job setup time: %s" % (StaticVariables.JOB_START_TIME - StaticVariables.SETUP_START_TIME))
         self._calculate_cost(num_outputs, cur_output_handler, invoking_pipelines_info)
 
         # 4. Delete the function lambdas
         for function_lambda in function_lambdas:
             function_lambda.delete_function()
 
-        # 5. View one of the reducer results
-        # logger.info(cur_output_handler.get_output(3, self.static_job_info, self.submission_time))
-        # self.map_phase_state.delete_state_table(StaticVariables.STAGE_STATE_DYNAMODB_TABLE_NAME)
-
         if StaticVariables.OPTIMISATION_FN not in self.static_job_info \
                 or not self.static_job_info[StaticVariables.OPTIMISATION_FN]:
             self._update_duration()
-        
-        # in_degree_obj = in_degree.InDegree(in_lambda=self.is_serverless)
-        # in_degree_obj.delete_in_degree_table(StaticVariables.IN_DEGREE_DYNAMODB_TABLE_NAME)
+            # 5. View one of the last stage executor's outputs
+            # logger.info(cur_output_handler.get_output(3, self.static_job_info, self.submission_time))
+        else:
+            job_name = self.static_job_info[StaticVariables.JOB_NAME_FN]
+            table_name = StaticVariables.STAGE_STATE_DYNAMODB_TABLE_NAME % (job_name, self.submission_time)
+            self.map_phase_state.delete_state_table(table_name)
+
+            in_degree_obj = in_degree.InDegree(in_lambda=self.is_serverless,
+                                               is_local_testing=self.static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN])
+            in_degree_table_name = StaticVariables.IN_DEGREE_DYNAMODB_TABLE_NAME % (job_name, self.submission_time)
+            in_degree_obj.delete_in_degree_table(in_degree_table_name)
+
+        tear_down_time = time.time() - StaticVariables.TEAR_DOWN_START_TIME
+        logger.info("PERFORMANCE INFO - Job tear down time: %s seconds" % str(tear_down_time))

@@ -2,6 +2,8 @@ import boto3
 import json
 import os
 import logging
+import time
+import random
 
 from static.static_variables import StaticVariables
 from utils import stage_state, in_degree, stage_progress
@@ -182,7 +184,7 @@ def schedule_different_pipeline_next_stage(is_serverless_driver, stage_configura
 
 def lambda_handler(event, _):
     logger.info("*************Coordinator****************")
-    # start_time = time.time()
+    start_time = time.time()
 
     # Shuffling Bucket (we just got a notification from this bucket)
     # shuffling_bucket = event['Records'][0]['s3']['bucket']['name']
@@ -249,6 +251,13 @@ def lambda_handler(event, _):
         # cur_map_phase_state.increment_current_stage_id(StaticVariables.STAGE_STATE_DYNAMODB_TABLE_NAME)
     else:
         logger.info("Waiting for all the operators of the stage %s to finish" % stage_id)
+
+    coordinator_execution_time = time.time() - start_time
+    coordinator_execution_info_s3_key = "coordinator-info/%s/%s-%s" % (job_name, stage_id, random.randint(1, 10000000))
+    coordinator_execution_info = {'processingTime': coordinator_execution_time}
+    s3_client.put_object(Bucket=shuffling_bucket, Key=coordinator_execution_info_s3_key,
+                         Body=json.dumps({}), Metadata=coordinator_execution_info)
+
 
 '''
 ev = {

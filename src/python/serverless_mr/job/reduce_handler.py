@@ -94,9 +94,10 @@ def lambda_handler(event, _):
             cur_values.append(value)
         else:
             if cur_key is not None:
-                cur_key_outputs = []
-                reduce_function(cur_key_outputs, (cur_key, cur_values))
-                outputs += cur_key_outputs
+                # cur_key_outputs = []
+                # reduce_function(cur_key_outputs, (cur_key, cur_values))
+                # outputs += cur_key_outputs
+                reduce_function(outputs, (cur_key, cur_values))
 
             cur_key = key
             cur_values = [value]
@@ -114,9 +115,10 @@ def lambda_handler(event, _):
                 interval_num_keys_processed = interval_num_keys_processed % average_num_keys
 
     if cur_key is not None:
-        cur_key_outputs = []
-        reduce_function(cur_key_outputs, (cur_key, cur_values))
-        outputs += cur_key_outputs
+        # cur_key_outputs = []
+        # reduce_function(cur_key_outputs, (cur_key, cur_values))
+        # outputs += cur_key_outputs
+        reduce_function(outputs, (cur_key, cur_values))
 
     if StaticVariables.OPTIMISATION_FN not in static_job_info \
             or not static_job_info[StaticVariables.OPTIMISATION_FN]:

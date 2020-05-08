@@ -112,4 +112,5 @@ class StaticVariables:
     # variables for performance testing
     SETUP_START_TIME = 0
     TEAR_DOWN_START_TIME = 0
+    COST_CALCULATION_START_TIME = 0
     JOB_START_TIME = 0

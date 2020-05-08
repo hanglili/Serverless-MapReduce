@@ -164,17 +164,9 @@ def lambda_handler(event, _):
     else:
         outputs = intermediate_data
 
-    time_in_secs = (time.time() - start_time)
     # timeTaken = time_in_secs * 1000000000 # in 10^9
     # s3DownloadTime = 0
     # totalProcessingTime = 0
-
-    metadata = {
-        "lineCount": '%s' % line_count,
-        "processingTime": '%s' % time_in_secs,
-        "memoryUsage": '%s' % resource.getrusage(resource.RUSAGE_SELF).ru_maxrss,
-        "numKeys": '%s' % len(src_keys)
-    }
 
     # Partition ids are from 1 to n (inclusive).
     output_partitions = [[] for _ in range(num_bins + 1)]
@@ -186,11 +178,29 @@ def lambda_handler(event, _):
         cur_partition = output_partitions[partition_id]
         cur_partition.append(tuple((input_key, value)))
 
-    for i in range(1, num_bins + 1):
+    # for i in range(1, num_bins + 1):
+    #     partition_id = "bin-%s" % i
+    #     mapper_filename = "%s/%s-%s/%s/%s" % (job_name, StaticVariables.OUTPUT_PREFIX, stage_id, partition_id, mapper_id)
+    #     s3_client.put_object(Bucket=shuffling_bucket, Key=mapper_filename,
+    #                          Body=json.dumps(output_partitions[i]), Metadata=metadata)
+    for i in range(2, num_bins + 1):
         partition_id = "bin-%s" % i
         mapper_filename = "%s/%s-%s/%s/%s" % (job_name, StaticVariables.OUTPUT_PREFIX, stage_id, partition_id, mapper_id)
         s3_client.put_object(Bucket=shuffling_bucket, Key=mapper_filename,
-                             Body=json.dumps(output_partitions[i]), Metadata=metadata)
+                             Body=json.dumps(output_partitions[i]))
+
+    time_in_secs = (time.time() - start_time)
+    metadata = {
+        "lineCount": '%s' % line_count,
+        "processingTime": '%s' % time_in_secs,
+        "memoryUsage": '%s' % resource.getrusage(resource.RUSAGE_SELF).ru_maxrss,
+        "numKeys": '%s' % len(src_keys)
+    }
+
+    partition_id = "bin-%s" % 1
+    mapper_filename = "%s/%s-%s/%s/%s" % (job_name, StaticVariables.OUTPUT_PREFIX, stage_id, partition_id, mapper_id)
+    s3_client.put_object(Bucket=shuffling_bucket, Key=mapper_filename,
+                         Body=json.dumps(output_partitions[1]), Metadata=metadata)
 
     lambda_client.invoke(
         FunctionName=coordinator_lambda_name,

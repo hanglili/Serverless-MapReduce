@@ -7,12 +7,14 @@ def map_function(outputs, input_pair):
     try:
         _, input_value = input_pair
         lines = input_value.split('\n')[:-1]
+        page_rank_cutoff = 10
 
         for line in lines:
             data = line.split(',')
-            src_ip = data[0]
-            ad_revenue = float(data[3])
-            outputs.append(tuple((src_ip, ad_revenue)))
+            page_url = data[0]
+            page_rank = int(data[1])
+            if page_rank > page_rank_cutoff:
+                outputs.append(tuple((page_url, page_rank)))
 
     except Exception as e:
         print("type error: " + str(e))
