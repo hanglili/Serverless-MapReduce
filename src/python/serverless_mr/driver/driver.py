@@ -19,6 +19,16 @@ from functions.map_shuffle_function import MapShuffleFunction
 from functions.reduce_function import ReduceFunction
 from utils.setup_logger import logger
 
+tmp_static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
+
+if tmp_static_job_info[StaticVariables.SERVERLESS_DRIVER_FLAG_FN]:
+    root = logging.getLogger()
+    if root.handlers:
+        for handler in root.handlers:
+            if tmp_static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
+                root.setLevel(level=logging.INFO)
+            else:
+                root.removeHandler(handler)
 
 logger = logging.getLogger('serverless-mr.driver')
 
@@ -195,10 +205,11 @@ class Driver:
         self.s3_client.create_bucket(Bucket=bucket_name)
         s3_bucket_exists_waiter = self.s3_client.get_waiter('bucket_exists')
         s3_bucket_exists_waiter.wait(Bucket=bucket_name)
-        # self.s3_client.put_bucket_acl(
-        #     ACL='public-read-write',
-        #     Bucket=bucket_name,
-        # )
+        if self.static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
+            self.s3_client.put_bucket_acl(
+                ACL='public-read-write',
+                Bucket=bucket_name,
+            )
         logger.info("%s Bucket created successfully" % bucket_name)
 
     # Get all keys to be processed
@@ -515,7 +526,7 @@ class Driver:
             stage_states = self.map_phase_state.read_state_table(table_name)
             for stage_id, num_completed_executors in stage_states.items():
                 # Plus the one write at the initialisation of the table
-                num_write_ops += num_completed_executors + 1
+                num_write_ops += int(num_completed_executors) + 1
 
             stage_state_table_info = self.dynamodb_client.describe_table(TableName=table_name)['Table']
             dynamodb_size += stage_state_table_info['TableSizeBytes']

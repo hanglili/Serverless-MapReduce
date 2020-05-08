@@ -6,16 +6,20 @@ import logging
 from static.static_variables import StaticVariables
 from utils import stage_state, in_degree, stage_progress
 
+static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
+
 root = logging.getLogger()
 if root.handlers:
     for handler in root.handlers:
-        root.removeHandler(handler)
+        if static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
+            root.setLevel(level=logging.INFO)
+        else:
+            root.removeHandler(handler)
 
 from utils.setup_logger import logger
 logger = logging.getLogger('serverless-mr.coordinator')
 
 # create an S3 and Lambda session
-static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
 if static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
     s3_client = boto3.client('s3', aws_access_key_id='', aws_secret_access_key='',
                              region_name=StaticVariables.DEFAULT_REGION,

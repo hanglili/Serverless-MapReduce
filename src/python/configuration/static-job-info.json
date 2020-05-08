@@ -1,15 +1,16 @@
 {
-    "jobName": "amplab-query-2b6",
+    "jobName": "amplab-query-2b",
     "lambdaNamePrefix": "amplab",
-    "shufflingBucket": "serverless-mapreduce-storage-2b6",
+    "shufflingBucket": "serverless-mapreduce-storage-2b",
     "inputSourceType": "s3",
     "inputSource": "big-data-benchmark",
     "inputPrefix": "pavlo/text/1node/uservisits/",
     "outputSourceType": "s3",
-    "outputSource": "serverless-mapreduce-storage-output-2b6",
+    "outputSource": "serverless-mapreduce-storage-output-2b",
     "outputPrefix": "output",
     "useCombine": true,
-    "localTesting": false,
+    "localTesting": true,
+    "localTestingInputPath": "../../input_data/testing_partitioned/s3/",
     "serverlessDriver": false,
-    "optimisation": true
+    "optimisation": false
 }

@@ -31,10 +31,11 @@ class OutputHandlerS3:
         self.client.create_bucket(Bucket=output_bucket)
         s3_bucket_exists_waiter = self.client.get_waiter('bucket_exists')
         s3_bucket_exists_waiter.wait(Bucket=output_bucket)
-        # self.client.put_bucket_acl(
-        #     ACL='public-read-write',
-        #     Bucket=output_bucket,
-        # )
+        if static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
+            self.client.put_bucket_acl(
+                ACL='public-read-write',
+                Bucket=output_bucket,
+            )
         logger.info("Finished setting up output bucket")
 
     def write_output(self, executor_id, outputs, metadata, submission_time, static_job_info):

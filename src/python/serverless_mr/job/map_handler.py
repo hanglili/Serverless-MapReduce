@@ -11,17 +11,22 @@ import logging
 from static.static_variables import StaticVariables
 from utils import input_handler, output_handler, stage_progress
 
+static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
+
 root = logging.getLogger()
 if root.handlers:
     for handler in root.handlers:
-        root.removeHandler(handler)
+        if static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
+            root.setLevel(level=logging.INFO)
+        else:
+            root.removeHandler(handler)
 
 from utils.setup_logger import logger
 logger = logging.getLogger('serverless-mr.map-handler')
 
 
 def lambda_handler(event, _):
-    logger.info("**************Map****************")
+    print("**************Map****************")
     start_time = time.time()
 
     src_keys = event['keys']
@@ -33,7 +38,6 @@ def lambda_handler(event, _):
         map_function = pickle.load(f)
 
     # create an S3 session
-    static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
     if static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
         s3_client = boto3.client('s3', aws_access_key_id='', aws_secret_access_key='',
                                  region_name=StaticVariables.DEFAULT_REGION,
@@ -53,7 +57,7 @@ def lambda_handler(event, _):
     coordinator_lambda_name = os.environ.get("coordinator_lambda_name")
     submission_time = os.environ.get("submission_time")
 
-    logger.info("Stage: %s" % stage_id)
+    logger.debug("Stage: %s" % stage_id)
 
     if StaticVariables.OPTIMISATION_FN not in static_job_info \
             or not static_job_info[StaticVariables.OPTIMISATION_FN]:
@@ -135,7 +139,7 @@ def lambda_handler(event, _):
         "numKeys": '%s' % len(src_keys)
     }
 
-    logger.info("Map sample outputs: %s" % str(outputs[0:10]))
+    logger.warning("Map sample outputs: %s" % str(outputs[0:10]))
 
     if stage_id == total_num_stages:
         cur_output_handler = output_handler.get_output_handler(static_job_info[StaticVariables.OUTPUT_SOURCE_TYPE_FN],
@@ -155,4 +159,4 @@ def lambda_handler(event, _):
             })
         )
 
-    logger.info("Mapper %s finishes execution" % str(mapper_id))
+    logger.error("Mapper %s finishes execution" % str(mapper_id))
