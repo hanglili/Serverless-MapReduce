@@ -68,6 +68,8 @@ class OutputHandlerS3:
     def check_job_finish(self, response, string_index, num_final_dst_operators, submission_time, static_job_info):
         output_bucket = static_job_info[StaticVariables.OUTPUT_SOURCE_FN]
         lambda_time = 0
+        compute_time = 0
+        io_time = 0
         s3_size = 0
         last_stage_keys = response[string_index]
         if len(last_stage_keys) == num_final_dst_operators:
@@ -75,13 +77,15 @@ class OutputHandlerS3:
             job_execution_time = StaticVariables.COST_CALCULATION_START_TIME - StaticVariables.JOB_START_TIME
             logger.info("PERFORMANCE INFO - Job execution time: %s seconds" % str(job_execution_time))
             for last_stage_key in last_stage_keys:
-                logger.info("Response: %s" % response)
-                logger.info("Output bucket is %s" % output_bucket)
-                logger.info("Last stage key is %s" % last_stage_key)
+                # logger.info("Response: %s" % response)
+                # logger.info("Output bucket is %s" % output_bucket)
+                # logger.info("Last stage key is %s" % last_stage_key)
                 # Even though metadata processing time is written as processingTime,
                 # AWS does not accept uppercase letter metadata key
-                lambda_time += float(self.client.head_object(Bucket=output_bucket, Key=last_stage_key["Key"])
-                                             ['Metadata']['processingtime'])
+                metadata = self.client.head_object(Bucket=output_bucket, Key=last_stage_key["Key"])['Metadata']
+                lambda_time += float(metadata['processingtime'])
+                compute_time += float(metadata['computetime'])
+                io_time += float(metadata['iotime'])
                 s3_size += last_stage_key["Size"]  # Size is expressed in (int) Bytes
 
             s3_put_ops = len(last_stage_keys)
@@ -94,6 +98,8 @@ class OutputHandlerS3:
             logger.info("Last stage number of write ops: %s" % s3_put_ops)
             logger.info("Last stage number of read ops: %s" % s3_get_ops)
             logger.info("Last stage avg Lambda execution time: %s" % str(lambda_time / num_final_dst_operators))
+            logger.info("Last stage avg Lambda compute time: %s" % str(compute_time / num_final_dst_operators))
+            logger.info("Last stage avg Lambda io time: %s" % str(io_time / num_final_dst_operators))
 
             return lambda_time, s3_storage_cost, s3_put_cost, s3_get_cost
         return -1, -1, -1, -1

@@ -1,16 +1,15 @@
 {
-    "jobName": "amplab-query-page-rank",
+    "jobName": "amplab-query-16",
     "lambdaNamePrefix": "amplab",
-    "shufflingBucket": "serverless-mapreduce-storage",
+    "shufflingBucket": "serverless-mapreduce-storage-query-16",
     "inputSourceType": "s3",
     "inputSource": "big-data-benchmark",
-    "inputPrefix": "pavlo/text/tiny/join/",
+    "inputPrefix": "pavlo/text/1node/rankings/",
     "outputSourceType": "s3",
-    "outputSource": "serverless-mapreduce-storage-output",
-    "outputPrefix": "output",
+    "outputSource": "serverless-mapreduce-storage-output-query-16",
     "useCombine": false,
-    "localTesting": true,
-    "localTestingInputPath": "../../input_data/tiny/join/",
+    "localTesting": false,
+    "localTestingInputPath": "../../input_data/tiny/join/rankings/",
     "serverlessDriver": false,
     "optimisation": true
 }

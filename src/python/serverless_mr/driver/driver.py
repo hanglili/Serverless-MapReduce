@@ -138,7 +138,9 @@ class Driver:
         prefix = "%s/" % self.static_job_info[StaticVariables.JOB_NAME_FN]
         self.set_up_bucket(self.static_job_info[StaticVariables.SHUFFLING_BUCKET_FN])
         self.delete_s3_objects(self.static_job_info[StaticVariables.SHUFFLING_BUCKET_FN], prefix)
-        self.set_up_bucket(StaticVariables.S3_JOBS_INFORMATION_BUCKET_NAME)
+        if StaticVariables.OPTIMISATION_FN not in self.static_job_info \
+                or not self.static_job_info[StaticVariables.OPTIMISATION_FN]:
+            self.set_up_bucket(StaticVariables.S3_JOBS_INFORMATION_BUCKET_NAME)
 
     def _set_aws_clients(self):
         if self.static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
@@ -582,6 +584,8 @@ class Driver:
         logger.info("Job Complete")
 
         executors_total_time = {}
+        executors_compute_time = {}
+        executors_io_time = {}
         executors_count = {}
         response = self.s3_client.list_objects(Bucket=shuffling_bucket, Prefix=job_name)
         if "Contents" in response:
@@ -594,24 +598,32 @@ class Driver:
                 intermediate_s3_get_ops += 1
                 intermediate_s3_put_ops += 1
                 if ("bin" not in all_stage_key) or ("/bin-1/" in all_stage_key):
-                    lambda_time = float(self.s3_client.head_object(Bucket=shuffling_bucket,
-                                                                   Key=all_stage_key)['Metadata']['processingtime'])
+                    metadata = self.s3_client.head_object(Bucket=shuffling_bucket, Key=all_stage_key)['Metadata']
+                    lambda_time = float(metadata['processingtime'])
+                    compute_time = float(metadata['computetime'])
+                    io_time = float(metadata['iotime'])
                     total_lambda_time += lambda_time
                     stage_id = int(all_stage_key.split("/")[1].split("-")[1])
                     executors_total_time[stage_id] = executors_total_time.get(stage_id, 0) + lambda_time
+                    executors_compute_time[stage_id] = executors_compute_time.get(stage_id, 0) + compute_time
+                    executors_io_time[stage_id] = executors_io_time.get(stage_id, 0) + io_time
                     executors_count[stage_id] = executors_count.get(stage_id, 0) + 1
                     if stage_id in pipelines_first_stage_ids:
                         num_lines = int(self.s3_client.head_object(Bucket=shuffling_bucket,
                                                                       Key=all_stage_key)['Metadata']['linecount'])
-                        logger.info("Stage: %s" % stage_id)
-                        logger.info("The key is %s with %s number of lines" % (all_stage_key, num_lines))
+                        # logger.info("Stage: %s" % stage_id)
+                        # logger.info("The key is %s with %s number of lines" % (all_stage_key, num_lines))
                         total_lines += num_lines
 
         for stage_id in executors_total_time.keys():
             cur_stage_avg_executor_time = executors_total_time[stage_id] / executors_count[stage_id]
+            cur_stage_avg_compute_time = executors_compute_time[stage_id] / executors_count[stage_id]
+            cur_stage_avg_io_time = executors_io_time[stage_id] / executors_count[stage_id]
             logger.info("Average executor time at stage %s: %s" % (stage_id, cur_stage_avg_executor_time))
+            logger.info("Average compute time at stage %s: %s" % (stage_id, cur_stage_avg_compute_time))
+            logger.info("Average io time at stage %s: %s" % (stage_id, cur_stage_avg_io_time))
 
-        coordinator_execution_info = "coordinator-info/%s" % (job_name)
+        coordinator_execution_info = "coordinator-info/%s" % job_name
         response = self.s3_client.list_objects(Bucket=shuffling_bucket, Prefix=coordinator_execution_info)
         if "Contents" in response:
             contents = response["Contents"]
@@ -677,15 +689,16 @@ class Driver:
         # 1. Create the aws_lambda functions
         function_lambdas, invoking_pipelines_info, num_outputs = self._create_lambdas()
 
-        # Execute
-        # 2. Invoke Mappers asynchronously
-        self._invoke_pipelines(invoking_pipelines_info)
-
-        # 3. Create output storage and calculate costs - Approx (since we are using exec time reported by our func and not billed ms)
         cur_output_handler = output_handler.get_output_handler(self.static_job_info[StaticVariables.OUTPUT_SOURCE_TYPE_FN],
                                                                self.static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN],
                                                                self.is_serverless)
         cur_output_handler.create_output_storage(self.submission_time, self.static_job_info)
+
+        # Execute
+        # 2. Invoke Mappers asynchronously
+        self._invoke_pipelines(invoking_pipelines_info)
+
+        # 3. Calculate costs - Approx (since we are using exec time reported by our func and not billed ms)
         StaticVariables.JOB_START_TIME = time.time()
         logger.info("PERFORMANCE INFO: Job setup time: %s" % (StaticVariables.JOB_START_TIME - StaticVariables.SETUP_START_TIME))
         self._calculate_cost(num_outputs, cur_output_handler, invoking_pipelines_info)

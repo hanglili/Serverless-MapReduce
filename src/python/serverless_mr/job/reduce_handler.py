@@ -27,6 +27,7 @@ logger = logging.getLogger('serverless-mr.reduce-handler')
 def lambda_handler(event, _):
     logger.info("**************Reduce****************")
     start_time = time.time()
+    io_time = 0
 
     reduce_keys = event['keys']
     reducer_id = event['id']
@@ -72,8 +73,10 @@ def lambda_handler(event, _):
 
     # Download and process all keys
     for key in reduce_keys:
+        io_start_time = time.time()
         response = s3_client.get_object(Bucket=shuffling_bucket, Key=key)
         contents = response['Body'].read()
+        io_time += time.time() - io_start_time
 
         for key_value in json.loads(contents):
             line_count += 1
@@ -94,9 +97,6 @@ def lambda_handler(event, _):
             cur_values.append(value)
         else:
             if cur_key is not None:
-                # cur_key_outputs = []
-                # reduce_function(cur_key_outputs, (cur_key, cur_values))
-                # outputs += cur_key_outputs
                 reduce_function(outputs, (cur_key, cur_values))
 
             cur_key = key
@@ -115,9 +115,6 @@ def lambda_handler(event, _):
                 interval_num_keys_processed = interval_num_keys_processed % average_num_keys
 
     if cur_key is not None:
-        # cur_key_outputs = []
-        # reduce_function(cur_key_outputs, (cur_key, cur_values))
-        # outputs += cur_key_outputs
         reduce_function(outputs, (cur_key, cur_values))
 
     if StaticVariables.OPTIMISATION_FN not in static_job_info \
@@ -126,7 +123,7 @@ def lambda_handler(event, _):
         stage_progress_obj.increase_num_processed_keys(stage_progress_table_name,
                                                        stage_id, interval_num_files_processed)
 
-    time_in_secs = (time.time() - start_time)
+    time_in_secs = time.time() - start_time
     # timeTaken = time_in_secs * 1000000000 # in 10^9
     # s3DownloadTime = 0
     # totalProcessingTime = 0
@@ -135,7 +132,9 @@ def lambda_handler(event, _):
         "lineCount": '%s' % line_count,
         "processingTime": '%s' % time_in_secs,
         "memoryUsage": '%s' % resource.getrusage(resource.RUSAGE_SELF).ru_maxrss,
-        "numKeys": '%s' % len(reduce_keys)
+        "numKeys": '%s' % len(reduce_keys),
+        "ioTime": '%s' % io_time,
+        "computeTime": '%s' % str(time_in_secs - io_time)
     }
 
     logger.info("Reduce sample outputs: %s" % str(outputs[0:10]))
@@ -159,3 +158,4 @@ def lambda_handler(event, _):
         )
 
     logger.info("Reducer %s finishes execution" % str(reducer_id))
+    logger.info("Execution time: %s" % str(time.time() - start_time))

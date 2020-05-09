@@ -13,21 +13,22 @@ from utils import input_handler, output_handler, stage_progress
 
 static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
 
-root = logging.getLogger()
-if root.handlers:
-    for handler in root.handlers:
-        if static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
-            root.setLevel(level=logging.INFO)
-        else:
-            root.removeHandler(handler)
+# root = logging.getLogger()
+# if root.handlers:
+#     for handler in root.handlers:
+#         if static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
+#             root.setLevel(level=logging.INFO)
+#         else:
+#             root.removeHandler(handler)
 
-from utils.setup_logger import logger
-logger = logging.getLogger('serverless-mr.map-handler')
+# from utils.setup_logger import logger
+# logger = logging.getLogger('serverless-mr.map-handler')
 
 
 def lambda_handler(event, _):
     print("**************Map****************")
     start_time = time.time()
+    io_time = 0
 
     src_keys = event['keys']
     load_data_from_input = event['load_data_from_input']
@@ -57,7 +58,7 @@ def lambda_handler(event, _):
     coordinator_lambda_name = os.environ.get("coordinator_lambda_name")
     submission_time = os.environ.get("submission_time")
 
-    logger.info("Stage: %s" % stage_id)
+    print("Stage: %s" % stage_id)
 
     if StaticVariables.OPTIMISATION_FN not in static_job_info \
             or not static_job_info[StaticVariables.OPTIMISATION_FN]:
@@ -73,16 +74,18 @@ def lambda_handler(event, _):
     interval_time = random.randint(1, 3)
     interval_num_keys_processed = 0
 
-    intermediate_data = []
+    outputs = []
     if load_data_from_input:
         cur_input_handler = input_handler.get_input_handler(static_job_info[StaticVariables.INPUT_SOURCE_TYPE_FN],
                                                             static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN],
                                                             in_lambda=True)
         input_source = static_job_info[StaticVariables.INPUT_SOURCE_FN]
         for input_key in src_keys:
+            io_start_time = time.time()
             input_value = cur_input_handler.read_records_from_input_key(input_source, input_key, static_job_info)
+            io_time += time.time() - io_start_time
             input_pair = (input_key, input_value)
-            map_function(intermediate_data, input_pair)
+            map_function(outputs, input_pair)
 
             # TODO: Line count can be used to verify correctness of the job. Can be removed if needed in the future.
             if StaticVariables.OPTIMISATION_FN not in static_job_info \
@@ -102,11 +105,13 @@ def lambda_handler(event, _):
                     interval_num_keys_processed = 0
     else:
         for input_key in src_keys:
+            io_start_time = 0
             response = s3_client.get_object(Bucket=shuffling_bucket, Key=input_key)
             contents = response['Body'].read()
             input_value = json.loads(contents)
+            io_time += time.time() - io_start_time
             input_pair = (input_key, input_value)
-            map_function(intermediate_data, input_pair)
+            map_function(outputs, input_pair)
 
             if StaticVariables.OPTIMISATION_FN not in static_job_info \
                     or not static_job_info[StaticVariables.OPTIMISATION_FN]:
@@ -125,31 +130,24 @@ def lambda_handler(event, _):
             or not static_job_info[StaticVariables.OPTIMISATION_FN]:
         stage_progress_obj.increase_num_processed_keys(stage_progress_table_name,
                                                        stage_id, interval_num_keys_processed)
-    outputs = intermediate_data
 
-    time_in_secs = (time.time() - start_time)
     # timeTaken = time_in_secs * 1000000000 # in 10^9
     # s3DownloadTime = 0
     # totalProcessingTime = 0
 
-    metadata = {
-        "lineCount": '%s' % line_count,
-        "processingTime": '%s' % time_in_secs,
-        "memoryUsage": '%s' % resource.getrusage(resource.RUSAGE_SELF).ru_maxrss,
-        "numKeys": '%s' % len(src_keys)
-    }
-
-    logger.info("Map sample outputs: %s" % str(outputs[0:10]))
+    print("Map sample outputs: %s" % str(outputs[0:10]))
 
     if stage_id == total_num_stages:
         cur_output_handler = output_handler.get_output_handler(static_job_info[StaticVariables.OUTPUT_SOURCE_TYPE_FN],
                                                                static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN],
                                                                in_lambda=True)
-        cur_output_handler.write_output(mapper_id, outputs, metadata, submission_time, static_job_info)
+        # cur_output_handler.write_output(mapper_id, outputs, metadata, submission_time, static_job_info)
+        cur_output_handler.write_output(mapper_id, outputs, {}, submission_time, static_job_info)
     else:
         mapper_filename = "%s/%s-%s/%s" % (job_name, StaticVariables.OUTPUT_PREFIX, stage_id, mapper_id)
-        s3_client.put_object(Bucket=shuffling_bucket, Key=mapper_filename,
-                             Body=json.dumps(outputs), Metadata=metadata)
+        # s3_client.put_object(Bucket=shuffling_bucket, Key=mapper_filename,
+        #                      Body=json.dumps(outputs), Metadata=metadata)
+        s3_client.put_object(Bucket=shuffling_bucket, Key=mapper_filename, Body=json.dumps(outputs))
 
         lambda_client.invoke(
             FunctionName=coordinator_lambda_name,
@@ -159,4 +157,21 @@ def lambda_handler(event, _):
             })
         )
 
-    logger.info("Mapper %s finishes execution" % str(mapper_id))
+    execution_time = time.time() - start_time
+    metadata = {
+        "lineCount": '%s' % line_count,
+        "processingTime": '%s' % execution_time,
+        "memoryUsage": '%s' % resource.getrusage(resource.RUSAGE_SELF).ru_maxrss,
+        "numKeys": '%s' % len(src_keys),
+        "ioTime": '%s' % io_time,
+        "computeTime": '%s' % str(execution_time - io_time)
+    }
+
+    info_write_start_time = time.time()
+    executor_info_s3_key = "mapper-info/%s/%s-%s" % (job_name, stage_id, random.randint(1, 10000000))
+    s3_client.put_object(Bucket=shuffling_bucket, Key=execution_info_s3_key,
+                         Body=json.dumps({}), Metadata=execution_info)
+    print("Info write time: %s" % str(time.time() - info_write_start_time))
+
+    print("Mapper %s finishes execution" % str(mapper_id))
+    print("Execution time: %s" % str(time.time() - start_time))

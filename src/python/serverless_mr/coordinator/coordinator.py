@@ -254,7 +254,8 @@ def lambda_handler(event, _):
 
     coordinator_execution_time = time.time() - start_time
     coordinator_execution_info_s3_key = "coordinator-info/%s/%s-%s" % (job_name, stage_id, random.randint(1, 10000000))
-    coordinator_execution_info = {'processingTime': coordinator_execution_time}
+    coordinator_execution_info = {"processingTime": '%s' % coordinator_execution_time}
+    logger.info("Execution time: %s" % str(coordinator_execution_info))
     s3_client.put_object(Bucket=shuffling_bucket, Key=coordinator_execution_info_s3_key,
                          Body=json.dumps({}), Metadata=coordinator_execution_info)
 

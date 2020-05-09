@@ -28,6 +28,7 @@ logger = logging.getLogger('serverless-mr.map-shuffle-handler')
 def lambda_handler(event, _):
     logger.info("**************Map-Shuffle****************")
     start_time = time.time()
+    io_time = 0
 
     src_keys = event['keys']
     mapper_id = event['id']
@@ -91,7 +92,9 @@ def lambda_handler(event, _):
                                                             in_lambda=True)
         input_source = static_job_info[StaticVariables.INPUT_SOURCE_FN]
         for input_key in src_keys:
+            io_start_time = time.time()
             input_value = cur_input_handler.read_records_from_input_key(input_source, input_key, static_job_info)
+            io_time += time.time() - io_start_time
             input_pair = (input_key, input_value)
             map_function(intermediate_data, input_pair)
 
@@ -113,9 +116,11 @@ def lambda_handler(event, _):
                     interval_num_keys_processed = 0
     else:
         for input_key in src_keys:
+            io_start_time = time.time()
             response = s3_client.get_object(Bucket=shuffling_bucket, Key=input_key)
             contents = response['Body'].read()
             input_value = json.loads(contents)
+            io_time += time.time() - io_start_time
             input_pair = (input_key, input_value)
             map_function(intermediate_data, input_pair)
 
@@ -138,7 +143,6 @@ def lambda_handler(event, _):
                                                        stage_id, interval_num_keys_processed)
 
     if use_combine:
-
         intermediate_data.sort(key=lambda x: x[0])
 
         cur_key = None
@@ -149,17 +153,13 @@ def lambda_handler(event, _):
                 cur_values.append(value)
             else:
                 if cur_key is not None:
-                    cur_key_outputs = []
-                    combiner_function(cur_key_outputs, (cur_key, cur_values))
-                    outputs += cur_key_outputs
+                    combiner_function(outputs, (cur_key, cur_values))
 
                 cur_key = input_key
                 cur_values = [value]
 
         if cur_key is not None:
-            cur_key_outputs = []
-            combiner_function(cur_key_outputs, (cur_key, cur_values))
-            outputs += cur_key_outputs
+            combiner_function(outputs, (cur_key, cur_values))
 
     else:
         outputs = intermediate_data
@@ -186,15 +186,19 @@ def lambda_handler(event, _):
     for i in range(2, num_bins + 1):
         partition_id = "bin-%s" % i
         mapper_filename = "%s/%s-%s/%s/%s" % (job_name, StaticVariables.OUTPUT_PREFIX, stage_id, partition_id, mapper_id)
+        io_start_time = time.time()
         s3_client.put_object(Bucket=shuffling_bucket, Key=mapper_filename,
                              Body=json.dumps(output_partitions[i]))
+        io_time += time.time() - io_start_time
 
-    time_in_secs = (time.time() - start_time)
+    time_in_secs = time.time() - start_time
     metadata = {
         "lineCount": '%s' % line_count,
         "processingTime": '%s' % time_in_secs,
         "memoryUsage": '%s' % resource.getrusage(resource.RUSAGE_SELF).ru_maxrss,
-        "numKeys": '%s' % len(src_keys)
+        "numKeys": '%s' % len(src_keys),
+        "ioTime": '%s' % io_time,
+        "computeTime": '%s' % str(time_in_secs - io_time)
     }
 
     partition_id = "bin-%s" % 1
@@ -211,3 +215,4 @@ def lambda_handler(event, _):
     )
 
     logger.info("MapShuffler %s finishes execution" % str(mapper_id))
+    logger.info("Execution time: %s" % str(time.time() - start_time))
