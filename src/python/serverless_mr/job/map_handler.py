@@ -75,6 +75,10 @@ def lambda_handler(event, _):
     interval_num_keys_processed = 0
 
     outputs = []
+
+    start_overhead = time.time() - start_time
+    print("Start overhead: %s" % str(start_overhead))
+
     if load_data_from_input:
         cur_input_handler = input_handler.get_input_handler(static_job_info[StaticVariables.INPUT_SOURCE_TYPE_FN],
                                                             static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN],
@@ -105,7 +109,7 @@ def lambda_handler(event, _):
                     interval_num_keys_processed = 0
     else:
         for input_key in src_keys:
-            io_start_time = 0
+            io_start_time = time.time()
             response = s3_client.get_object(Bucket=shuffling_bucket, Key=input_key)
             contents = response['Body'].read()
             input_value = json.loads(contents)
@@ -142,12 +146,16 @@ def lambda_handler(event, _):
                                                                static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN],
                                                                in_lambda=True)
         # cur_output_handler.write_output(mapper_id, outputs, metadata, submission_time, static_job_info)
+        io_start_time = time.time()
         cur_output_handler.write_output(mapper_id, outputs, {}, submission_time, static_job_info)
+        io_time += time.time() - io_start_time
     else:
         mapper_filename = "%s/%s-%s/%s" % (job_name, StaticVariables.OUTPUT_PREFIX, stage_id, mapper_id)
         # s3_client.put_object(Bucket=shuffling_bucket, Key=mapper_filename,
         #                      Body=json.dumps(outputs), Metadata=metadata)
+        io_start_time = time.time()
         s3_client.put_object(Bucket=shuffling_bucket, Key=mapper_filename, Body=json.dumps(outputs))
+        io_time += time.time() - io_start_time
 
         lambda_client.invoke(
             FunctionName=coordinator_lambda_name,
@@ -168,9 +176,10 @@ def lambda_handler(event, _):
     }
 
     info_write_start_time = time.time()
-    executor_info_s3_key = "mapper-info/%s/%s-%s" % (job_name, stage_id, random.randint(1, 10000000))
-    s3_client.put_object(Bucket=shuffling_bucket, Key=execution_info_s3_key,
-                         Body=json.dumps({}), Metadata=execution_info)
+    metrics_bucket = StaticVariables.METRICS_BUCKET % job_name
+    execution_info_s3_key = "%s/stage-%s/%s" % (job_name, stage_id, mapper_id)
+    s3_client.put_object(Bucket=metrics_bucket, Key=execution_info_s3_key,
+                         Body=json.dumps({}), Metadata=metadata)
     print("Info write time: %s" % str(time.time() - info_write_start_time))
 
     print("Mapper %s finishes execution" % str(mapper_id))

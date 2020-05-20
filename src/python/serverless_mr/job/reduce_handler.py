@@ -12,20 +12,20 @@ from utils import output_handler, stage_progress
 
 static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
 
-root = logging.getLogger()
-if root.handlers:
-    for handler in root.handlers:
-        if static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
-            root.setLevel(level=logging.INFO)
-        else:
-            root.removeHandler(handler)
-
-from utils.setup_logger import logger
-logger = logging.getLogger('serverless-mr.reduce-handler')
+# root = logging.getLogger()
+# if root.handlers:
+#     for handler in root.handlers:
+#         if static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
+#             root.setLevel(level=logging.INFO)
+#         else:
+#             root.removeHandler(handler)
+#
+# from utils.setup_logger import logger
+# logger = logging.getLogger('serverless-mr.reduce-handler')
 
 
 def lambda_handler(event, _):
-    logger.info("**************Reduce****************")
+    print("**************Reduce****************")
     start_time = time.time()
     io_time = 0
 
@@ -57,7 +57,8 @@ def lambda_handler(event, _):
     coordinator_lambda_name = os.environ.get("coordinator_lambda_name")
     submission_time = os.environ.get("submission_time")
 
-    logger.info("Stage: %s" % str(stage_id))
+    print("Stage: %s" % str(stage_id))
+    print("Reducer id: %s" % str(reducer_id))
 
     if StaticVariables.OPTIMISATION_FN not in static_job_info \
             or not static_job_info[StaticVariables.OPTIMISATION_FN]:
@@ -68,19 +69,58 @@ def lambda_handler(event, _):
     # aggr
     line_count = 0
     intermediate_data = []
+    retry_reduce_keys = []
 
     # INPUT JSON => OUTPUT JSON
 
     # Download and process all keys
     for key in reduce_keys:
-        io_start_time = time.time()
-        response = s3_client.get_object(Bucket=shuffling_bucket, Key=key)
-        contents = response['Body'].read()
-        io_time += time.time() - io_start_time
+        try:
+            io_start_time = time.time()
+            response = s3_client.get_object(Bucket=shuffling_bucket, Key=key)
+            contents = response['Body'].read()
+            io_time += time.time() - io_start_time
 
-        for key_value in json.loads(contents):
-            line_count += 1
-            intermediate_data.append(key_value)
+            for key_value in json.loads(contents):
+                line_count += 1
+                intermediate_data.append(key_value)
+        except Exception as e:
+            print("Key: %s" % key)
+            print("First time Error: %s" % str(e))
+            retry_reduce_keys.append(key)
+
+    # time.sleep(1)
+    # second_retry_reduce_keys = []
+    # for key in retry_reduce_keys:
+    #     try:
+    #         io_start_time = time.time()
+    #         response = s3_client.get_object(Bucket=shuffling_bucket, Key=key)
+    #         contents = response['Body'].read()
+    #         io_time += time.time() - io_start_time
+    #
+    #         for key_value in json.loads(contents):
+    #             line_count += 1
+    #             intermediate_data.append(key_value)
+    #     except Exception as e:
+    #         print("Key: %s" % key)
+    #         print("Second time Error: %s" % str(e))
+    #         second_retry_reduce_keys.append(key)
+
+    # time.sleep(2)
+    # for key in second_retry_reduce_keys:
+    #     try:
+    #         io_start_time = time.time()
+    #         response = s3_client.get_object(Bucket=shuffling_bucket, Key=key)
+    #         contents = response['Body'].read()
+    #         io_time += time.time() - io_start_time
+    #
+    #         for key_value in json.loads(contents):
+    #             line_count += 1
+    #             intermediate_data.append(key_value)
+    #     except Exception as e:
+    #         print("Key: %s" % key)
+    #         print("Third time Error: %s" % str(e))
+    #         raise RuntimeError("%s" % str(e))
 
     intermediate_data.sort(key=lambda x: x[0])
 
@@ -123,31 +163,24 @@ def lambda_handler(event, _):
         stage_progress_obj.increase_num_processed_keys(stage_progress_table_name,
                                                        stage_id, interval_num_files_processed)
 
-    time_in_secs = time.time() - start_time
-    # timeTaken = time_in_secs * 1000000000 # in 10^9
-    # s3DownloadTime = 0
-    # totalProcessingTime = 0
-
-    metadata = {
-        "lineCount": '%s' % line_count,
-        "processingTime": '%s' % time_in_secs,
-        "memoryUsage": '%s' % resource.getrusage(resource.RUSAGE_SELF).ru_maxrss,
-        "numKeys": '%s' % len(reduce_keys),
-        "ioTime": '%s' % io_time,
-        "computeTime": '%s' % str(time_in_secs - io_time)
-    }
-
-    logger.info("Reduce sample outputs: %s" % str(outputs[0:10]))
+    print("Reduce sample outputs: %s" % str(outputs[0:10]))
 
     if stage_id == total_num_stages:
         cur_output_handler = output_handler.get_output_handler(static_job_info[StaticVariables.OUTPUT_SOURCE_TYPE_FN],
                                                                static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN],
                                                                in_lambda=True)
-        cur_output_handler.write_output(reducer_id, outputs, metadata, submission_time, static_job_info)
+        io_start_time = time.time()
+        cur_output_handler.write_output(reducer_id, outputs, {}, submission_time, static_job_info)
+        io_time += time.time() - io_start_time
+        print("Finished writing the output")
     else:
         mapper_filename = "%s/%s-%s/%s" % (job_name, StaticVariables.OUTPUT_PREFIX, stage_id, reducer_id)
+        io_start_time = time.time()
         s3_client.put_object(Bucket=shuffling_bucket, Key=mapper_filename,
-                             Body=json.dumps(outputs), Metadata=metadata)
+                             Body=json.dumps(outputs))
+        io_time += time.time() - io_start_time
+
+        print("Finished writing the output")
 
         lambda_client.invoke(
             FunctionName=coordinator_lambda_name,
@@ -157,5 +190,24 @@ def lambda_handler(event, _):
             })
         )
 
-    logger.info("Reducer %s finishes execution" % str(reducer_id))
-    logger.info("Execution time: %s" % str(time.time() - start_time))
+        print("Finished scheduling the coordinator Lambda function")
+
+    time_in_secs = time.time() - start_time
+    metadata = {
+        "lineCount": '%s' % line_count,
+        "processingTime": '%s' % time_in_secs,
+        "memoryUsage": '%s' % resource.getrusage(resource.RUSAGE_SELF).ru_maxrss,
+        "numKeys": '%s' % len(reduce_keys),
+        "ioTime": '%s' % io_time,
+        "computeTime": '%s' % str(time_in_secs - io_time)
+    }
+
+    info_write_start_time = time.time()
+    metrics_bucket = StaticVariables.METRICS_BUCKET % job_name
+    execution_info_s3_key = "%s/stage-%s/%s" % (job_name, stage_id, reducer_id)
+    s3_client.put_object(Bucket=metrics_bucket, Key=execution_info_s3_key,
+                         Body=json.dumps({}), Metadata=metadata)
+    print("Info write time: %s" % str(time.time() - info_write_start_time))
+
+    print("Reducer %s finishes execution" % str(reducer_id))
+    print("Execution time: %s" % str(time.time() - start_time))

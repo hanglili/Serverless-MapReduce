@@ -60,6 +60,9 @@ class StaticVariables:
     COORDINATOR_HANDLER_FUNCTION_PATH = "coordinator/coordinator.lambda_handler"
     SERVERLESS_DRIVER_HANDLER_FUNCTION_PATH = "driver/serverless_driver.lambda_handler"
 
+    # Metrics
+    METRICS_BUCKET = "%s-metrics"
+
     # Zip path
     COORDINATOR_ZIP_PATH = "coordinator.zip"
     DRIVER_ZIP_PATH = "serverless_driver.zip"
@@ -67,7 +70,7 @@ class StaticVariables:
 
     # Constants
     DEFAULT_REGION = "us-east-1"
-    DEFAULT_LAMBDA_MEMORY_LIMIT = 1536
+    DEFAULT_LAMBDA_MEMORY_LIMIT = 2048
     DEFAULT_LAMBDA_TIMEOUT = 900
     DEFAULT_LAMBDA_READ_TIMEOUT = 300
     DEFAULT_BOTO_MAX_CONNECTIONS = 1000

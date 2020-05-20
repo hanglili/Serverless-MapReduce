@@ -50,8 +50,8 @@ class StageState:
                 'KeyType': 'HASH'
             }],
             ProvisionedThroughput={
-                'ReadCapacityUnits': 10,
-                'WriteCapacityUnits': 10
+                'ReadCapacityUnits': 200,
+                'WriteCapacityUnits': 200
             }
         )
 

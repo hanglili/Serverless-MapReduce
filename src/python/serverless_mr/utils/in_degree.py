@@ -50,8 +50,8 @@ class InDegree:
                 'KeyType': 'HASH'
             }],
             ProvisionedThroughput={
-                'ReadCapacityUnits': 10,
-                'WriteCapacityUnits': 10
+                'ReadCapacityUnits': 30,
+                'WriteCapacityUnits': 30
             }
         )
 

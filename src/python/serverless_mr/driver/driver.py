@@ -137,6 +137,7 @@ class Driver:
         self._initialise_stage_state(total_num_functions)
         prefix = "%s/" % self.static_job_info[StaticVariables.JOB_NAME_FN]
         self.set_up_bucket(self.static_job_info[StaticVariables.SHUFFLING_BUCKET_FN])
+        self.set_up_bucket(StaticVariables.METRICS_BUCKET % (self.static_job_info[StaticVariables.JOB_NAME_FN]))
         self.delete_s3_objects(self.static_job_info[StaticVariables.SHUFFLING_BUCKET_FN], prefix)
         if StaticVariables.OPTIMISATION_FN not in self.static_job_info \
                 or not self.static_job_info[StaticVariables.OPTIMISATION_FN]:
@@ -228,6 +229,15 @@ class Driver:
                                                             static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN],
                                                             self.is_serverless)
         all_keys = cur_input_handler.get_all_input_keys(static_job_info)
+
+        # input_source = static_job_info[StaticVariables.INPUT_SOURCE_FN]
+        # contents = self.s3_client.list_objects(Bucket=input_source,
+        #                                        Prefix="pavlo/text/tiny/rankings/")['Contents']
+        # for obj in contents:
+        #     if not obj['Key'].endswith('/'):
+        #         all_keys.append(obj)
+        # # Randomly shuffle the keys so that rankings keys and uservisits keys are mixed together
+        # random.shuffle(all_keys)
 
         logger.info("The number of keys: %s" % len(all_keys))
         bsize = lambda_utils.compute_batch_size(all_keys, lambda_memory, concurrent_lambdas,
@@ -551,6 +561,66 @@ class Driver:
 
         return storage_cost, write_cost, read_cost
 
+    def _get_all_s3_objects(self, **base_kwargs):
+        continuation_token = None
+        while True:
+            list_kwargs = dict(MaxKeys=1000, **base_kwargs)
+            if continuation_token:
+                list_kwargs['ContinuationToken'] = continuation_token
+            response = self.s3_client.list_objects_v2(**list_kwargs)
+            yield from response.get('Contents', [])
+            if not response.get('IsTruncated'):  # At the end of the list?
+                break
+            continuation_token = response.get('NextContinuationToken')
+
+    def _calculate_lambda_cost(self, metrics_bucket, prefix, pipelines_first_stage_ids):
+        total_lambda_time = 0
+        total_lines = 0
+        total_coordinator_time = 0
+        executors_total_time = {}
+        executors_compute_time = {}
+        executors_io_time = {}
+        executors_count = {}
+        executors_memory_usage = {}
+        num_objects_in_metrics_bucket = 0
+        for content in self._get_all_s3_objects(Bucket=metrics_bucket, Prefix=prefix):
+            num_objects_in_metrics_bucket += 1
+            lambda_info_s3_key = content["Key"]
+            metadata = self.s3_client.head_object(Bucket=metrics_bucket, Key=lambda_info_s3_key)['Metadata']
+            lambda_time = float(metadata['processingtime'])
+            total_lambda_time += lambda_time
+
+            if "coordinator" not in lambda_info_s3_key:
+                compute_time = float(metadata['computetime'])
+                io_time = float(metadata['iotime'])
+                memory_usage = float(metadata['memoryusage'])
+                stage_id = int(lambda_info_s3_key.split("/")[1].split("-")[1])
+                executors_total_time[stage_id] = executors_total_time.get(stage_id, 0) + lambda_time
+                executors_compute_time[stage_id] = executors_compute_time.get(stage_id, 0) + compute_time
+                executors_io_time[stage_id] = executors_io_time.get(stage_id, 0) + io_time
+                executors_memory_usage[stage_id] = executors_memory_usage.get(stage_id, 0) + memory_usage
+                executors_count[stage_id] = executors_count.get(stage_id, 0) + 1
+                if stage_id in pipelines_first_stage_ids:
+                    num_lines = int(metadata['linecount'])
+                    total_lines += num_lines
+            else:
+                total_coordinator_time += lambda_time
+
+        logger.info("The number of objects in the metrics bucket: %s" % str(num_objects_in_metrics_bucket))
+        logger.info("The total coordinator time: %s" % str(total_coordinator_time))
+
+        for stage_id in executors_total_time.keys():
+            cur_stage_avg_executor_time = executors_total_time[stage_id] / executors_count[stage_id]
+            cur_stage_avg_compute_time = executors_compute_time[stage_id] / executors_count[stage_id]
+            cur_stage_avg_io_time = executors_io_time[stage_id] / executors_count[stage_id]
+            cur_stage_avg_memory_usage = executors_memory_usage[stage_id] / executors_count[stage_id]
+            logger.info("Average executor time at stage %s: %s" % (stage_id, cur_stage_avg_executor_time))
+            logger.info("Average compute time at stage %s: %s" % (stage_id, cur_stage_avg_compute_time))
+            logger.info("Average io time at stage %s: %s" % (stage_id, cur_stage_avg_io_time))
+            logger.info("Average memory usage at stage %s: %s" % (stage_id, cur_stage_avg_memory_usage))
+
+        return total_lambda_time, total_lines
+
 
     def _calculate_cost(self, num_outputs, cur_output_handler, invoking_pipelines_info):
         total_lambda_time = 0
@@ -576,62 +646,27 @@ class Driver:
                     cur_output_handler.check_job_finish(response, string_index, num_outputs, self.submission_time,
                                                         self.static_job_info)
                 if last_stage_lambda_time > -1:
-                    total_lambda_time += last_stage_lambda_time
+                    # total_lambda_time += last_stage_lambda_time
                     last_stage_database_cost = last_stage_storage_cost + last_stage_write_cost + last_stage_read_cost
                     break
             time.sleep(0.25)
 
         logger.info("Job Complete")
 
-        executors_total_time = {}
-        executors_compute_time = {}
-        executors_io_time = {}
-        executors_count = {}
-        response = self.s3_client.list_objects(Bucket=shuffling_bucket, Prefix=job_name)
-        if "Contents" in response:
-            all_stages_key_objs = response["Contents"]
-            for all_stage_key_obj in all_stages_key_objs:
-                # Even though metadata processing time is written as processingTime,
-                # AWS does not accept uppercase letter metadata key
-                all_stage_key = all_stage_key_obj["Key"]
-                intermediate_s3_size += all_stage_key_obj["Size"]
-                intermediate_s3_get_ops += 1
-                intermediate_s3_put_ops += 1
-                if ("bin" not in all_stage_key) or ("/bin-1/" in all_stage_key):
-                    metadata = self.s3_client.head_object(Bucket=shuffling_bucket, Key=all_stage_key)['Metadata']
-                    lambda_time = float(metadata['processingtime'])
-                    compute_time = float(metadata['computetime'])
-                    io_time = float(metadata['iotime'])
-                    total_lambda_time += lambda_time
-                    stage_id = int(all_stage_key.split("/")[1].split("-")[1])
-                    executors_total_time[stage_id] = executors_total_time.get(stage_id, 0) + lambda_time
-                    executors_compute_time[stage_id] = executors_compute_time.get(stage_id, 0) + compute_time
-                    executors_io_time[stage_id] = executors_io_time.get(stage_id, 0) + io_time
-                    executors_count[stage_id] = executors_count.get(stage_id, 0) + 1
-                    if stage_id in pipelines_first_stage_ids:
-                        num_lines = int(self.s3_client.head_object(Bucket=shuffling_bucket,
-                                                                      Key=all_stage_key)['Metadata']['linecount'])
-                        # logger.info("Stage: %s" % stage_id)
-                        # logger.info("The key is %s with %s number of lines" % (all_stage_key, num_lines))
-                        total_lines += num_lines
+        # Intermediate S3 files
+        logger.info("Calculating intermediate S3 cost")
+        for content in self._get_all_s3_objects(Bucket=shuffling_bucket, Prefix=job_name):
+            intermediate_s3_size += content["Size"]
+            intermediate_s3_get_ops += 1
+            intermediate_s3_put_ops += 1
 
-        for stage_id in executors_total_time.keys():
-            cur_stage_avg_executor_time = executors_total_time[stage_id] / executors_count[stage_id]
-            cur_stage_avg_compute_time = executors_compute_time[stage_id] / executors_count[stage_id]
-            cur_stage_avg_io_time = executors_io_time[stage_id] / executors_count[stage_id]
-            logger.info("Average executor time at stage %s: %s" % (stage_id, cur_stage_avg_executor_time))
-            logger.info("Average compute time at stage %s: %s" % (stage_id, cur_stage_avg_compute_time))
-            logger.info("Average io time at stage %s: %s" % (stage_id, cur_stage_avg_io_time))
-
-        coordinator_execution_info = "coordinator-info/%s" % job_name
-        response = self.s3_client.list_objects(Bucket=shuffling_bucket, Prefix=coordinator_execution_info)
-        if "Contents" in response:
-            contents = response["Contents"]
-            for content in contents:
-                coordinator_info_key = content["Key"]
-                lambda_time = float(self.s3_client.head_object(Bucket=shuffling_bucket,
-                                                               Key=coordinator_info_key)['Metadata']['processingtime'])
-                total_lambda_time += lambda_time
+        metrics_bucket = StaticVariables.METRICS_BUCKET % job_name
+        # response = self.s3_client.list_objects(Bucket=metrics_bucket, Prefix=job_name)
+        # if "Contents" in response:
+        logger.info("Calculating lambda cost")
+        lambda_time, lines = self._calculate_lambda_cost(metrics_bucket, job_name, pipelines_first_stage_ids)
+        total_lambda_time += lambda_time
+        total_lines += lines
 
         # S3 Storage cost for shuffling bucket and output bucket - is negligible anyways since S3 costs 3 cents/GB/month
         # Storage cost per GB / hour
@@ -653,6 +688,7 @@ class Driver:
         logger.info("Intermediate Stages total number of s3 GET ops: %s" % intermediate_s3_get_ops)
         logger.info("Intermediate Stages total number of s3 PUT ops: %s" % intermediate_s3_put_ops)
         logger.info("********** COST ***********")
+        logger.info("Total Lambda Execution Time: %s" % total_lambda_time)
         logger.info("Total Lambda Cost: %s" % total_lambda_cost)
         logger.info("Intermediate Stages S3 Storage Cost: %s" % intermediate_s3_storage_cost)
         logger.info("Intermediate Stages S3 Request Cost: %s" % str(intermediate_s3_get_cost + intermediate_s3_put_cost))
@@ -721,6 +757,10 @@ class Driver:
                                                is_local_testing=self.static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN])
             in_degree_table_name = StaticVariables.IN_DEGREE_DYNAMODB_TABLE_NAME % (job_name, self.submission_time)
             in_degree_obj.delete_in_degree_table(in_degree_table_name)
+
+            # metrics_bucket = StaticVariables.METRICS_BUCKET % job_name
+            # self.delete_s3_objects(metrics_bucket, "")
+            # self.s3_client.delete_bucket(Bucket=metrics_bucket)
 
         tear_down_time = time.time() - StaticVariables.TEAR_DOWN_START_TIME
         logger.info("PERFORMANCE INFO - Job tear down time: %s seconds" % str(tear_down_time))

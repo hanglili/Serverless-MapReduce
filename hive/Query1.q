@@ -1,0 +1,12 @@
+CREATE EXTERNAL TABLE IF NOT EXISTS rankings (
+  pageURL STRING,
+  pageRank INT,
+  avgDuration INT
+)
+ROW FORMAT DELIMITED
+  FIELDS TERMINATED BY ','
+STORED AS TEXTFILE
+LOCATION '${INPUT}/rankings';
+
+-- Query
+INSERT OVERWRITE DIRECTORY '${OUTPUT}/query1/' SELECT pageURL, pageRank FROM rankings WHERE pageRank > 10;

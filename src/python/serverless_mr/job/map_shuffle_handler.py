@@ -13,20 +13,20 @@ from utils import input_handler, stage_progress
 
 static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
 
-root = logging.getLogger()
-if root.handlers:
-    for handler in root.handlers:
-        if static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
-            root.setLevel(level=logging.INFO)
-        else:
-            root.removeHandler(handler)
-
-from utils.setup_logger import logger
-logger = logging.getLogger('serverless-mr.map-shuffle-handler')
+# root = logging.getLogger()
+# if root.handlers:
+#     for handler in root.handlers:
+#         if static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
+#             root.setLevel(level=logging.INFO)
+#         else:
+#             root.removeHandler(handler)
+#
+# from utils.setup_logger import logger
+# logger = logging.getLogger('serverless-mr.map-shuffle-handler')
 
 
 def lambda_handler(event, _):
-    logger.info("**************Map-Shuffle****************")
+    print("**************Map-Shuffle****************")
     start_time = time.time()
     io_time = 0
 
@@ -67,7 +67,7 @@ def lambda_handler(event, _):
     coordinator_lambda_name = os.environ.get("coordinator_lambda_name")
     submission_time = os.environ.get("submission_time")
 
-    logger.info("Stage: %s" % stage_id)
+    print("Stage: %s" % stage_id)
 
     if StaticVariables.OPTIMISATION_FN not in static_job_info \
             or not static_job_info[StaticVariables.OPTIMISATION_FN]:
@@ -96,7 +96,10 @@ def lambda_handler(event, _):
             input_value = cur_input_handler.read_records_from_input_key(input_source, input_key, static_job_info)
             io_time += time.time() - io_start_time
             input_pair = (input_key, input_value)
+            # print("Before calling map function")
+            # print("The input key: %s" % input_key)
             map_function(intermediate_data, input_pair)
+            # print("After calling map function")
 
             if StaticVariables.OPTIMISATION_FN not in static_job_info \
                     or not static_job_info[StaticVariables.OPTIMISATION_FN]:
@@ -171,25 +174,28 @@ def lambda_handler(event, _):
     # Partition ids are from 1 to n (inclusive).
     output_partitions = [[] for _ in range(num_bins + 1)]
 
-    logger.info("MapShuffle sample outputs: %s" % str(outputs[0:10]))
+    print("MapShuffle sample outputs: %s" % str(outputs[0:10]))
 
     for input_key, value in outputs:
         partition_id = partition_function(input_key, num_bins) + 1
         cur_partition = output_partitions[partition_id]
         cur_partition.append(tuple((input_key, value)))
 
-    # for i in range(1, num_bins + 1):
-    #     partition_id = "bin-%s" % i
-    #     mapper_filename = "%s/%s-%s/%s/%s" % (job_name, StaticVariables.OUTPUT_PREFIX, stage_id, partition_id, mapper_id)
-    #     s3_client.put_object(Bucket=shuffling_bucket, Key=mapper_filename,
-    #                          Body=json.dumps(output_partitions[i]), Metadata=metadata)
-    for i in range(2, num_bins + 1):
+    for i in range(1, num_bins + 1):
         partition_id = "bin-%s" % i
         mapper_filename = "%s/%s-%s/%s/%s" % (job_name, StaticVariables.OUTPUT_PREFIX, stage_id, partition_id, mapper_id)
         io_start_time = time.time()
         s3_client.put_object(Bucket=shuffling_bucket, Key=mapper_filename,
                              Body=json.dumps(output_partitions[i]))
         io_time += time.time() - io_start_time
+
+    lambda_client.invoke(
+        FunctionName=coordinator_lambda_name,
+        InvocationType='Event',
+        Payload=json.dumps({
+            'stage_id': stage_id
+        })
+    )
 
     time_in_secs = time.time() - start_time
     metadata = {
@@ -201,18 +207,12 @@ def lambda_handler(event, _):
         "computeTime": '%s' % str(time_in_secs - io_time)
     }
 
-    partition_id = "bin-%s" % 1
-    mapper_filename = "%s/%s-%s/%s/%s" % (job_name, StaticVariables.OUTPUT_PREFIX, stage_id, partition_id, mapper_id)
-    s3_client.put_object(Bucket=shuffling_bucket, Key=mapper_filename,
-                         Body=json.dumps(output_partitions[1]), Metadata=metadata)
+    info_write_start_time = time.time()
+    metrics_bucket = StaticVariables.METRICS_BUCKET % job_name
+    execution_info_s3_key = "%s/stage-%s/%s" % (job_name, stage_id, mapper_id)
+    s3_client.put_object(Bucket=metrics_bucket, Key=execution_info_s3_key,
+                         Body=json.dumps({}), Metadata=metadata)
+    print("Info write time: %s" % str(time.time() - info_write_start_time))
 
-    lambda_client.invoke(
-        FunctionName=coordinator_lambda_name,
-        InvocationType='Event',
-        Payload=json.dumps({
-            'stage_id': stage_id
-        })
-    )
-
-    logger.info("MapShuffler %s finishes execution" % str(mapper_id))
-    logger.info("Execution time: %s" % str(time.time() - start_time))
+    print("MapShuffler %s finishes execution" % str(mapper_id))
+    print("Execution time: %s" % str(time.time() - start_time))

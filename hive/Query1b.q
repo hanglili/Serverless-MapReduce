@@ -1,0 +1,1 @@
+INSERT OVERWRITE DIRECTORY '${OUTPUT}/query1/' SELECT pageURL, pageRank FROM rankings WHERE pageRank > 10;

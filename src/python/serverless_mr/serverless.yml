@@ -8,7 +8,7 @@ provider:
   stage: dev
   region: us-east-1
   memorySize: 128
-  role: arn:aws:iam::934327132114:role/serverless_mr_role
+  role: arn:aws:iam::259503590756:role/serverless_mr_role
 
 plugins:
 #  - serverless-localstack
@@ -55,7 +55,7 @@ functions:
   app:
     handler: wsgi_handler.handler
     environment:
-      serverless_mapreduce_role: arn:aws:iam::934327132114:role/serverless_mr_role
+      serverless_mapreduce_role: arn:aws:iam::259503590756:role/serverless_mr_role
       local_testing: false
     events:
       - http: ANY /
@@ -75,6 +75,7 @@ package:
     - utils/in_degree.py
     - utils/stage_state.py
     - utils/stage_progress.py
+    - utils/setup_logger.py
     - utils/__init__.py
     - data_sources/input_handler_s3.py
     - data_sources/__init__.py
