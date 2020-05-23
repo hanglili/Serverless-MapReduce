@@ -1,134 +1,134 @@
 {
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Sid": "Stmt1475879631000",
-            "Effect": "Allow",
-            "Action": [
-                "lambda:AddPermission",
-                "lambda:CreateEventSourceMapping",
-                "lambda:CreateFunction",
-                "lambda:DeleteEventSourceMapping",
-                "lambda:DeleteFunction",
-                "lambda:GetFunction",
-                "lambda:GetEventSourceMapping",
-                "lambda:InvokeAsync",
-                "lambda:InvokeFunction",
-                "lambda:ListEventSourceMappings",
-                "lambda:RemovePermission",
-                "lambda:UpdateEventSourceMapping",
-                "lambda:UpdateFunctionCode",
-                "lambda:UpdateFunctionConfiguration"
-            ],
-            "Resource": [
-                "*"
-            ]
-        },
-        {
-            "Sid": "CloudWatchEventsFullAccess",
-            "Effect": "Allow",
-            "Action": "events:*",
-            "Resource": [
-                "*"
-            ]
-        },
-        {
-            "Sid": "IAMPassRoleForCloudWatchEvents",
-            "Effect": "Allow",
-            "Action": "iam:PassRole",
-            "Resource": "arn:aws:iam::821898653223:role/AWS_Events_Invoke_Targets"
-        },
-        {
-            "Sid": "Stmt1475879730000",
-            "Effect": "Allow",
-            "Action": [
-                "logs:CreateLogGroup",
-                "logs:CreateLogStream",
-                "logs:DeleteLogGroup",
-                "logs:DeleteLogStream",
-                "logs:GetLogEvents",
-                "logs:PutLogEvents"
-            ],
-            "Resource": [
-                "*"
-            ]
-        },
-        {
-            "Sid": "Stmt1475879783000",
-            "Effect": "Allow",
-            "Action": [
-                "s3:CreateBucket",
-                "s3:PutBucketAcl",
-                "s3:DeleteObject",
-                "s3:DeleteObjectVersion",
-                "s3:GetBucketAcl",
-                "s3:GetBucketLocation",
-                "s3:GetBucketLogging",
-                "s3:GetBucketNotification",
-                "s3:GetBucketPolicy",
-                "s3:GetObjectAcl",
-                "s3:GetObjectVersion",
-                "s3:GetObjectVersionAcl",
-                "s3:ListAllMyBuckets",
-                "s3:PutBucketNotification",
-                "s3:PutObject",
-                "s3:PutObjectAcl",
-                "s3:PutObjectVersionAcl"
-            ],
-            "Resource": [
-                "*"
-            ]
-        },
-        {
-            "Sid": "Stmt1475879783001",
-            "Effect": "Allow",
-            "Action": [
-                "dynamodb:CreateTable",
-                "dynamodb:DeleteItem",
-                "dynamodb:DeleteTable",
-                "dynamodb:DescribeTable",
-                "dynamodb:GetItem",
-                "dynamodb:GetRecords",
-                "dynamodb:ListTables",
-                "dynamodb:PutItem",
-                "dynamodb:Query",
-                "dynamodb:Scan",
-                "dynamodb:UpdateItem",
-                "dynamodb:UpdateTable"
-            ],
-            "Resource": [
-                "*"
-            ]
-        },
-        {
-            "Sid": "StmXrayAllow",
-            "Effect": "Allow",
-            "Action": [
-                "xray:PutTraceSegments",
-                "xray:PutTelemetryRecords"
-            ],
-            "Resource": [
-                "*"
-            ]
-        },
-        {
-            "Effect": "Allow",
-            "Action": [
-                "s3:GetObject",
-                "s3:ListBucket"
-            ],
-            "Resource": [
-                "*"
-            ]
-        },
-        {
-            "Sid": "passRole",
-            "Effect": "Allow",
-            "Action": [
-                "iam:GetRole",
-                "iam:PassRole"
-            ],
-            "Resource": "arn:aws:iam::821898653223:role/*"
-        }
-    ]
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "Stmt1475879631000",
+      "Effect": "Allow",
+      "Action": [
+        "lambda:AddPermission",
+        "lambda:CreateEventSourceMapping",
+        "lambda:CreateFunction",
+        "lambda:DeleteEventSourceMapping",
+        "lambda:DeleteFunction",
+        "lambda:GetFunction",
+        "lambda:GetEventSourceMapping",
+        "lambda:InvokeAsync",
+        "lambda:InvokeFunction",
+        "lambda:ListEventSourceMappings",
+        "lambda:RemovePermission",
+        "lambda:UpdateEventSourceMapping",
+        "lambda:UpdateFunctionCode",
+        "lambda:UpdateFunctionConfiguration"
+      ],
+      "Resource": [
+        "*"
+      ]
+    },
+    {
+      "Sid": "CloudWatchEventsFullAccess",
+      "Effect": "Allow",
+      "Action": "events:*",
+      "Resource": [
+        "*"
+      ]
+    },
+    {
+      "Sid": "IAMPassRoleForCloudWatchEvents",
+      "Effect": "Allow",
+      "Action": "iam:PassRole",
+      "Resource": "arn:aws:iam::821898653223:role/AWS_Events_Invoke_Targets"
+    },
+    {
+      "Sid": "Stmt1475879730000",
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:DeleteLogGroup",
+        "logs:DeleteLogStream",
+        "logs:GetLogEvents",
+        "logs:PutLogEvents"
+      ],
+      "Resource": [
+        "*"
+      ]
+    },
+    {
+      "Sid": "Stmt1475879783000",
+      "Effect": "Allow",
+      "Action": [
+        "s3:CreateBucket",
+        "s3:PutBucketAcl",
+        "s3:DeleteObject",
+        "s3:DeleteObjectVersion",
+        "s3:GetBucketAcl",
+        "s3:GetBucketLocation",
+        "s3:GetBucketLogging",
+        "s3:GetBucketNotification",
+        "s3:GetBucketPolicy",
+        "s3:GetObjectAcl",
+        "s3:GetObjectVersion",
+        "s3:GetObjectVersionAcl",
+        "s3:ListAllMyBuckets",
+        "s3:PutBucketNotification",
+        "s3:PutObject",
+        "s3:PutObjectAcl",
+        "s3:PutObjectVersionAcl"
+      ],
+      "Resource": [
+        "*"
+      ]
+    },
+    {
+      "Sid": "Stmt1475879783001",
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:CreateTable",
+        "dynamodb:DeleteItem",
+        "dynamodb:DeleteTable",
+        "dynamodb:DescribeTable",
+        "dynamodb:GetItem",
+        "dynamodb:GetRecords",
+        "dynamodb:ListTables",
+        "dynamodb:PutItem",
+        "dynamodb:Query",
+        "dynamodb:Scan",
+        "dynamodb:UpdateItem",
+        "dynamodb:UpdateTable"
+      ],
+      "Resource": [
+        "*"
+      ]
+    },
+    {
+      "Sid": "StmXrayAllow",
+      "Effect": "Allow",
+      "Action": [
+        "xray:PutTraceSegments",
+        "xray:PutTelemetryRecords"
+      ],
+      "Resource": [
+        "*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:ListBucket"
+      ],
+      "Resource": [
+        "*"
+      ]
+    },
+    {
+      "Sid": "passRole",
+      "Effect": "Allow",
+      "Action": [
+        "iam:GetRole",
+        "iam:PassRole"
+      ],
+      "Resource": "arn:aws:iam::821898653223:role/*"
+    }
+  ]
 }
