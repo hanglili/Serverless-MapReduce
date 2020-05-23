@@ -71,7 +71,6 @@ def set_up():
     # map_function_(outputs, [1, '127.0.0.1, dasda, dasda, 1.0, dasdsa'])
     # print(outputs)
 
-
 def copy_job_function(function):
     logger.info("Library working directory is %s" % library_working_dir)
     inspect_object = inspect.getfile(function)
@@ -132,12 +131,14 @@ class ServerlessMR:
         else:
             partition_function = self.last_partition_function
             rel_partition_function_path = copy_job_function(partition_function)
+            self.rel_function_paths.append(rel_partition_function_path)
             self.last_partition_function = None
 
         map_function_obj = self.cur_pipeline.get_function_at_index(self.cur_last_map_index)
         map_function = map_function_obj.get_function()
         rel_map_function_path = map_function_obj.get_rel_function_path()
         rel_combiner_function_path = copy_job_function(combiner_function)
+        self.rel_function_paths.append(rel_combiner_function_path)
         map_shuffle = MapShuffleFunction(map_function, rel_map_function_path, partition_function,
                                          rel_partition_function_path, combiner_function, rel_combiner_function_path)
         self.cur_pipeline.set_function_at_index(self.cur_last_map_index, map_shuffle)
@@ -150,6 +151,7 @@ class ServerlessMR:
             self.last_combine_function = None
 
         rel_function_path = copy_job_function(reduce_function)
+        self.rel_function_paths.append(rel_function_path)
         self.cur_pipeline.add_function(ReduceFunction(reduce_function, rel_function_path, num_reducers))
         self.total_num_functions += 1
         return self
@@ -181,10 +183,16 @@ class ServerlessMR:
         is_serverless_driver = static_job_info[StaticVariables.SERVERLESS_DRIVER_FLAG_FN]
 
         if is_serverless_driver:
+            frame = inspect.stack()[1]
+            module = inspect.getmodule(frame[0])
+            os.chdir(StaticVariables.PROJECT_WORKING_DIRECTORY)
+            main_file_path = os.path.relpath(module.__file__)
+            os.chdir(StaticVariables.LIBRARY_WORKING_DIRECTORY)
             serverless_driver_setup = ServerlessDriverSetup(self.pipelines, self.total_num_functions)
-            serverless_driver_setup.register_driver()
+            serverless_driver_setup.register_driver(main_file_path, self.rel_function_paths)
             logger.info("Driver Lambda function successfully registered")
-            command = input("Enter invoke to invoke and other keys to exit: ")
+            # command = input("Enter invoke to invoke and other keys to exit: ")
+            command = ""
             if command == "invoke":
                 logger.info("Driver invoked and starting job execution")
                 serverless_driver_setup.invoke()

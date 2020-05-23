@@ -19,6 +19,7 @@
 import UserProfile from "./views/UserProfile.jsx";
 import TableList from "./views/TableList.jsx";
 import JobInfo from "./views/JobInfo";
+import ChangeJob from "./views/ChangeJob";
 
 const dashboardRoutes = [
   // {
@@ -47,6 +48,13 @@ const dashboardRoutes = [
     name: "Job Information",
     icon: "pe-7s-monitor",
     component: JobInfo,
+    layout: "/dev"
+  },
+  {
+    path: "/change-job",
+    name: "Change Job",
+    icon: "pe-7s-upload",
+    component: ChangeJob,
     layout: "/dev"
   }
 ];

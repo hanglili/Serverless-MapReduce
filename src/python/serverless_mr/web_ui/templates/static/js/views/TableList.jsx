@@ -150,6 +150,18 @@ class TableList extends Component {
     clearInterval(this.interval);
   }
 
+  modifyJobHandler = (e, prop) => {
+    console.log(e.target.tagName);
+    if (e.target.tagName === 'TD') {
+      console.log("Hello");
+      console.log(prop[0]);
+      this.props.history.push({
+        pathname: "change-job",
+        state: {jobName: prop[0]}
+      })
+    }
+  };
+
   onClickHandler = (e, prop) => {
     console.log("Hello");
     console.log(prop[4]);
@@ -256,7 +268,7 @@ class TableList extends Component {
                     <tbody>
                     {this.state.registered.map((prop, key) => {
                       return (
-                        <tr>
+                        <tr key={key} onClick={(e) => this.modifyJobHandler(e, prop)}>
                           {prop.map((prop, key) => {
                             return <td key={key} style={{'textAlign': 'center', 'verticalAlign': 'middle'}}>
                               {prop}

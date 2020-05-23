@@ -75,14 +75,10 @@ class ServerlessDriverSetup:
         self.s3_client.create_bucket(Bucket=bucket_name)
         s3_bucket_exists_waiter = self.s3_client.get_waiter('bucket_exists')
         s3_bucket_exists_waiter.wait(Bucket=bucket_name)
-        self.s3_client.put_bucket_acl(
-            ACL='public-read-write',
-            Bucket=bucket_name,
-        )
         logger.info("%s Bucket created successfully" % bucket_name)
 
     # Serverless set up
-    def register_driver(self):
+    def register_driver(self, main_file_path, function_paths):
         stage_id = 1
         function_filepaths = []
 
@@ -129,6 +125,46 @@ class ServerlessDriverSetup:
         self.s3_client.put_object(Bucket=StaticVariables.S3_JOBS_INFORMATION_BUCKET_NAME,
                                   Key=(StaticVariables.S3_UI_REGISTERED_JOB_DRIVER_CONFIG_PATH % self.job_name),
                                   Body=json.dumps(self.config))
+
+        static_job_info_file_path = 'configuration/static-job-info.json'
+        driver_file_path = 'configuration/driver.json'
+        registered_job_source_info = [
+            {'filePath': main_file_path,
+             'location': StaticVariables.S3_UI_REGISTERED_JOB_SOURCE_FILES_PATH % (self.job_name, str(main_file_path))
+             },
+            {'filePath': static_job_info_file_path,
+             'location': StaticVariables.S3_UI_REGISTERED_JOB_SOURCE_FILES_PATH % (self.job_name, static_job_info_file_path)
+             },
+            {'filePath': driver_file_path,
+             'location': StaticVariables.S3_UI_REGISTERED_JOB_SOURCE_FILES_PATH % (self.job_name, driver_file_path)
+             }
+        ]
+        os.chdir(StaticVariables.PROJECT_WORKING_DIRECTORY)
+        self.s3_client.upload_file(
+            Filename=main_file_path, Bucket=StaticVariables.S3_JOBS_INFORMATION_BUCKET_NAME,
+            Key=StaticVariables.S3_UI_REGISTERED_JOB_SOURCE_FILES_PATH % (self.job_name, str(main_file_path))
+        )
+        os.chdir(StaticVariables.LIBRARY_WORKING_DIRECTORY)
+        self.s3_client.upload_file(
+            Filename=static_job_info_file_path, Bucket=StaticVariables.S3_JOBS_INFORMATION_BUCKET_NAME,
+            Key=StaticVariables.S3_UI_REGISTERED_JOB_SOURCE_FILES_PATH % (self.job_name, str(static_job_info_file_path))
+        )
+        self.s3_client.upload_file(
+            Filename=driver_file_path, Bucket=StaticVariables.S3_JOBS_INFORMATION_BUCKET_NAME,
+            Key=StaticVariables.S3_UI_REGISTERED_JOB_SOURCE_FILES_PATH % (self.job_name, str(driver_file_path))
+        )
+        for function_path in function_paths:
+            registered_job_source_info.append({
+                'filePath': function_path,
+                'location': StaticVariables.S3_UI_REGISTERED_JOB_SOURCE_FILES_PATH % (self.job_name, str(function_path))
+            })
+            self.s3_client.upload_file(
+                Filename=function_path, Bucket=StaticVariables.S3_JOBS_INFORMATION_BUCKET_NAME,
+                Key=StaticVariables.S3_UI_REGISTERED_JOB_SOURCE_FILES_PATH % (self.job_name, str(function_path))
+            )
+        self.s3_client.put_object(Bucket=StaticVariables.S3_JOBS_INFORMATION_BUCKET_NAME,
+                                  Key=(StaticVariables.S3_UI_REGISTERED_JOB_SOURCE_INFO_PATH % self.job_name),
+                                  Body=json.dumps(registered_job_source_info))
 
         delete_files(glob.glob(StaticVariables.FUNCTIONS_PICKLE_GLOB_PATH))
         delete_files(glob.glob(StaticVariables.LAMBDA_ZIP_GLOB_PATH))

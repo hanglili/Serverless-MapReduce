@@ -62,6 +62,114 @@ def delete_files(dirname, filenames):
             os.remove(dst_file)
 
 
+@app.route("/get-source-files", methods=['GET'])
+@cross_origin()
+def get_source_files():
+    print("WebUI: Received request for path /get-source-files")
+    job_name = request.args.get('job-name')
+    is_local_testing = os.environ.get("local_testing") == 'True' or os.environ.get("local_testing") == 'true'
+    if is_local_testing:
+        local_endpoint_url = 'http://localhost:4572'
+        client = boto3.client('s3', aws_access_key_id='', aws_secret_access_key='',
+                              region_name=StaticVariables.DEFAULT_REGION,
+                              endpoint_url=local_endpoint_url)
+    else:
+        client = boto3.client('s3')
+    response = client.get_object(Bucket=StaticVariables.S3_JOBS_INFORMATION_BUCKET_NAME,
+                                 Key=(StaticVariables.S3_UI_REGISTERED_JOB_SOURCE_INFO_PATH % job_name))
+    contents = response['Body'].read()
+    job_source_info = json.loads(contents)
+    source_files = {}
+    for source_file_info in job_source_info:
+        response = client.get_object(Bucket=StaticVariables.S3_JOBS_INFORMATION_BUCKET_NAME,
+                                     Key=source_file_info["location"])
+        contents = response['Body'].read()
+        string_content = contents.decode("utf-8")
+        source_files[source_file_info["filePath"]] = string_content
+
+    return jsonify(source_files)
+
+
+@app.route("/modify-job", methods=['POST'])
+@cross_origin()
+def modify_job():
+    print("WebUI: Received request for path /modify-job")
+    print("Current working directory is", os.getcwd())
+
+    is_local_testing = os.environ.get("local_testing") == 'True' or os.environ.get("local_testing") == 'true'
+    if is_local_testing:
+        local_endpoint_url = 'http://localhost:4572'
+        TMP_DIR_NAME = 'web_ui/tmp'
+        os.chdir(library_working_dir)
+    else:
+        client = boto3.client('s3')
+        TMP_DIR_NAME = '/tmp'
+        bucket_name = 'serverless-mapreduce-code'
+        # 1. Download the S3 code files to /tmp including the user-provided code files.
+        contents = client.list_objects(Bucket=bucket_name).get("Contents", [])
+        for content in contents:
+            key = content.get('Key')
+            print("Current key:", key)
+            if not key.endswith("/"):
+                dest_pathname = os.path.join(TMP_DIR_NAME, key)
+                print("Current destination path:", dest_pathname)
+                if not os.path.exists(os.path.dirname(dest_pathname)):
+                    os.makedirs(os.path.dirname(dest_pathname))
+                client.download_file(Bucket=bucket_name, Key=key, Filename=dest_pathname)
+
+    content = request.form.to_dict()
+    for key in content.keys():
+        content_string = content[key]
+        if key == 'static-job-info.json':
+            static_job_info_json = json.loads(content_string)
+            if "lambdaNamePrefix" not in static_job_info_json:
+                print("INFO: The field lambdaNamePrefix is not provided, default to the first 2 chars of job name.")
+                static_job_info_json["lambdaNamePrefix"] = static_job_info_json[StaticVariables.JOB_NAME_FN][:2]
+            if "localTesting" not in static_job_info_json:
+                print("INFO: The field localTesting is not provided, default to false.")
+                static_job_info_json["localTesting"] = False
+            if "serverlessDriver" not in static_job_info_json:
+                print("INFO: The field serverlessDriver is not provided, default to true.")
+                static_job_info_json["serverlessDriver"] = True
+            if "useCombine" not in static_job_info_json:
+                print("INFO: The field useCombine is not provided, default to true.")
+                static_job_info_json["useCombine"] = True
+
+            dest_pathname = os.path.join(TMP_DIR_NAME, key)
+            directory_path = os.path.dirname(dest_pathname)
+            os.makedirs(directory_path, exist_ok=True)
+            init_pathname = os.path.join(directory_path, "__init__.py")
+            with open(init_pathname, 'w+') as f:
+                f.write("")
+            with open(dest_pathname, 'w+') as f:
+                json.dump(static_job_info_json, f)
+        else:
+            dest_pathname = os.path.join(TMP_DIR_NAME, key)
+            directory_path = os.path.dirname(dest_pathname)
+            os.makedirs(directory_path, exist_ok=True)
+            init_pathname = os.path.join(directory_path, "__init__.py")
+            with open(init_pathname, 'w+') as f:
+                f.write("")
+            with open(dest_pathname, 'w+') as f:
+                f.write(content_string)
+
+    # 2. Set working directory to /tmp or tmp depending on whether it is a local execution.
+    os.chdir(TMP_DIR_NAME)
+
+    # 3. Run user_main.py
+    my_env = os.environ.copy()
+    return_code = subprocess.call(
+        ["python3.7", "user_main.py"], env=my_env
+    )
+
+    if is_local_testing:
+        os.chdir(project_working_dir)
+    if return_code == 0:
+        return "Successfully registered"
+    else:
+        return "Error"
+
+
 @app.route("/register-job", methods=['POST'])
 @cross_origin()
 def register_job():
@@ -91,10 +199,6 @@ def register_job():
 
     content = request.form.to_dict()
 
-    # static_job_info = content['static-job-info.json']
-    # dest_pathname = os.path.join(TMP_DIR_NAME, 'configuration/static-job-info.json')
-    # with open(dest_pathname, 'w') as f:
-    #     f.write(static_job_info)
     static_job_info = content['static-job-info.json']
     static_job_info_json = json.loads(static_job_info)
     if "lambdaNamePrefix" not in static_job_info_json:
@@ -109,7 +213,7 @@ def register_job():
     if "useCombine" not in static_job_info_json:
         print("INFO: The field useCombine is not provided, default to true.")
         static_job_info_json["useCombine"] = True
-    # dest_pathname = './tmp/static-job-info.json'
+
     dest_pathname = os.path.join(TMP_DIR_NAME, 'configuration/static-job-info.json')
     with open(dest_pathname, 'w') as f:
         json.dump(static_job_info_json, f)
@@ -212,7 +316,7 @@ def get_jobs_info():
     prefix = "web-ui/"
     for obj in client.list_objects(Bucket=StaticVariables.S3_JOBS_INFORMATION_BUCKET_NAME,
                                    Prefix=prefix)["Contents"]:
-        if not obj["Key"].endswith('/') and \
+        if (not obj["Key"].endswith('/')) and ("source/" not in obj["Key"]) and \
                 ("static-job-info.json" in obj["Key"] or "registered-job-info.json" in obj["Key"]):
             job_keys_list.append(obj["Key"])
 

@@ -132,9 +132,9 @@ class UserProfile extends Component {
                                   &quot;jobName&quot;: &quot;bl-release-1&quot;,&#13;&#10;
                                   &quot;shufflingBucket&quot;: &quot;serverless-mapreduce-storage&quot;,&#13;&#10;
                                   &quot;inputSourceType&quot;: &quot;s3&quot;,&#13;&#10;
-                                  &quot;inputSource&quot;: &quot;serverless-mapreduce-storage-input&quot;,&#13;&#10;
+                                  &quot;inputSource&quot;: &quot;serverless-mapreduce-input-storage&quot;,&#13;&#10;
                                   &quot;outputSourceType&quot;: &quot;s3&quot;,&#13;&#10;
-                                  &quot;outputSource&quot;: &quot;serverless-mapreduce-storage-output&quot;&#13;&#10;}"
+                                  &quot;outputSource&quot;: &quot;serverless-mapreduce-output-storage&quot;&#13;&#10;}"
                           />
                         </FormGroup>
                       </Col>

@@ -48,6 +48,8 @@ class StaticVariables:
     S3_UI_DAG_INFORMATION_PATH = "web-ui/%s/%s/dag-information.json"
     S3_UI_REGISTERED_JOB_INFORMATION_PATH = "web-ui/%s/registered-job-info.json"
     S3_UI_REGISTERED_JOB_DRIVER_CONFIG_PATH = "web-ui/%s/driver.json"
+    S3_UI_REGISTERED_JOB_SOURCE_INFO_PATH = "web-ui/%s/registered-job-source-info.json"
+    S3_UI_REGISTERED_JOB_SOURCE_FILES_PATH = "web-ui/%s/source/%s"
 
     # DynamoDB table names - Web UI
     STAGE_PROGRESS_DYNAMODB_TABLE_NAME = "%s-%s-stage-progress"

@@ -42,6 +42,8 @@ def zip_driver_lambda(zip_name, function_filepaths):
         globed_results += glob.glob(filepath)
 
     file_paths = globed_results + glob.glob("*") + glob.glob("*/*")
+    file_paths = list(filter(lambda file_path: (not file_path.startswith("node_modules")), file_paths))
+
     # zip_obj = ZipFile(zip_name, 'w')
     # print("Zipping serverless driver code. The filepath are:", file_paths)
     # for file_path in file_paths:
