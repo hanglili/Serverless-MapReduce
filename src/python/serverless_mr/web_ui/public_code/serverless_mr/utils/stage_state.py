@@ -3,8 +3,12 @@ import json
 import os
 import decimal
 import time
+import logging
 
 from static.static_variables import StaticVariables
+from utils.setup_logger import logger
+
+logger = logging.getLogger('serverless-mr.stage-state')
 
 
 # Helper class to convert a DynamoDB item to JSON.
@@ -46,8 +50,8 @@ class StageState:
                 'KeyType': 'HASH'
             }],
             ProvisionedThroughput={
-                'ReadCapacityUnits': 10,
-                'WriteCapacityUnits': 10
+                'ReadCapacityUnits': 200,
+                'WriteCapacityUnits': 200
             }
         )
 
@@ -57,7 +61,7 @@ class StageState:
             time.sleep(1)
             response = self.client.describe_table(TableName=table_name)['Table']['TableStatus']
 
-        print("Stage state table created successfully")
+        logger.info("Stage state table created successfully")
 
     def initialise_state_table(self, table_name, num_stages):
         for i in range(1, num_stages):
@@ -77,7 +81,7 @@ class StageState:
         #         'current_stage_id': {'N': str(1)}
         #     }
         # )
-        print("Stage state table initialised successfully")
+        logger.info("Stage state table initialised successfully")
 
     def read_state_table(self, table_name):
         stage_states = {}
@@ -95,10 +99,10 @@ class StageState:
                 TableName=table_name
             )
 
-            print("Stage state table deleted successfully")
+            logger.info("Stage state table deleted successfully")
             return
 
-        print("Stage state table has not been created")
+        logger.info("Stage state table has not been created")
 
     def increment_num_completed_operators(self, table_name, stage_id):
         response = self.client.update_item(
@@ -113,7 +117,7 @@ class StageState:
             ReturnValues="UPDATED_NEW"
         )
 
-        print("Number of completed operators incremented successfully")
+        logger.info("Number of completed operators incremented successfully")
         return response
 
     def increment_current_stage_id(self, table_name):
@@ -129,7 +133,7 @@ class StageState:
             ReturnValues="UPDATED_NEW"
         )
 
-        print("Current stage id incremented successfully")
+        logger.info("Current stage id incremented successfully")
         return response
 
     def read_current_stage_id(self, table_name):

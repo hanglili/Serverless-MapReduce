@@ -1,12 +1,24 @@
 import boto3
 import json
 import os
+import logging
+import time
+import random
 
 from static.static_variables import StaticVariables
 from utils import stage_state, in_degree, stage_progress
 
-# create an S3 and Lambda session
 static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
+
+root = logging.getLogger()
+if root.handlers:
+    for handler in root.handlers:
+        root.setLevel(level=logging.INFO)
+
+from utils.setup_logger import logger
+logger = logging.getLogger('serverless-mr.coordinator')
+
+# create an S3 and Lambda session
 if static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
     s3_client = boto3.client('s3', aws_access_key_id='', aws_secret_access_key='',
                              region_name=StaticVariables.DEFAULT_REGION,
@@ -27,6 +39,7 @@ def get_map_reduce_outputs(bucket, job_name, stage_ids):
             if not obj["Key"].endswith('/'):
                 keys_bins.append([obj["Key"]])
 
+    logger.info("Key Batches for stage %s is: %s" % (stage_ids[0], str(keys_bins)))
     return keys_bins
 
 
@@ -36,8 +49,10 @@ def get_map_shuffle_outputs(num_bins, bucket, job_name, stage_id):
     for bin_id in range(1, num_bins + 1):
         prefix = "%s/%s-%s/bin-%s/" % (job_name, StaticVariables.OUTPUT_PREFIX, stage_id, bin_id)
         objs = s3_client.list_objects(Bucket=bucket, Prefix=prefix)["Contents"]
+        # logger.info("********************The number of items is: %s********************" % str(len(objs)))
         keys_bins[bin_id - 1] = [obj["Key"] for obj in objs]
 
+    logger.info("Key Batches for stage %s is: %s" % (stage_id, str(keys_bins)))
     return keys_bins
 
 def schedule_same_pipeline_next_stage(stage_configuration, stage_id, shuffling_bucket, job_name, submission_time):
@@ -51,11 +66,13 @@ def schedule_same_pipeline_next_stage(stage_configuration, stage_id, shuffling_b
     else:
         keys_bins = get_map_reduce_outputs(shuffling_bucket, job_name, [stage_id])
 
-    stage_progress_obj = stage_progress.StageProgress(in_lambda=True,
-                                                      is_local_testing=static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN])
-    stage_progress_table_name = StaticVariables.STAGE_PROGRESS_DYNAMODB_TABLE_NAME % (job_name, submission_time)
-    total_num_jobs = sum([len(keys_bin) for keys_bin in keys_bins])
-    stage_progress_obj.update_total_num_keys(stage_progress_table_name, stage_id + 1, total_num_jobs)
+    if StaticVariables.OPTIMISATION_FN not in static_job_info \
+            or not static_job_info[StaticVariables.OPTIMISATION_FN]:
+        stage_progress_obj = stage_progress.StageProgress(in_lambda=True,
+                                                          is_local_testing=static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN])
+        stage_progress_table_name = StaticVariables.STAGE_PROGRESS_DYNAMODB_TABLE_NAME % (job_name, submission_time)
+        total_num_jobs = sum([len(keys_bin) for keys_bin in keys_bins])
+        stage_progress_obj.update_total_num_keys(stage_progress_table_name, stage_id + 1, total_num_jobs)
 
     if next_stage_config["stage_type"] == 1:
         for i in range(len(keys_bins)):
@@ -85,7 +102,7 @@ def schedule_same_pipeline_next_stage(stage_configuration, stage_id, shuffling_b
                 })
             )
 
-    print("All operators finished in stage %s, next stage: number of operators scheduled: %s"
+    logger.info("All operators finished in stage %s, next stage: number of operators scheduled: %s"
           % (stage_id, next_stage_num_operators))
 
 
@@ -109,9 +126,11 @@ def schedule_different_pipeline_next_stage(is_serverless_driver, stage_configura
 
     in_degree_obj = in_degree.InDegree(in_lambda=True,
                                        is_local_testing=static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN])
-    stage_progress_obj = stage_progress.StageProgress(in_lambda=True,
-                                                      is_local_testing=static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN])
-    stage_progress_table_name = StaticVariables.STAGE_PROGRESS_DYNAMODB_TABLE_NAME % (job_name, submission_time)
+    if StaticVariables.OPTIMISATION_FN not in static_job_info \
+            or not static_job_info[StaticVariables.OPTIMISATION_FN]:
+        stage_progress_obj = stage_progress.StageProgress(in_lambda=True,
+                                                          is_local_testing=static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN])
+        stage_progress_table_name = StaticVariables.STAGE_PROGRESS_DYNAMODB_TABLE_NAME % (job_name, submission_time)
     for dependent_pipeline_id in adj_list[str(cur_pipeline_id)]:
         response = in_degree_obj.decrement_in_degree_table(StaticVariables.IN_DEGREE_DYNAMODB_TABLE_NAME % (job_name, submission_time),
                                                            dependent_pipeline_id)
@@ -125,7 +144,9 @@ def schedule_different_pipeline_next_stage(is_serverless_driver, stage_configura
             keys_bins = get_map_reduce_outputs(shuffling_bucket, job_name, dependent_stage_ids)
 
             total_num_jobs = sum([len(keys_bin) for keys_bin in keys_bins])
-            stage_progress_obj.update_total_num_keys(stage_progress_table_name, next_pipeline_first_stage_id, total_num_jobs)
+            if StaticVariables.OPTIMISATION_FN not in static_job_info \
+                    or not static_job_info[StaticVariables.OPTIMISATION_FN]:
+                stage_progress_obj.update_total_num_keys(stage_progress_table_name, next_pipeline_first_stage_id, total_num_jobs)
 
             if next_stage_config["stage_type"] == 1:
                 for i in range(len(keys_bins)):
@@ -155,13 +176,13 @@ def schedule_different_pipeline_next_stage(is_serverless_driver, stage_configura
                         })
                     )
 
-            print("All operators finished in pipeline %s, next pipeline: number of operators scheduled: %s"
-                  % (cur_pipeline_id, len(keys_bins)))
+            logger.info("All operators finished in pipeline %s, next pipeline: number of operators scheduled: %s"
+                        % (cur_pipeline_id, len(keys_bins)))
 
 
 def lambda_handler(event, _):
-    print("*************Coordinator****************")
-    # start_time = time.time()
+    logger.info("*************Coordinator****************")
+    start_time = time.time()
 
     # Shuffling Bucket (we just got a notification from this bucket)
     # shuffling_bucket = event['Records'][0]['s3']['bucket']['name']
@@ -180,7 +201,7 @@ def lambda_handler(event, _):
                                                  is_local_testing=static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN])
     # stage_id = cur_map_phase_state.read_current_stage_id(StaticVariables.STAGE_STATE_DYNAMODB_TABLE_NAME)
     # stage_id = int(s3_obj_key.split("/")[1].split("-")[1])
-    # print("Stage:", stage_id)
+    logger.info("Stage: %s" % stage_id)
     is_serverless_driver = static_job_info[StaticVariables.SERVERLESS_DRIVER_FLAG_FN]
     if not is_serverless_driver:
         with open(StaticVariables.STAGE_CONFIGURATION_PATH) as json_file:
@@ -192,22 +213,22 @@ def lambda_handler(event, _):
 
     cur_stage_config = stage_configuration[str(stage_id)]
     # if cur_stage_config["stage_type"] == 1:
-        # next_stage_num_operators = stage_configuration[str(stage_id + 1)]["num_operators"]
-        # bin_s3_path = "bin-%s" % next_stage_num_operators
-        # shuffle_stage_s3_prefix = "%s/%s-%s/%s/" % (job_name, StaticVariables.OUTPUT_PREFIX,
-                                                    # stage_id, bin_s3_path)
-        # print("The current shuffle stage s3 prefix is", shuffle_stage_s3_prefix)
-        # print("The obj obj key is", s3_obj_key)
-        # if not s3_obj_key.startswith(shuffle_stage_s3_prefix):
-            # return
-
-    # print("The event obj key is", s3_obj_key)
+    #     next_stage_num_operators = stage_configuration[str(stage_id + 1)]["num_operators"]
+    #     bin_s3_path = "bin-%s" % next_stage_num_operators
+    #     shuffle_stage_s3_prefix = "%s/%s-%s/%s/" % (job_name, StaticVariables.OUTPUT_PREFIX,
+    #                                                 stage_id, bin_s3_path)
+    #     logger.info("The current shuffle stage s3 prefix: %s" % shuffle_stage_s3_prefix)
+    #     logger.info("The event obj key: %s" % s3_obj_key)
+    #     if not s3_obj_key.startswith(shuffle_stage_s3_prefix):
+    #         return
+    #
+    # logger.info("The event obj key: %s" % s3_obj_key)
     num_operators = cur_stage_config["num_operators"]
     response = cur_map_phase_state.increment_num_completed_operators(StaticVariables.STAGE_STATE_DYNAMODB_TABLE_NAME
                                                                      % (job_name, submission_time),
                                                                      stage_id)
     num_completed_operators = int(response["Attributes"]["num_completed_operators"]["N"])
-    print("In stage %s, number of operators completed: %s" % (stage_id, num_completed_operators))
+    logger.info("In stage %s, number of operators completed: %s" % (stage_id, num_completed_operators))
 
     if num_operators == num_completed_operators:
         if not is_serverless_driver:
@@ -227,7 +248,16 @@ def lambda_handler(event, _):
 
         # cur_map_phase_state.increment_current_stage_id(StaticVariables.STAGE_STATE_DYNAMODB_TABLE_NAME)
     else:
-        print("Waiting for all the operators of the stage %s to finish" % stage_id)
+        logger.info("Waiting for all the operators of the stage %s to finish" % stage_id)
+
+    metrics_bucket = StaticVariables.METRICS_BUCKET % job_name
+    coordinator_execution_time = time.time() - start_time
+    coordinator_execution_info_s3_key = "%s/coordinator/stage-%s/%s" % (job_name, stage_id, random.randint(1, 1000000000))
+    coordinator_execution_info = {"processingTime": '%s' % coordinator_execution_time}
+    logger.info("Execution time: %s" % str(coordinator_execution_info))
+    s3_client.put_object(Bucket=metrics_bucket, Key=coordinator_execution_info_s3_key,
+                         Body=json.dumps({}), Metadata=coordinator_execution_info)
+
 
 '''
 ev = {

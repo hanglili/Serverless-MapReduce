@@ -4,23 +4,23 @@ import os
 import shutil
 import inspect
 import sys
+import logging
+import time
 
 from pathlib import Path
 
 project_working_dir = os.getcwd()
 library_dir = Path(os.path.dirname(os.path.realpath(__file__)))
 library_working_dir = library_dir
-print("The current project working directory is", project_working_dir)
-print("The current library working directory is", library_working_dir)
 sys.path.append(str(library_working_dir))
 sys.path.append('/opt/python/lib/python3.7/site-packages')
 sys.path.append('/opt/python')
 sys.path.append('/var/runtime')
 sys.path.append('/var/lang/lib/python37.zip')
 sys.path.append('/opt/python/lib/python3.7/site-packages')
-
+print("Sys paths:")
 for path in sys.path:
-    print("Sys path:", path)
+    print("%s" % str(path))
 
 from driver.driver import Driver
 from functions.map_function import MapFunction
@@ -31,11 +31,13 @@ from static.static_variables import StaticVariables
 from utils.pipeline import Pipeline
 from default.partition import default_partition
 
+root = logging.getLogger()
+if root.handlers:
+    for handler in root.handlers:
+        root.setLevel(level=logging.INFO)
 
-# project_working_dir = os.getcwd()
-# library_dir = Path(os.path.dirname(os.path.realpath(__file__)))
-# library_working_dir = library_dir
-# library_working_dir = library_dir.parent
+from utils.setup_logger import logger
+logger = logging.getLogger('serverless-mr.main')
 
 
 def find_filepath(package_name, filename):
@@ -84,10 +86,10 @@ def set_up():
 
 
 def copy_job_function(function):
-    print("Library working directory is", library_working_dir)
+    logger.info("Library working directory is %s" % library_working_dir)
     inspect_object = inspect.getfile(function)
     rel_filepath = os.path.relpath(inspect_object)
-    print("The path of the function is", rel_filepath)
+    logger.info("The path of the function is %s" % rel_filepath)
     # dst_file = "%s/%s/%s" % (library_working_dir, "user_job_3", "map.py")
 
     dst_file = "%s/%s" % (library_working_dir, rel_filepath)
@@ -179,15 +181,8 @@ class ServerlessMR:
         self.cur_pipeline.set_dependent_pipelines_ids(dependent_pipeline_ids)
         return self
 
-    # def merge_map_shuffle(self, map_function, partition_function, dependent_pipeline_ids):
-    #     rel_map_function_path = copy_job_function(map_function)
-    #     rel_partition_function_path = copy_job_function(partition_function)
-    #     self.cur_pipeline.add_function(MergeMapShuffleFunction(map_function, rel_map_function_path,
-    #                                                            partition_function, rel_partition_function_path))
-    #     self.total_num_functions += 1
-    #     return self
-
     def run(self):
+        StaticVariables.SETUP_START_TIME = time.time()
         self.finish()
         set_up()
         StaticVariables.PROJECT_WORKING_DIRECTORY = project_working_dir
@@ -201,14 +196,13 @@ class ServerlessMR:
         if is_serverless_driver:
             serverless_driver_setup = ServerlessDriverSetup(self.pipelines, self.total_num_functions)
             serverless_driver_setup.register_driver()
-            print("Driver Lambda function successfully registered")
-            # command = input("Enter invoke to invoke and other keys to exit: ")
-            command = "123"
+            logger.info("Driver Lambda function successfully registered")
+            command = ""
             if command == "invoke":
-                print("Driver invoked and starting job execution")
+                logger.info("Driver invoked and starting job execution")
                 serverless_driver_setup.invoke()
         else:
-            print("The total number of functions is", self.total_num_functions)
+            logger.info("The total number of functions is %s" % self.total_num_functions)
             driver = Driver(self.pipelines, self.total_num_functions)
             driver.run()
 

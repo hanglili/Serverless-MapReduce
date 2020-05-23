@@ -1,7 +1,11 @@
 import boto3
 import os
+import logging
 
 from static.static_variables import StaticVariables
+
+from utils.setup_logger import logger
+logger = logging.getLogger('serverless-mr.input-handler-s3')
 
 
 class InputHandlerS3:
@@ -31,6 +35,8 @@ class InputHandlerS3:
 
         for i in range(len(input_file_paths)):
             input_file_path = input_file_paths[i]
+            if os.path.isdir(input_file_path):
+                continue
             if StaticVariables.INPUT_PREFIX_FN in static_job_info:
                 prefix = static_job_info[StaticVariables.INPUT_PREFIX_FN]
                 key = '%s/input-%s' % (prefix, str(i + 1))
@@ -40,26 +46,24 @@ class InputHandlerS3:
                                     Bucket=input_bucket,
                                     Key=key)
 
-        print("Set up local input data successfully")
+        logger.info("Set up local input data successfully")
 
     def get_all_input_keys(self, static_job_info):
         # Returns all input keys to be processed: a list of format obj where obj is a map of {'Key': ..., 'Size': ...}
         all_keys = []
         input_source = static_job_info[StaticVariables.INPUT_SOURCE_FN]
-
         if StaticVariables.INPUT_PREFIX_FN in static_job_info:
             contents = self.client.list_objects(Bucket=input_source,
                                                 Prefix=static_job_info[StaticVariables.INPUT_PREFIX_FN])['Contents']
         else:
             contents = self.client.list_objects(Bucket=input_source)['Contents']
-
         for obj in contents:
             if not obj['Key'].endswith('/'):
                 all_keys.append(obj)
 
         return all_keys
 
-    def read_records_from_input_key(self, input_source, input_key, static_job_info):
+    def read_value(self, input_source, input_key, static_job_info):
         response = self.client.get_object(Bucket=input_source, Key=input_key)
         contents = response['Body'].read()
 

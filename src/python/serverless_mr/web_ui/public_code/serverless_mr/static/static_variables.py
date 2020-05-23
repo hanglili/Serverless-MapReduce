@@ -39,6 +39,7 @@ class StaticVariables:
     IN_DEGREE_PATH = "utils/in_degree.py"
     STAGE_STATE_DYNAMODB_TABLE_NAME = "%s-%s-stage-state"
     STAGE_STATE_PATH = "utils/stage_state.py"
+    LOGGER_SETUP_PATH = "utils/setup_logger.py"
 
     # S3 file locations - Web UI
     S3_JOBS_INFORMATION_BUCKET_NAME = "serverless-mapreduce-job-information"
@@ -59,6 +60,9 @@ class StaticVariables:
     COORDINATOR_HANDLER_FUNCTION_PATH = "coordinator/coordinator.lambda_handler"
     SERVERLESS_DRIVER_HANDLER_FUNCTION_PATH = "driver/serverless_driver.lambda_handler"
 
+    # Metrics
+    METRICS_BUCKET = "%s-metrics"
+
     # Zip path
     COORDINATOR_ZIP_PATH = "coordinator.zip"
     DRIVER_ZIP_PATH = "serverless_driver.zip"
@@ -66,8 +70,8 @@ class StaticVariables:
 
     # Constants
     DEFAULT_REGION = "us-east-1"
-    DEFAULT_LAMBDA_MEMORY_LIMIT = 1536
-    DEFAULT_LAMBDA_TIMEOUT = 300
+    DEFAULT_LAMBDA_MEMORY_LIMIT = 2048
+    DEFAULT_LAMBDA_TIMEOUT = 900
     DEFAULT_LAMBDA_READ_TIMEOUT = 300
     DEFAULT_BOTO_MAX_CONNECTIONS = 1000
     DEFAULT_NUM_CONCURRENT_LAMBDAS = 1000
@@ -83,7 +87,6 @@ class StaticVariables:
     # static-job-info-.json
     JOB_NAME_FN = "jobName"
     SHUFFLING_BUCKET_FN = "shufflingBucket"
-    NUM_REDUCER_FN = "numReducers"
     LAMBDA_NAME_PREFIX_FN = "lambdaNamePrefix"
     INPUT_SOURCE_TYPE_FN = "inputSourceType"
     INPUT_SOURCE_FN = "inputSource"
@@ -95,6 +98,7 @@ class StaticVariables:
     LOCAL_TESTING_FLAG_FN = "localTesting"
     LOCAL_TESTING_INPUT_PATH = "localTestingInputPath"
     SERVERLESS_DRIVER_FLAG_FN = "serverlessDriver"
+    OPTIMISATION_FN = "optimisation"
 
     # specific to DynamoDB
     INPUT_PARTITION_KEY_DYNAMODB = "inputPartitionKeyDynamoDB"
@@ -107,3 +111,9 @@ class StaticVariables:
     # dynamic variables
     PROJECT_WORKING_DIRECTORY = ""
     LIBRARY_WORKING_DIRECTORY = ""
+
+    # variables for performance testing
+    SETUP_START_TIME = 0
+    TEAR_DOWN_START_TIME = 0
+    COST_CALCULATION_START_TIME = 0
+    JOB_START_TIME = 0

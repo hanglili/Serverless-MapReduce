@@ -76,7 +76,7 @@ def register_job():
     else:
         client = boto3.client('s3')
         TMP_DIR_NAME = '/tmp'
-        bucket_name = 'serverless-mr-code'
+        bucket_name = 'serverless-mapreduce-code'
         # 1. Download the S3 code files to /tmp including the user-provided code files.
         contents = client.list_objects(Bucket=bucket_name).get("Contents", [])
         for content in contents:

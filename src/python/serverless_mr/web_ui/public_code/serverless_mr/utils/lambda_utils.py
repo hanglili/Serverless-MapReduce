@@ -1,3 +1,10 @@
+import logging
+
+from utils.setup_logger import logger
+
+logger = logging.getLogger('serverless-mr.lambda-utils')
+
+
 def compute_batch_size(keys, lambda_memory, concurrent_lambdas, input_source_type):
     max_mem_for_data = 0.6 * lambda_memory * 1000 * 1000
     size = 0.0
@@ -7,9 +14,10 @@ def compute_batch_size(keys, lambda_memory, concurrent_lambdas, input_source_typ
         else:
             size += key.size
     avg_object_size = size / len(keys)
-    print("Dataset size: %s, nKeys: %s, avg object size: %s" % (size, len(keys), avg_object_size))
+    logger.info("Dataset size: %s, nKeys: %s, avg object size: %s" % (size, len(keys), avg_object_size))
     if avg_object_size < max_mem_for_data and len(keys) < concurrent_lambdas:
         # Heuristics based on the input source type and assumption made on the convention of each data storage.
+        print("***************Freely allocating number of keys**************")
         b_size = 1 if input_source_type == "s3" else 10
     else:
         b_size = int(round(max_mem_for_data / avg_object_size))

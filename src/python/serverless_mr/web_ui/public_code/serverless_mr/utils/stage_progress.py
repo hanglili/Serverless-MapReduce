@@ -3,8 +3,12 @@ import json
 import os
 import decimal
 import time
+import logging
 
 from static.static_variables import StaticVariables
+from utils.setup_logger import logger
+
+logger = logging.getLogger('serverless-mr.stage-progress')
 
 
 # Helper class to convert a DynamoDB item to JSON.
@@ -46,8 +50,8 @@ class StageProgress:
                 'KeyType': 'HASH'
             }],
             ProvisionedThroughput={
-                'ReadCapacityUnits': 10,
-                'WriteCapacityUnits': 10
+                'ReadCapacityUnits': 100,
+                'WriteCapacityUnits': 100
             }
         )
 
@@ -57,7 +61,7 @@ class StageProgress:
             time.sleep(1)
             response = self.client.describe_table(TableName=table_name)['Table']['TableStatus']
 
-        print("Stage progress table created successfully")
+        logger.info("Stage progress table created successfully")
 
     def initialise_progress_table(self, table_name, num_stages):
         for i in range(1, num_stages + 1):
@@ -70,7 +74,7 @@ class StageProgress:
                 }
             )
 
-        print("Stage progress table initialised successfully")
+        logger.info("Stage progress table initialised successfully")
 
     def read_progress_table(self, table_name):
         stage_progress = {}
@@ -92,7 +96,7 @@ class StageProgress:
             print("Stage progress table deleted successfully")
             return
 
-        print("Stage progress table has not been created")
+        logger.info("Stage progress table has not been created")
 
     def update_total_num_keys(self, table_name, stage_id, total_num_keys):
         response = self.client.update_item(
@@ -107,7 +111,7 @@ class StageProgress:
             ReturnValues="UPDATED_NEW"
         )
 
-        print("Total number of processed keys updated successfully")
+        logger.info("Total number of processed keys updated successfully")
         return response
 
     def increase_num_processed_keys(self, table_name, stage_id, additional_num_processed_keys):
@@ -124,6 +128,6 @@ class StageProgress:
                 ReturnValues="UPDATED_NEW"
             )
 
-            print("Number of processed keys increased by %s successfully" % str(additional_num_processed_keys))
+            logger.info("Number of processed keys increased by %s successfully" % str(additional_num_processed_keys))
             return response
         return {}

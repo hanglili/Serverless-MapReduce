@@ -2,8 +2,12 @@ import boto3
 import json
 import os
 import time
+import logging
 
 from static.static_variables import StaticVariables
+
+from utils.setup_logger import logger
+logger = logging.getLogger('serverless-mr.output-handler-s3')
 
 
 class OutputHandlerS3:
@@ -20,20 +24,21 @@ class OutputHandlerS3:
         else:
             self.client = boto3.client('s3')
 
-    def create_output_storage(self, submission_time, static_job_info):
+    def create_output_storage(self, static_job_info, submission_time):
         output_bucket = static_job_info[StaticVariables.SHUFFLING_BUCKET_FN] \
             if StaticVariables.OUTPUT_SOURCE_FN not in static_job_info \
             else static_job_info[StaticVariables.OUTPUT_SOURCE_FN]
         self.client.create_bucket(Bucket=output_bucket)
         s3_bucket_exists_waiter = self.client.get_waiter('bucket_exists')
         s3_bucket_exists_waiter.wait(Bucket=output_bucket)
-        self.client.put_bucket_acl(
-            ACL='public-read-write',
-            Bucket=output_bucket,
-        )
-        print("Finished setting up output bucket")
+        if static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
+            self.client.put_bucket_acl(
+                ACL='public-read-write',
+                Bucket=output_bucket,
+            )
+        logger.info("Finished setting up output bucket")
 
-    def write_output(self, executor_id, outputs, metadata, submission_time, static_job_info):
+    def write_output(self, executor_id, outputs, metadata, static_job_info, submission_time):
         output_source = static_job_info[StaticVariables.SHUFFLING_BUCKET_FN] \
             if StaticVariables.OUTPUT_SOURCE_FN not in static_job_info \
             else static_job_info[StaticVariables.OUTPUT_SOURCE_FN]
@@ -58,22 +63,23 @@ class OutputHandlerS3:
             else static_job_info[StaticVariables.OUTPUT_PREFIX_FN]
         output_full_prefix = "%s/%s/%s" % (job_name, output_prefix, submission_time)
 
-        return self.client.list_objects(Bucket=output_source, Prefix=output_full_prefix), "Contents"
+        response = self.client.list_objects(Bucket=output_source, Prefix=output_full_prefix)
+        if "Contents" in response:
+            return response["Contents"]
+        else:
+            return None
 
-    def check_job_finish(self, response, string_index, num_final_dst_operators, static_job_info, submission_time):
+    def check_job_finish(self, last_stage_keys, num_final_dst_operators, static_job_info, submission_time):
         output_bucket = static_job_info[StaticVariables.OUTPUT_SOURCE_FN]
-        lambda_time = 0
         s3_size = 0
-        last_stage_keys = response[string_index]
         if len(last_stage_keys) == num_final_dst_operators:
+            StaticVariables.COST_CALCULATION_START_TIME = time.time()
+            job_execution_time = StaticVariables.COST_CALCULATION_START_TIME - StaticVariables.JOB_START_TIME
+            logger.info("PERFORMANCE INFO - Job execution time: %s seconds" % str(job_execution_time))
             for last_stage_key in last_stage_keys:
-                print("The response is", response)
-                print("The output bucket is", output_bucket)
-                print("The last stage key is", last_stage_key)
                 # Even though metadata processing time is written as processingTime,
                 # AWS does not accept uppercase letter metadata key
-                lambda_time += float(self.client.head_object(Bucket=output_bucket, Key=last_stage_key["Key"])
-                                             ['Metadata']['processingtime'])
+                # metadata = self.client.head_object(Bucket=output_bucket, Key=last_stage_key["Key"])['Metadata']
                 s3_size += last_stage_key["Size"]  # Size is expressed in (int) Bytes
 
             s3_put_ops = len(last_stage_keys)
@@ -83,10 +89,10 @@ class OutputHandlerS3:
             s3_put_cost = s3_put_ops * 0.005 / 1000
             # S3 GET $0.004/10000
             s3_get_cost = s3_get_ops * 0.004 / 10000
-            print("Last stage number of write ops:", s3_put_ops)
-            print("Last stage number of read ops:", s3_get_ops)
+            logger.info("Last stage number of write ops: %s" % s3_put_ops)
+            logger.info("Last stage number of read ops: %s" % s3_get_ops)
 
-            return lambda_time, s3_storage_cost, s3_put_cost, s3_get_cost
+            return 0, s3_storage_cost, s3_put_cost, s3_get_cost
         return -1, -1, -1, -1
 
     def get_output(self, executor_id, static_job_info, submission_time):

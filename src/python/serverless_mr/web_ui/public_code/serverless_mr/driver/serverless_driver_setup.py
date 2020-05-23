@@ -3,6 +3,7 @@ import boto3
 import pickle
 import os
 import glob
+import logging
 
 from datetime import datetime
 from driver.driver import set_up_local_input_data, pickle_functions_and_zip_stage
@@ -10,6 +11,9 @@ from static.static_variables import StaticVariables
 from utils import zip
 from aws_lambda import lambda_manager
 from botocore.client import Config
+from utils.setup_logger import logger
+
+logger = logging.getLogger('serverless-mr.serverless-driver-setup')
 
 
 def delete_files(filenames):
@@ -75,7 +79,7 @@ class ServerlessDriverSetup:
             ACL='public-read-write',
             Bucket=bucket_name,
         )
-        print("%s Bucket created successfully" % bucket_name)
+        logger.info("%s Bucket created successfully" % bucket_name)
 
     # Serverless set up
     def register_driver(self):
@@ -94,7 +98,7 @@ class ServerlessDriverSetup:
                 cur_function = functions[i]
                 cur_function_zip_path = "%s-%s.zip" % (cur_function.get_string(), stage_id)
 
-                # Prepare Lambda functions if driver running in local machine
+                # Prepare Lambda functions
                 rel_function_paths = pickle_functions_and_zip_stage(cur_function_zip_path, cur_function, stage_id)
 
                 function_filepaths += rel_function_paths
@@ -130,10 +134,10 @@ class ServerlessDriverSetup:
         delete_files(glob.glob(StaticVariables.LAMBDA_ZIP_GLOB_PATH))
 
     def invoke(self):
-        result = self.lambda_client.invoke(
+        response = self.lambda_client.invoke(
             FunctionName=self.driver_lambda_name,
             InvocationType='RequestResponse',
             Payload=json.dumps({})
         )
 
-        print("Finished executing this job: ", result)
+        logger.info("Finished executing this job: %s" % response)

@@ -12,12 +12,7 @@ from pathlib import Path
 project_working_dir = os.getcwd()
 library_dir = Path(os.path.dirname(os.path.realpath(__file__)))
 library_working_dir = library_dir
-# print("The current project working directory is", project_working_dir)
-# print("The current library working directory is", library_working_dir)
 sys.path.insert(0, str(library_working_dir))
-
-# for path in sys.path:
-#     print("Sys path:", path)
 
 from driver.driver import Driver
 from functions.map_function import MapFunction
@@ -30,11 +25,6 @@ from default.partition import default_partition
 from utils.setup_logger import logger
 
 logger = logging.getLogger('serverless-mr.main')
-
-# project_working_dir = os.getcwd()
-# library_dir = Path(os.path.dirname(os.path.realpath(__file__)))
-# library_working_dir = library_dir
-# library_working_dir = library_dir.parent
 
 
 def find_filepath(package_name, filename):
