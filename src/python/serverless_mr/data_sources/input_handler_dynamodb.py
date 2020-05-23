@@ -116,7 +116,6 @@ class InputHandlerDynamoDB:
                 line = fp.readline()
                 id_cnt += 1
 
-
     def set_up_local_input_data(self, input_filepaths, static_job_info):
         input_partition_key = static_job_info[StaticVariables.INPUT_PARTITION_KEY_DYNAMODB]
         input_sort_key = static_job_info[StaticVariables.INPUT_SORT_KEY_DYNAMODB] \
@@ -164,7 +163,7 @@ class InputHandlerDynamoDB:
 
         return all_keys
 
-    def read_records_from_input_key(self, input_source, input_key, static_job_info):
+    def read_value(self, input_source, input_key, static_job_info):
         input_table_name = input_source
         input_partition_key = static_job_info[StaticVariables.INPUT_PARTITION_KEY_DYNAMODB]
         input_sort_key = static_job_info[StaticVariables.INPUT_SORT_KEY_DYNAMODB] \

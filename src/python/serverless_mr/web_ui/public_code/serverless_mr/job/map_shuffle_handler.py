@@ -76,7 +76,7 @@ def lambda_handler(event, _):
                                                             in_lambda=True)
         input_source = static_job_info[StaticVariables.INPUT_SOURCE_FN]
         for input_key in src_keys:
-            input_value = cur_input_handler.read_records_from_input_key(input_source, input_key, static_job_info)
+            input_value = cur_input_handler.read_value(input_source, input_key, static_job_info)
             input_pair = (input_key, input_value)
             map_function(intermediate_data, input_pair)
 

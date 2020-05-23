@@ -1,6 +1,5 @@
 import boto3
 import json
-import random
 import time
 import os
 import pickle
@@ -19,19 +18,7 @@ from functions.map_shuffle_function import MapShuffleFunction
 from functions.reduce_function import ReduceFunction
 from utils.setup_logger import logger
 
-tmp_static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
-
-if tmp_static_job_info[StaticVariables.SERVERLESS_DRIVER_FLAG_FN]:
-    root = logging.getLogger()
-    if root.handlers:
-        for handler in root.handlers:
-            if tmp_static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
-                root.setLevel(level=logging.INFO)
-            else:
-                root.removeHandler(handler)
-
 logger = logging.getLogger('serverless-mr.driver')
-
 
 def delete_files(filenames):
     for filename in filenames:
@@ -639,12 +626,12 @@ class Driver:
         # Wait for the job to complete so that we can compute total cost ; create a poll every 5 secs
         while True:
             logger.info("Checking whether the job is completed...")
-            response, string_index = cur_output_handler.list_objects_for_checking_finish(self.static_job_info,
+            completed_executors = cur_output_handler.list_objects_for_checking_finish(self.static_job_info,
                                                                                          self.submission_time)
-            if string_index in response:
+            if completed_executors is not None:
                 last_stage_lambda_time, last_stage_storage_cost, last_stage_write_cost, last_stage_read_cost = \
-                    cur_output_handler.check_job_finish(response, string_index, num_outputs, self.submission_time,
-                                                        self.static_job_info)
+                    cur_output_handler.check_job_finish(completed_executors, num_outputs, self.static_job_info,
+                                                        self.submission_time)
                 if last_stage_lambda_time > -1:
                     # total_lambda_time += last_stage_lambda_time
                     last_stage_database_cost = last_stage_storage_cost + last_stage_write_cost + last_stage_read_cost
@@ -728,7 +715,7 @@ class Driver:
         cur_output_handler = output_handler.get_output_handler(self.static_job_info[StaticVariables.OUTPUT_SOURCE_TYPE_FN],
                                                                self.static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN],
                                                                self.is_serverless)
-        cur_output_handler.create_output_storage(self.submission_time, self.static_job_info)
+        cur_output_handler.create_output_storage(self.static_job_info, self.submission_time)
 
         # Execute
         # 2. Invoke Mappers asynchronously

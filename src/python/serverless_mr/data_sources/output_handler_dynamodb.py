@@ -84,7 +84,7 @@ class OutputHandlerDynamoDB:
             }
         )
 
-    def create_output_storage(self, submission_time, static_job_info):
+    def create_output_storage(self, static_job_info, submission_time):
         job_name = static_job_info[StaticVariables.JOB_NAME_FN]
         metadata_table_name = "%s-%s-metadata" % (job_name, submission_time)
         output_table_name_prefix = static_job_info[StaticVariables.SHUFFLING_BUCKET_FN] \
@@ -97,7 +97,7 @@ class OutputHandlerDynamoDB:
         OutputHandlerDynamoDB.create_table(self.client, metadata_table_name,
                                            [OutputHandlerDynamoDB.METADATA_TABLE_KEY_NAME, 'S'])
 
-    def write_output(self, reducer_id, outputs, metadata, submission_time, static_job_info):
+    def write_output(self, reducer_id, outputs, metadata, static_job_info, submission_time):
         job_name = static_job_info[StaticVariables.JOB_NAME_FN]
         metadata_table_name = "%s-%s-metadata" % (job_name, submission_time)
         output_table_name_prefix = static_job_info[StaticVariables.SHUFFLING_BUCKET_FN] \
@@ -119,16 +119,17 @@ class OutputHandlerDynamoDB:
 
         if self.client.describe_table(TableName=metadata_table_name)['Table']['TableStatus'] == 'ACTIVE':
             response = self.client.scan(TableName=metadata_table_name, ProjectionExpression=project_expression)
-            return response, "Items"
+            if "Items" in response:
+                return response["Items"]
 
-        return {}, "Items"
+        return None
 
-    def check_job_finish(self, response, string_index, num_final_dst_operators, submission_time, static_job_info):
+    def check_job_finish(self, completed_executors, num_final_dst_operators, static_job_info, submission_time):
         last_stage_keys = []
         reducer_metadata = []
         lambda_time = 0
 
-        for record in response[string_index]:
+        for record in completed_executors:
             last_stage_keys.append(record[OutputHandlerDynamoDB.METADATA_TABLE_KEY_NAME]['S'])
             reducer_metadata.append(json.loads(record[OutputHandlerDynamoDB.METADATA_TABLE_COLUMN_NAME]['S']))
 

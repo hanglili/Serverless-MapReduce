@@ -121,7 +121,7 @@ def lambda_handler(event, _):
         cur_output_handler = output_handler.get_output_handler(static_job_info[StaticVariables.OUTPUT_SOURCE_TYPE_FN],
                                                                static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN],
                                                                in_lambda=True)
-        cur_output_handler.write_output(reducer_id, outputs, metadata, submission_time, static_job_info)
+        cur_output_handler.write_output(reducer_id, outputs, metadata, static_job_info, submission_time)
     else:
         mapper_filename = "%s/%s-%s/%s" % (job_name, StaticVariables.OUTPUT_PREFIX, stage_id, reducer_id)
         s3_client.put_object(Bucket=shuffling_bucket, Key=mapper_filename,

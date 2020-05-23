@@ -11,8 +11,9 @@ project_working_dir = os.getcwd()
 library_dir = Path(os.path.dirname(os.path.realpath(__file__)))
 library_working_dir = library_dir.parent
 sys.path.insert(0, str(library_working_dir))
+print("Sys Paths:")
 for path in sys.path:
-    print("Sys path:", path)
+    print("%s" % str(path))
 
 
 from datetime import datetime
@@ -28,7 +29,6 @@ from data_sources import input_handler_s3
 app = Flask(__name__, template_folder="./templates/static")
 cors = CORS(app)
 app.config['CORS_HEADERS'] = 'Content-Type'
-# app.config["APPLICATION_ROOT"] = "/dev"
 
 
 def is_production():
@@ -406,8 +406,8 @@ def get_num_completed_operators():
     is_local_testing = os.environ.get("local_testing") == 'True' or os.environ.get("local_testing") == 'true'
     input_handler_s3_obj = input_handler_s3.InputHandlerS3(in_lambda=False, is_local_testing=is_local_testing)
     s3_stage_conf_path = StaticVariables.S3_UI_STAGE_CONFIGURATION_PATH % (job_name, submission_time)
-    stage_config = json.loads(input_handler_s3_obj.read_records_from_input_key(StaticVariables.S3_JOBS_INFORMATION_BUCKET_NAME,
-                                                                               s3_stage_conf_path, None))
+    stage_config = json.loads(input_handler_s3_obj.read_value(StaticVariables.S3_JOBS_INFORMATION_BUCKET_NAME,
+                                                              s3_stage_conf_path, None))
 
     stage_state_obj = stage_state.StageState(in_lambda=False, is_local_testing=is_local_testing)
     stage_states = stage_state_obj.read_state_table(StaticVariables.STAGE_STATE_DYNAMODB_TABLE_NAME
@@ -428,8 +428,8 @@ def get_dag_information():
     is_local_testing = os.environ.get("local_testing") == 'True' or os.environ.get("local_testing") == 'true'
     input_handler_s3_obj = input_handler_s3.InputHandlerS3(in_lambda=False, is_local_testing=is_local_testing)
     s3_dag_information_path = StaticVariables.S3_UI_DAG_INFORMATION_PATH % (job_name, submission_time)
-    dag_data = json.loads(input_handler_s3_obj.read_records_from_input_key(StaticVariables.S3_JOBS_INFORMATION_BUCKET_NAME,
-                                                                           s3_dag_information_path, None))
+    dag_data = json.loads(input_handler_s3_obj.read_value(StaticVariables.S3_JOBS_INFORMATION_BUCKET_NAME,
+                                                          s3_dag_information_path, None))
     return jsonify(dag_data)
 
 

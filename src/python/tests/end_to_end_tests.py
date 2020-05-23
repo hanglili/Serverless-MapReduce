@@ -4,7 +4,7 @@ import os
 
 from serverless_mr.static.static_variables import StaticVariables
 from serverless_mr.main import ServerlessMR
-from user_job_5.map import extract_data
+from user_job_5.map import extract_data_s3
 from user_job_5.map_2 import truncate_decimals
 from user_job_5.reduce import reduce_function
 from user_job_5.partition import partition
@@ -34,7 +34,7 @@ class Test(TestCase):
     def test_that_lambda_returns_correct_message(self):
         # Execute the job
         serverless_mr = ServerlessMR()
-        serverless_mr.map(extract_data).map(truncate_decimals).shuffle(partition).reduce(reduce_function, 4).run()
+        serverless_mr.map(extract_data_s3).map(truncate_decimals).shuffle(partition).reduce(reduce_function, 4).run()
 
         print("The job has finished")
 

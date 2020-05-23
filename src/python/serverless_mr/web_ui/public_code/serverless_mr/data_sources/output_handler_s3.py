@@ -60,7 +60,7 @@ class OutputHandlerS3:
 
         return self.client.list_objects(Bucket=output_source, Prefix=output_full_prefix), "Contents"
 
-    def check_job_finish(self, response, string_index, num_final_dst_operators, submission_time, static_job_info):
+    def check_job_finish(self, response, string_index, num_final_dst_operators, static_job_info, submission_time):
         output_bucket = static_job_info[StaticVariables.OUTPUT_SOURCE_FN]
         lambda_time = 0
         s3_size = 0

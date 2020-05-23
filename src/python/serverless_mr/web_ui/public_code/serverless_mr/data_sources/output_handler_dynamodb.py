@@ -119,7 +119,7 @@ class OutputHandlerDynamoDB:
 
         return {}, "Items"
 
-    def check_job_finish(self, response, string_index, num_final_dst_operators, submission_time, static_job_info):
+    def check_job_finish(self, response, string_index, num_final_dst_operators, static_job_info, submission_time):
         last_stage_keys = []
         reducer_metadata = []
         lambda_time = 0

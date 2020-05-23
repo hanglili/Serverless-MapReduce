@@ -512,8 +512,8 @@ class Driver:
                                                                                          self.submission_time)
             if string_index in response:
                 last_stage_lambda_time, last_stage_storage_cost, last_stage_write_cost, last_stage_read_cost = \
-                    cur_output_handler.check_job_finish(response, string_index, num_outputs, self.submission_time,
-                                                        self.static_job_info)
+                    cur_output_handler.check_job_finish(response, string_index, num_outputs, self.static_job_info,
+                                                        self.submission_time)
                 if last_stage_lambda_time > -1:
                     total_lambda_time += last_stage_lambda_time
                     last_stage_database_cost = last_stage_storage_cost + last_stage_write_cost + last_stage_read_cost
@@ -594,7 +594,7 @@ class Driver:
         cur_output_handler = output_handler.get_output_handler(self.static_job_info[StaticVariables.OUTPUT_SOURCE_TYPE_FN],
                                                                self.static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN],
                                                                self.is_serverless)
-        cur_output_handler.create_output_storage(self.submission_time, self.static_job_info)
+        cur_output_handler.create_output_storage(self.static_job_info, self.submission_time)
         self._calculate_cost(num_outputs, cur_output_handler, invoking_pipelines_info)
 
         # 4. Delete the function lambdas

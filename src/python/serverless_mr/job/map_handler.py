@@ -13,20 +13,17 @@ from utils import input_handler, output_handler, stage_progress
 
 static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
 
-# root = logging.getLogger()
-# if root.handlers:
-#     for handler in root.handlers:
-#         if static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
-#             root.setLevel(level=logging.INFO)
-#         else:
-#             root.removeHandler(handler)
+root = logging.getLogger()
+if root.handlers:
+    for handler in root.handlers:
+        root.setLevel(level=logging.INFO)
 
-# from utils.setup_logger import logger
-# logger = logging.getLogger('serverless-mr.map-handler')
+from utils.setup_logger import logger
+logger = logging.getLogger('serverless-mr.map-handler')
 
 
 def lambda_handler(event, _):
-    print("**************Map****************")
+    logger.info("**************Map****************")
     start_time = time.time()
     io_time = 0
 
@@ -58,7 +55,7 @@ def lambda_handler(event, _):
     coordinator_lambda_name = os.environ.get("coordinator_lambda_name")
     submission_time = os.environ.get("submission_time")
 
-    print("Stage: %s" % stage_id)
+    logger.info("Stage: %s" % stage_id)
 
     if StaticVariables.OPTIMISATION_FN not in static_job_info \
             or not static_job_info[StaticVariables.OPTIMISATION_FN]:
@@ -77,7 +74,7 @@ def lambda_handler(event, _):
     outputs = []
 
     start_overhead = time.time() - start_time
-    print("Start overhead: %s" % str(start_overhead))
+    logger.info("Start overhead: %s" % str(start_overhead))
 
     if load_data_from_input:
         cur_input_handler = input_handler.get_input_handler(static_job_info[StaticVariables.INPUT_SOURCE_TYPE_FN],
@@ -86,7 +83,7 @@ def lambda_handler(event, _):
         input_source = static_job_info[StaticVariables.INPUT_SOURCE_FN]
         for input_key in src_keys:
             io_start_time = time.time()
-            input_value = cur_input_handler.read_records_from_input_key(input_source, input_key, static_job_info)
+            input_value = cur_input_handler.read_value(input_source, input_key, static_job_info)
             io_time += time.time() - io_start_time
             input_pair = (input_key, input_value)
             map_function(outputs, input_pair)
@@ -139,7 +136,7 @@ def lambda_handler(event, _):
     # s3DownloadTime = 0
     # totalProcessingTime = 0
 
-    print("Map sample outputs: %s" % str(outputs[0:10]))
+    logger.info("Map sample outputs: %s" % str(outputs[0:10]))
 
     if stage_id == total_num_stages:
         cur_output_handler = output_handler.get_output_handler(static_job_info[StaticVariables.OUTPUT_SOURCE_TYPE_FN],
@@ -147,7 +144,7 @@ def lambda_handler(event, _):
                                                                in_lambda=True)
         # cur_output_handler.write_output(mapper_id, outputs, metadata, submission_time, static_job_info)
         io_start_time = time.time()
-        cur_output_handler.write_output(mapper_id, outputs, {}, submission_time, static_job_info)
+        cur_output_handler.write_output(mapper_id, outputs, {}, static_job_info, submission_time)
         io_time += time.time() - io_start_time
     else:
         mapper_filename = "%s/%s-%s/%s" % (job_name, StaticVariables.OUTPUT_PREFIX, stage_id, mapper_id)
@@ -180,7 +177,7 @@ def lambda_handler(event, _):
     execution_info_s3_key = "%s/stage-%s/%s" % (job_name, stage_id, mapper_id)
     s3_client.put_object(Bucket=metrics_bucket, Key=execution_info_s3_key,
                          Body=json.dumps({}), Metadata=metadata)
-    print("Info write time: %s" % str(time.time() - info_write_start_time))
+    logger.info("Info write time: %s" % str(time.time() - info_write_start_time))
 
-    print("Mapper %s finishes execution" % str(mapper_id))
-    print("Execution time: %s" % str(time.time() - start_time))
+    logger.info("Mapper %s finishes execution" % str(mapper_id))
+    logger.info("Execution time: %s" % str(time.time() - start_time))

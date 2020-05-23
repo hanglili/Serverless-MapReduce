@@ -24,7 +24,7 @@ class OutputHandlerS3:
         else:
             self.client = boto3.client('s3')
 
-    def create_output_storage(self, submission_time, static_job_info):
+    def create_output_storage(self, static_job_info, submission_time):
         output_bucket = static_job_info[StaticVariables.SHUFFLING_BUCKET_FN] \
             if StaticVariables.OUTPUT_SOURCE_FN not in static_job_info \
             else static_job_info[StaticVariables.OUTPUT_SOURCE_FN]
@@ -38,7 +38,7 @@ class OutputHandlerS3:
             )
         logger.info("Finished setting up output bucket")
 
-    def write_output(self, executor_id, outputs, metadata, submission_time, static_job_info):
+    def write_output(self, executor_id, outputs, metadata, static_job_info, submission_time):
         output_source = static_job_info[StaticVariables.SHUFFLING_BUCKET_FN] \
             if StaticVariables.OUTPUT_SOURCE_FN not in static_job_info \
             else static_job_info[StaticVariables.OUTPUT_SOURCE_FN]
@@ -63,12 +63,15 @@ class OutputHandlerS3:
             else static_job_info[StaticVariables.OUTPUT_PREFIX_FN]
         output_full_prefix = "%s/%s/%s" % (job_name, output_prefix, submission_time)
 
-        return self.client.list_objects(Bucket=output_source, Prefix=output_full_prefix), "Contents"
+        response = self.client.list_objects(Bucket=output_source, Prefix=output_full_prefix)
+        if "Contents" in response:
+            return response["Contents"]
+        else:
+            return None
 
-    def check_job_finish(self, response, string_index, num_final_dst_operators, submission_time, static_job_info):
+    def check_job_finish(self, last_stage_keys, num_final_dst_operators, static_job_info, submission_time):
         output_bucket = static_job_info[StaticVariables.OUTPUT_SOURCE_FN]
         s3_size = 0
-        last_stage_keys = response[string_index]
         if len(last_stage_keys) == num_final_dst_operators:
             StaticVariables.COST_CALCULATION_START_TIME = time.time()
             job_execution_time = StaticVariables.COST_CALCULATION_START_TIME - StaticVariables.JOB_START_TIME

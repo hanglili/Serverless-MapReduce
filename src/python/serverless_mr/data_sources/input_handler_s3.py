@@ -63,7 +63,7 @@ class InputHandlerS3:
 
         return all_keys
 
-    def read_records_from_input_key(self, input_source, input_key, static_job_info):
+    def read_value(self, input_source, input_key, static_job_info):
         response = self.client.get_object(Bucket=input_source, Key=input_key)
         contents = response['Body'].read()
 

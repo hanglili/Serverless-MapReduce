@@ -65,7 +65,7 @@ def lambda_handler(event, _):
                                                             in_lambda=True)
         input_source = static_job_info[StaticVariables.INPUT_SOURCE_FN]
         for input_key in src_keys:
-            input_value = cur_input_handler.read_records_from_input_key(input_source, input_key, static_job_info)
+            input_value = cur_input_handler.read_value(input_source, input_key, static_job_info)
             input_pair = (input_key, input_value)
             map_function(intermediate_data, input_pair)
 
@@ -124,7 +124,7 @@ def lambda_handler(event, _):
         cur_output_handler = output_handler.get_output_handler(static_job_info[StaticVariables.OUTPUT_SOURCE_TYPE_FN],
                                                                static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN],
                                                                in_lambda=True)
-        cur_output_handler.write_output(mapper_id, outputs, metadata, submission_time, static_job_info)
+        cur_output_handler.write_output(mapper_id, outputs, metadata, static_job_info, submission_time)
     else:
         mapper_filename = "%s/%s-%s/%s" % (job_name, StaticVariables.OUTPUT_PREFIX, stage_id, mapper_id)
         s3_client.put_object(Bucket=shuffling_bucket, Key=mapper_filename,
