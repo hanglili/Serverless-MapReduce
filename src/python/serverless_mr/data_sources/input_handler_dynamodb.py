@@ -125,6 +125,8 @@ class InputHandlerDynamoDB:
         InputHandlerDynamoDB.create_table(self.client, input_table_name, input_partition_key, input_sort_key)
 
         for input_filepath in input_filepaths:
+            if os.path.isdir(input_filepath):
+                continue
             InputHandlerDynamoDB.put_items(self.client, input_table_name, input_filepath,
                                            input_partition_key, input_sort_key, input_columns)
 
