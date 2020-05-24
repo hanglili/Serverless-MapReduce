@@ -211,7 +211,7 @@ def register_job():
         contents = client.list_objects(Bucket=bucket_name).get("Contents", [])
         for content in contents:
             key = content.get('Key')
-            logger.info("S3 Object Key:" % key)
+            logger.info("S3 Object Key: %s" % key)
             if not key.endswith("/"):
                 dest_pathname = os.path.join(TMP_DIR_NAME, key)
                 logger.info("Destination path: %s" % dest_pathname)
