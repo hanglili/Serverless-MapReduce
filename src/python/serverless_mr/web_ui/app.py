@@ -4,6 +4,7 @@ import os
 import sys
 import subprocess
 import random
+import logging
 
 from pathlib import Path
 
@@ -23,6 +24,14 @@ from botocore.client import Config
 from utils import in_degree, stage_state, stage_progress
 from static.static_variables import StaticVariables
 from data_sources import input_handler_s3
+
+root = logging.getLogger()
+if root.handlers:
+    for handler in root.handlers:
+        root.setLevel(level=logging.INFO)
+
+from utils.setup_logger import logger
+logger = logging.getLogger('serverless-mr.web-app')
 
 
 # app = Flask(__name__, static_folder='./templates/public', template_folder="./templates/static")
@@ -51,13 +60,13 @@ def get_url():
 
 
 def delete_files(dirname, filenames):
-    print("At delete_files, the current working directory is", os.getcwd())
+    logger.info("At delete_files, the current working directory is %s" % str(os.getcwd()))
     for filename in filenames:
         if dirname == "":
             dst_file = filename
         else:
             dst_file = "%s/%s" % (dirname, filename)
-        print("The file to delete is", dst_file)
+        logger.info("The file to delete: %s" % str(dst_file))
         if os.path.exists(dst_file):
             os.remove(dst_file)
 
@@ -65,7 +74,7 @@ def delete_files(dirname, filenames):
 @app.route("/get-source-files", methods=['GET'])
 @cross_origin()
 def get_source_files():
-    print("WebUI: Received request for path /get-source-files")
+    logger.info("WebUI: Received request for path /get-source-files")
     job_name = request.args.get('job-name')
     is_local_testing = os.environ.get("local_testing") == 'True' or os.environ.get("local_testing") == 'true'
     if is_local_testing:
@@ -96,9 +105,8 @@ def get_source_files():
 def create_init_py(dest_pathname, is_local_testing):
     directory_path = os.path.dirname(dest_pathname)
     os.makedirs(directory_path, exist_ok=True)
-    print("Directory path: %s" % directory_path)
+    logger.info("Directory path: %s" % str(directory_path))
     directory_names = directory_path.split('/')
-    print("Directory names: %s" % str(directory_names))
     if is_local_testing:
         cur_dir_level = ""
         i = 0
@@ -117,8 +125,7 @@ def create_init_py(dest_pathname, is_local_testing):
 @app.route("/modify-job", methods=['POST'])
 @cross_origin()
 def modify_job():
-    print("WebUI: Received request for path /modify-job")
-    print("Current working directory is", os.getcwd())
+    logger.info("WebUI: Received request for path /modify-job")
     main_file = request.args.get('main-file')
     is_local_testing = os.environ.get("local_testing") == 'True' or os.environ.get("local_testing") == 'true'
     if is_local_testing:
@@ -133,10 +140,10 @@ def modify_job():
         contents = client.list_objects(Bucket=bucket_name).get("Contents", [])
         for content in contents:
             key = content.get('Key')
-            print("Current key:", key)
+            logger.info("S3 Object key: %s" % key)
             if not key.endswith("/"):
                 dest_pathname = os.path.join(TMP_DIR_NAME, key)
-                print("Current destination path:", dest_pathname)
+                logger.info("Destination path: %s" % dest_pathname)
                 if not os.path.exists(os.path.dirname(dest_pathname)):
                     os.makedirs(os.path.dirname(dest_pathname))
                 client.download_file(Bucket=bucket_name, Key=key, Filename=dest_pathname)
@@ -147,16 +154,16 @@ def modify_job():
         if key == 'static-job-info.json':
             static_job_info_json = json.loads(content_string)
             if "lambdaNamePrefix" not in static_job_info_json:
-                print("INFO: The field lambdaNamePrefix is not provided, default to the first 2 chars of job name.")
+                logger.info("Field lambdaNamePrefix is not provided, default to the first 2 chars of job name")
                 static_job_info_json["lambdaNamePrefix"] = static_job_info_json[StaticVariables.JOB_NAME_FN][:2]
             if "localTesting" not in static_job_info_json:
-                print("INFO: The field localTesting is not provided, default to false.")
+                logger.info("Field localTesting is not provided, default to false")
                 static_job_info_json["localTesting"] = False
             if "serverlessDriver" not in static_job_info_json:
-                print("INFO: The field serverlessDriver is not provided, default to true.")
+                logger.info("Field serverlessDriver is not provided, default to true")
                 static_job_info_json["serverlessDriver"] = True
             if "useCombine" not in static_job_info_json:
-                print("INFO: The field useCombine is not provided, default to true.")
+                logger.info("Field useCombine is not provided, default to true")
                 static_job_info_json["useCombine"] = True
 
             dest_pathname = os.path.join(TMP_DIR_NAME, key)
@@ -189,8 +196,7 @@ def modify_job():
 @app.route("/register-job", methods=['POST'])
 @cross_origin()
 def register_job():
-    print("WebUI: Received request for path /register-job")
-    print("Current working directory is", os.getcwd())
+    logger.info("WebUI: Received request for path /register-job")
 
     is_local_testing = os.environ.get("local_testing") == 'True' or os.environ.get("local_testing") == 'true'
     if is_local_testing:
@@ -205,10 +211,10 @@ def register_job():
         contents = client.list_objects(Bucket=bucket_name).get("Contents", [])
         for content in contents:
             key = content.get('Key')
-            print("Current key:", key)
+            logger.info("S3 Object Key:" % key)
             if not key.endswith("/"):
                 dest_pathname = os.path.join(TMP_DIR_NAME, key)
-                print("Current destination path:", dest_pathname)
+                logger.info("Destination path: %s" % dest_pathname)
                 if not os.path.exists(os.path.dirname(dest_pathname)):
                     os.makedirs(os.path.dirname(dest_pathname))
                 client.download_file(Bucket=bucket_name, Key=key, Filename=dest_pathname)
@@ -218,16 +224,16 @@ def register_job():
     static_job_info = content['static-job-info.json']
     static_job_info_json = json.loads(static_job_info)
     if "lambdaNamePrefix" not in static_job_info_json:
-        print("INFO: The field lambdaNamePrefix is not provided, default to the first 2 chars of job name.")
+        logger.info("Field lambdaNamePrefix is not provided, default to the first 2 chars of job name")
         static_job_info_json["lambdaNamePrefix"] = static_job_info_json[StaticVariables.JOB_NAME_FN][:2]
     if "localTesting" not in static_job_info_json:
-        print("INFO: The field localTesting is not provided, default to false.")
+        logger.info("Field localTesting is not provided, default to false")
         static_job_info_json["localTesting"] = False
     if "serverlessDriver" not in static_job_info_json:
-        print("INFO: The field serverlessDriver is not provided, default to true.")
+        logger.info("Field serverlessDriver is not provided, default to true")
         static_job_info_json["serverlessDriver"] = True
     if "useCombine" not in static_job_info_json:
-        print("INFO: The field useCombine is not provided, default to true.")
+        logger.info("Field useCombine is not provided, default to true")
         static_job_info_json["useCombine"] = True
 
     dest_pathname = os.path.join(TMP_DIR_NAME, 'configuration/static-job-info.json')
@@ -277,14 +283,14 @@ def register_job():
 @app.route('/public/<path:filename>')
 @cross_origin()
 def online_custom_static(filename):
-    print("WebUI: Received request for path /public/%s" % filename)
+    logger.info("WebUI: Received request for path /public/%s" % filename)
     return send_from_directory('templates/public', filename)
 
 
 @app.route('/dev/public/<path:filename>')
 @cross_origin()
 def local_custom_static(filename):
-    print("WebUI: Received request for path /dev/public/%s" % filename)
+    logger.info("WebUI: Received request for path /dev/public/%s" % filename)
     return send_from_directory('templates/public', filename)
 
 
@@ -293,7 +299,7 @@ def local_custom_static(filename):
 @app.route('/dev/table')
 @cross_origin()
 def index():
-    print("WebUI: Received request for path /")
+    logger.info("WebUI: Received request for path /")
     if is_production():
         return render_template("index.html")
     else:
@@ -303,7 +309,7 @@ def index():
 @app.route('/username')
 @cross_origin()
 def get_username():
-    print("WebUI: Received request for path /username")
+    logger.info("WebUI: Received request for path /username")
     is_local_testing = os.environ.get("local_testing") == 'True' or os.environ.get("local_testing") == 'true'
     if is_local_testing:
         local_endpoint_url = 'http://localhost:4592'
@@ -318,8 +324,7 @@ def get_username():
 @app.route("/jobs", methods=['GET'])
 @cross_origin()
 def get_jobs_info():
-    print("WebUI: Received request for path /jobs")
-    print("Current working directory is", os.getcwd())
+    logger.info("WebUI: Received request for path /jobs")
     is_local_testing = os.environ.get("local_testing") == 'True' or os.environ.get("local_testing") == 'true'
     if is_local_testing:
         local_endpoint_url = 'http://localhost:4572'
@@ -367,7 +372,8 @@ def get_jobs_info():
 def invoke_job():
     job_name = request.args.get('job-name')
     driver_lambda_name = request.args.get('driver-lambda-name')
-    print("WebUI: Received request for path /invoke-job with parameters", job_name, driver_lambda_name)
+    logger.info("WebUI: Received request for path /invoke-job with parameters: %s, %s" %
+                (job_name, driver_lambda_name))
 
     is_local_testing = os.environ.get("local_testing") == 'True' or os.environ.get("local_testing") == 'true'
     if is_local_testing:
@@ -404,7 +410,7 @@ def invoke_job():
         InvocationType='Event',
         Payload=json.dumps({})
     )
-    print(response)
+    logger.info(response)
     return jsonify(response['ResponseMetadata'])
 
 
@@ -414,7 +420,8 @@ def schedule_job():
     job_name = request.args.get('job-name')
     driver_lambda_name = request.args.get('driver-lambda-name')
     schedule_expression = request.args.get('schedule-expression')
-    print("WebUI: Received request for path /schedule-job with parameters", job_name, driver_lambda_name, schedule_expression)
+    logger.info("WebUI: Received request for path /schedule-job with parameters: %s, %s, %s"
+                % (job_name, driver_lambda_name, schedule_expression))
 
     is_local_testing = os.environ.get("local_testing") == 'True' or os.environ.get("local_testing") == 'true'
     if is_local_testing:
@@ -470,7 +477,7 @@ def schedule_job():
             }
         ]
     )
-    print(response)
+    logger.info(response)
 
     s_id = random.randint(1, 1000)
     try:
@@ -481,9 +488,9 @@ def schedule_job():
             StatementId='%s' % s_id,
             SourceArn=rule_arn
         )
-        print(response)
+        logger.info(response)
     except Exception as e:
-        print("Failed to add permission to lambda:", e)
+        logger.info("Failed to add permission to lambda: %s" % str(e))
 
     return jsonify(response)
 
@@ -493,7 +500,8 @@ def schedule_job():
 def get_in_degree_info():
     job_name = request.args.get('job-name')
     submission_time = request.args.get('submission-time')
-    print("WebUI: Received request for path /in-degree with parameters", job_name, submission_time)
+    logger.info("WebUI: Received request for path /in-degree with parameters: %s, %s"
+                % (job_name, submission_time))
 
     is_local_testing = os.environ.get("local_testing") == 'True' or os.environ.get("local_testing") == 'true'
     in_degree_obj = in_degree.InDegree(in_lambda=False, is_local_testing=is_local_testing)
@@ -507,7 +515,8 @@ def get_in_degree_info():
 def get_stage_progress():
     job_name = request.args.get('job-name')
     submission_time = request.args.get('submission-time')
-    print("WebUI: Received request for path /stage-progress with parameters", job_name, submission_time)
+    logger.info("WebUI: Received request for path /stage-progress with parameters: %s, %s"
+                % (job_name, submission_time))
 
     is_local_testing = os.environ.get("local_testing") == 'True' or os.environ.get("local_testing") == 'true'
     stage_progress_obj = stage_progress.StageProgress(in_lambda=False, is_local_testing=is_local_testing)
@@ -521,7 +530,8 @@ def get_stage_progress():
 def get_num_completed_operators():
     job_name = request.args.get('job-name')
     submission_time = request.args.get('submission-time')
-    print("WebUI: Received request for path /num-completed-operators with parameters", job_name, submission_time)
+    logger.info("WebUI: Received request for path /num-completed-operators with parameters: %s, %s"
+                % (job_name, submission_time))
 
     is_local_testing = os.environ.get("local_testing") == 'True' or os.environ.get("local_testing") == 'true'
     input_handler_s3_obj = input_handler_s3.InputHandlerS3(in_lambda=False, is_local_testing=is_local_testing)
@@ -543,7 +553,8 @@ def get_num_completed_operators():
 def get_dag_information():
     job_name = request.args.get('job-name')
     submission_time = request.args.get('submission-time')
-    print("WebUI: Received request for path /dag with parameters", job_name, submission_time)
+    logger.info("WebUI: Received request for path /dag with parameters: %s, %s"
+                % (job_name, submission_time))
 
     is_local_testing = os.environ.get("local_testing") == 'True' or os.environ.get("local_testing") == 'true'
     input_handler_s3_obj = input_handler_s3.InputHandlerS3(in_lambda=False, is_local_testing=is_local_testing)

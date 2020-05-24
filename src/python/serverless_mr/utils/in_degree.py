@@ -76,6 +76,10 @@ class InDegree:
 
     def read_in_degree_table(self, table_name):
         in_degrees = {}
+        existing_tables = self.client.list_tables()['TableNames']
+        if table_name not in existing_tables:
+            return in_degrees
+
         projection_expression = "pipeline_id, in_degree"
         response = self.client.scan(TableName=table_name, ProjectionExpression=projection_expression)
         for record in response['Items']:
