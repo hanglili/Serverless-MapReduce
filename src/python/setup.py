@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="serverless-mr",
-    version="7.0.0",
+    version="8.0.0",
     author="Hang Li Li",
     author_email="hl4716@ic.ac.uk",
     description="Serverless Map Reduce",
@@ -18,7 +18,9 @@ setuptools.setup(
     # ),
     packages=setuptools.find_packages(
         exclude=["*.tests", "*.tests.*", "tests.*", "tests", "js", "node_modules", "user_job*", "package-lock.json",
-                 ".serverless", "cloudpickle", "configuration", "pipeline", "user_main.*", "test_trigger.*"]
+                 ".serverless", "cloudpickle", "configuration", "pipeline", "user_main.*", "test_trigger.*",
+                 "web_user_main.*", "performance_main*", "local_testing_main.py", "calculation.py",
+                 "performance_functions*", "user_functions", "serverless_mr/web_ui/public_code"]
     ),
     package_data={
         '': ['templates/static/*.html', 'templates/public/*.*', 'requirements.txt', 'package.json', 'serverless.yml']
