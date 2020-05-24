@@ -140,6 +140,7 @@ class ServerlessDriverSetup:
              }
         ]
         os.chdir(StaticVariables.PROJECT_WORKING_DIRECTORY)
+        print("Main.py file path is: %s" % main_file_path)
         self.s3_client.upload_file(
             Filename=main_file_path, Bucket=StaticVariables.S3_JOBS_INFORMATION_BUCKET_NAME,
             Key=StaticVariables.S3_UI_REGISTERED_JOB_SOURCE_FILES_PATH % (self.job_name, str(main_file_path))
@@ -162,9 +163,10 @@ class ServerlessDriverSetup:
                 Filename=function_path, Bucket=StaticVariables.S3_JOBS_INFORMATION_BUCKET_NAME,
                 Key=StaticVariables.S3_UI_REGISTERED_JOB_SOURCE_FILES_PATH % (self.job_name, str(function_path))
             )
+        main_job_source_info = {'main': main_file_path, 'sourceInfo': registered_job_source_info}
         self.s3_client.put_object(Bucket=StaticVariables.S3_JOBS_INFORMATION_BUCKET_NAME,
                                   Key=(StaticVariables.S3_UI_REGISTERED_JOB_SOURCE_INFO_PATH % self.job_name),
-                                  Body=json.dumps(registered_job_source_info))
+                                  Body=json.dumps(main_job_source_info))
 
         delete_files(glob.glob(StaticVariables.FUNCTIONS_PICKLE_GLOB_PATH))
         delete_files(glob.glob(StaticVariables.LAMBDA_ZIP_GLOB_PATH))

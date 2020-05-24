@@ -78,7 +78,9 @@ def get_source_files():
     response = client.get_object(Bucket=StaticVariables.S3_JOBS_INFORMATION_BUCKET_NAME,
                                  Key=(StaticVariables.S3_UI_REGISTERED_JOB_SOURCE_INFO_PATH % job_name))
     contents = response['Body'].read()
-    job_source_info = json.loads(contents)
+    contents_json = json.loads(contents)
+    job_source_info = contents_json['sourceInfo']
+    main = contents_json['main']
     source_files = {}
     for source_file_info in job_source_info:
         response = client.get_object(Bucket=StaticVariables.S3_JOBS_INFORMATION_BUCKET_NAME,
@@ -87,7 +89,29 @@ def get_source_files():
         string_content = contents.decode("utf-8")
         source_files[source_file_info["filePath"]] = string_content
 
-    return jsonify(source_files)
+    response = {'main': main, 'sourceFiles': source_files}
+    return jsonify(response)
+
+
+def create_init_py(dest_pathname, is_local_testing):
+    directory_path = os.path.dirname(dest_pathname)
+    os.makedirs(directory_path, exist_ok=True)
+    print("Directory path: %s" % directory_path)
+    directory_names = directory_path.split('/')
+    print("Directory names: %s" % str(directory_names))
+    if is_local_testing:
+        cur_dir_level = ""
+        i = 0
+    else:
+        cur_dir_level = "/"
+        i = 1
+    while i < len(directory_names):
+        cur_dir_level = os.path.join(cur_dir_level, directory_names[i])
+        init_pathname = os.path.join(cur_dir_level, "__init__.py")
+        if not os.path.exists(init_pathname):
+            with open(init_pathname, 'w+') as f:
+                f.write("")
+        i += 1
 
 
 @app.route("/modify-job", methods=['POST'])
@@ -95,7 +119,7 @@ def get_source_files():
 def modify_job():
     print("WebUI: Received request for path /modify-job")
     print("Current working directory is", os.getcwd())
-
+    main_file = request.args.get('main-file')
     is_local_testing = os.environ.get("local_testing") == 'True' or os.environ.get("local_testing") == 'true'
     if is_local_testing:
         local_endpoint_url = 'http://localhost:4572'
@@ -136,20 +160,12 @@ def modify_job():
                 static_job_info_json["useCombine"] = True
 
             dest_pathname = os.path.join(TMP_DIR_NAME, key)
-            directory_path = os.path.dirname(dest_pathname)
-            os.makedirs(directory_path, exist_ok=True)
-            init_pathname = os.path.join(directory_path, "__init__.py")
-            with open(init_pathname, 'w+') as f:
-                f.write("")
+            create_init_py(dest_pathname, is_local_testing)
             with open(dest_pathname, 'w+') as f:
                 json.dump(static_job_info_json, f)
         else:
             dest_pathname = os.path.join(TMP_DIR_NAME, key)
-            directory_path = os.path.dirname(dest_pathname)
-            os.makedirs(directory_path, exist_ok=True)
-            init_pathname = os.path.join(directory_path, "__init__.py")
-            with open(init_pathname, 'w+') as f:
-                f.write("")
+            create_init_py(dest_pathname, is_local_testing)
             with open(dest_pathname, 'w+') as f:
                 f.write(content_string)
 
@@ -159,7 +175,7 @@ def modify_job():
     # 3. Run user_main.py
     my_env = os.environ.copy()
     return_code = subprocess.call(
-        ["python3.7", "user_main.py"], env=my_env
+        ["python3.7", main_file], env=my_env
     )
 
     if is_local_testing:

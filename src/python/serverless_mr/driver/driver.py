@@ -751,3 +751,4 @@ class Driver:
 
         tear_down_time = time.time() - StaticVariables.TEAR_DOWN_START_TIME
         logger.info("PERFORMANCE INFO - Job tear down time: %s seconds" % str(tear_down_time))
+        return self.submission_time

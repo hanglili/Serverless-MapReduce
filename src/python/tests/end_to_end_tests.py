@@ -34,16 +34,18 @@ class Test(TestCase):
     def test_that_lambda_returns_correct_message(self):
         # Execute the job
         serverless_mr = ServerlessMR()
-        serverless_mr.map(extract_data_s3).map(truncate_decimals).shuffle(partition).reduce(reduce_function, 4).run()
+        submission_time = serverless_mr.map(extract_data_s3).map(truncate_decimals)\
+            .shuffle(partition).reduce(reduce_function, 4).run()
 
         print("The job has finished")
 
         # Output
-        output_bin = 3
-        output_prefix = self.static_job_info[StaticVariables.OUTPUT_PREFIX_FN]
+        job_name = self.static_job_info[StaticVariables.JOB_NAME_FN]
         output_bucket = self.static_job_info[StaticVariables.OUTPUT_SOURCE_FN]
-        output_filepath = "%s/%s" % (output_prefix, str(output_bin))
-        response = self.s3_client.get_object(Bucket=output_bucket, Key=output_filepath)
+        output_prefix = self.static_job_info[StaticVariables.OUTPUT_PREFIX_FN]
+        output_bin = 3
+        output_full_prefix = "%s/%s/%s/%s" % (job_name, output_prefix, submission_time, str(output_bin))
+        response = self.s3_client.get_object(Bucket=output_bucket, Key=output_full_prefix)
         contents = response['Body'].read()
         results = json.loads(contents)
 

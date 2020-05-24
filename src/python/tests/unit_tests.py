@@ -1,5 +1,5 @@
-from user_job_3.map import map_function
-from user_job_3.reduce import reduce_function
+from user_job_5.map import extract_data_s3
+from user_job_5.reduce import reduce_function
 from unittest import TestCase
 
 
@@ -7,7 +7,7 @@ class Test(TestCase):
     def test_map_method(self):
         input_pair = (1, "127.0.0.1,djecvwmjzejguvrqaryffwwzdasozsslizligyozikvhdeodyvsnotlkldsuvtbcmzajlfdqoopeiqrpfhqhneqrpzdzrgshthe,1974-12-17,10.2,Xegqzir/8.7,PRT,PRT-PT,Portugalism,7\n")
         outputs = []
-        map_function(outputs, input_pair)
+        extract_data_s3(outputs, input_pair)
         assert len(outputs) == 1, "test failed"
         assert outputs[0] == ('127.0.0.1', 10.2), "test failed"
 
@@ -16,4 +16,4 @@ class Test(TestCase):
         outputs = []
         reduce_function(outputs, input_pair)
         assert len(outputs) == 1, "test failed"
-        assert outputs[0] == ('127.0.0.1', [108.0]), "test failed"
+        assert outputs[0] == ('127.0.0.1', 108.0), "test failed"

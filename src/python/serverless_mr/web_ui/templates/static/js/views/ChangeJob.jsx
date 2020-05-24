@@ -35,7 +35,8 @@ class ChangeJob extends Component {
     console.log(this.props.jobName);
     this.state = {
       jobName: this.props.location.state.jobName,
-      sourceFiles: {}
+      sourceFiles: {},
+      mainFile: ""
     }
   }
 
@@ -62,7 +63,8 @@ class ChangeJob extends Component {
   componentWillMount() {
     this.loadSourceCode().then(source_files => {
       this.setState({
-        'sourceFiles': source_files
+        'sourceFiles': source_files['sourceFiles'],
+        'mainFile': source_files['main']
       });
     });
   }
@@ -79,6 +81,7 @@ class ChangeJob extends Component {
       } else {
         url = `${currentPageProtocol}//${currentPageHostname}/dev/modify-job?`;
       }
+      url = url.concat('main-file=', this.state.mainFile);
       // let formBody = new FormData();
       // formBody.set("driver.json", driver);
       // formBody.set("static-job-info.json", staticJobInfo);
