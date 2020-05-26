@@ -290,7 +290,7 @@ const inDegreeData = [
   [1, 0], [2, 0], [3, 2]
 ];
 const stageStateColumnNames = [
-  "Stage ID", "Num of operators completed", "Total num of operators"
+  "Stage ID", "Num of executors completed", "Total num of executors"
 ];
 const stageStateData = [
   [1, 4], [2, 4], [3, 2], [4, 2], [5, 6]
