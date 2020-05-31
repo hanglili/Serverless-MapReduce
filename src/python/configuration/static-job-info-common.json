@@ -1,0 +1,15 @@
+{
+    "jobName": "bl-release-1",
+    "lambdaNamePrefix": "BL",
+    "shufflingBucket": "serverless-mapreduce-storage-1",
+    "inputSourceType": "s3",
+    "inputSource": "serverless-mapreduce-input-storage",
+    "inputPrefix": "testing_partitioned",
+    "outputSourceType": "s3",
+    "outputSource": "serverless-mapreduce-output-storage-1",
+    "outputPrefix": "output",
+    "useCombine": true,
+    "localTesting": false,
+    "localTestingInputPath": "../../input_data/testing_partitioned/s3/",
+    "serverlessDriver": true
+}

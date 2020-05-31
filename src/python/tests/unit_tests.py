@@ -1,5 +1,7 @@
 from user_job_5.map import extract_data_s3
 from user_job_5.reduce import reduce_function
+from word_count_map import produce_counts
+from word_count_reduce import aggregate_counts
 from unittest import TestCase
 
 
@@ -10,6 +12,15 @@ class Test(TestCase):
         extract_data_s3(outputs, input_pair)
         assert len(outputs) == 1, "test failed"
         assert outputs[0] == ('127.0.0.1', 10.2), "test failed"
+
+    def test_word_count_map_method(self):
+        input_pair = (1, "ServerlessMR is a serverless MapReduce framework\n")
+        outputs = []
+
+        produce_counts(outputs, input_pair)
+
+        assert len(outputs) == 6, "test failed"
+        assert outputs[0] == ('ServerlessMR', 1), "test failed"
 
     def test_reduce_method(self):
         input_pair = ('127.0.0.1', [10.0, 20.0, 30.0, 48.0])

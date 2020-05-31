@@ -28,8 +28,11 @@ logger = logging.getLogger('serverless-mr.main')
 
 
 def find_filepath(package_name, filename):
-    with importlib.resources.path(package_name, filename) as path:
-        return str(path)
+    try:
+        with importlib.resources.path(package_name, filename) as path:
+            return str(path)
+    except Exception as e:
+        logger.info("Configuration file %s not found" % filename)
 
 
 def delete_dir(dirname):
@@ -38,11 +41,10 @@ def delete_dir(dirname):
         shutil.rmtree(dst_dir)
 
 
-def delete_files(dirname, filenames):
-    for filename in filenames:
-        dst_file = "%s/%s/%s" % (library_dir, dirname, filename)
-        if os.path.exists(dst_file):
-            os.remove(dst_file)
+def delete_file(filename):
+    dst_file = os.path.join(library_dir, filename)
+    if os.path.exists(dst_file):
+        os.remove(dst_file)
 
 
 def copy_files(dirname, dst_dirname, filenames):
@@ -52,8 +54,9 @@ def copy_files(dirname, dst_dirname, filenames):
 
     for filename in filenames:
         path = find_filepath(dirname, filename)
-        if os.path.normpath(path) != os.path.normpath(dst_dir + "/" + filename):
-            shutil.copy2(path, dst_dir)
+        if path is not None:
+            if os.path.normpath(path) != os.path.normpath(dst_dir + "/" + filename):
+                shutil.copy2(path, dst_dir)
 
 
 def set_up():
@@ -86,10 +89,16 @@ def copy_job_function(function):
     return rel_filepath
 
 
-def tear_down():
+def tear_down(rel_function_paths):
     config_dirname = "configuration"
     delete_dir(config_dirname)
-    delete_files("job", ["map.py", "reduce.py", "partition.py"])
+
+    for rel_function_path in rel_function_paths:
+        dirname = os.path.dirname(rel_function_path)
+        if dirname != '':
+            delete_dir(dirname)
+        else:
+            delete_file(rel_function_path)
 
 
 class ServerlessMR:
@@ -201,5 +210,5 @@ class ServerlessMR:
             driver = Driver(self.pipelines, self.total_num_functions)
             submission_time = driver.run()
 
-        tear_down()
+        tear_down(self.rel_function_paths)
         return submission_time

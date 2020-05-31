@@ -37,7 +37,8 @@ def overwrite_existing_job_info(pipeline_specific_config):
 
 class ServerlessDriverSetup:
     def __init__(self, pipelines, total_num_functions):
-        self.config = json.loads(open(StaticVariables.DRIVER_CONFIG_PATH, 'r').read())
+        self.config = json.loads(open(StaticVariables.DRIVER_CONFIG_PATH, 'r').read()) \
+            if os.path.exists(StaticVariables.DRIVER_CONFIG_PATH) else {}
         self.static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
         if self.static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
             self.s3_client = boto3.client('s3', aws_access_key_id='', aws_secret_access_key='',
@@ -52,7 +53,9 @@ class ServerlessDriverSetup:
             if StaticVariables.LAMBDA_READ_TIMEOUT_FN in self.config else StaticVariables.DEFAULT_LAMBDA_READ_TIMEOUT
         boto_max_connections = self.config[StaticVariables.BOTO_MAX_CONNECTIONS_FN] \
             if StaticVariables.BOTO_MAX_CONNECTIONS_FN in self.config else StaticVariables.DEFAULT_BOTO_MAX_CONNECTIONS
-        lambda_name_prefix = self.static_job_info[StaticVariables.LAMBDA_NAME_PREFIX_FN]
+        lambda_name_prefix = self.static_job_info[StaticVariables.LAMBDA_NAME_PREFIX_FN] \
+            if StaticVariables.LAMBDA_NAME_PREFIX_FN in self.static_job_info \
+            else StaticVariables.DEFAULT_LAMBDA_NAME_PREFIX
         self.job_name = self.static_job_info[StaticVariables.JOB_NAME_FN]
         self.driver_lambda_name = "%s-%s-%s" % (self.job_name, lambda_name_prefix, "driver")
 

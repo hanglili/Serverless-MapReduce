@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-s3_bucket_name=$1
-MY_ACCOUNT_ID=$2
+#s3_bucket_name=$1
+MY_ACCOUNT_ID=$1
 
 #s3_bucket_path='s3://'$s3_bucket_name
 #echo "$s3_bucket_path"
