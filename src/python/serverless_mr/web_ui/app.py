@@ -439,11 +439,14 @@ def schedule_job():
         event_client = boto3.client('events')
         s3_client = boto3.client('s3')
 
+    iam_role_name = os.environ.get("serverless_mapreduce_role") \
+        if "serverless_mapreduce_role" in os.environ else ""
+
     # Put an event rule
     response = event_client.put_rule(
         Name='%s-scheduling-rule' % job_name,
         # EventPattern=json.dumps({'Hello': 'hello'}),
-        RoleArn=os.environ.get("serverless_mapreduce_role"),
+        RoleArn=iam_role_name,
         # ScheduleExpression='rate(30 minutes)',
         # ScheduleExpression='cron(35 11 * * ? *)',
         ScheduleExpression=schedule_expression,

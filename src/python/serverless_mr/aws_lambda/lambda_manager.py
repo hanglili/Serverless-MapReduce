@@ -19,7 +19,8 @@ class LambdaManager(object):
         self.job_id = job_id
         self.function_name = function_name
         self.handler = handler
-        self.role = os.environ.get("serverless_mapreduce_role")
+        self.role = os.environ.get("serverless_mapreduce_role") \
+            if "serverless_mapreduce_role" in os.environ else ""
         self.memory = memory_limit
         self.timeout = StaticVariables.DEFAULT_LAMBDA_TIMEOUT
         self.function_arn = None  # set after creation
