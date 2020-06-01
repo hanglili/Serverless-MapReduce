@@ -37,8 +37,12 @@ def overwrite_existing_job_info(pipeline_specific_config):
 
 class ServerlessDriverSetup:
     def __init__(self, pipelines, total_num_functions):
-        self.config = json.loads(open(StaticVariables.DRIVER_CONFIG_PATH, 'r').read()) \
-            if os.path.exists(StaticVariables.DRIVER_CONFIG_PATH) else {}
+        if not os.path.exists(StaticVariables.DRIVER_CONFIG_PATH):
+            with open(StaticVariables.DRIVER_CONFIG_PATH, 'w') as f:
+                json.dump({}, f)
+            self.config = {}
+        else:
+            self.config = json.loads(open(StaticVariables.DRIVER_CONFIG_PATH, 'r').read())
         self.static_job_info = json.loads(open(StaticVariables.STATIC_JOB_INFO_PATH, 'r').read())
         if self.static_job_info[StaticVariables.LOCAL_TESTING_FLAG_FN]:
             self.s3_client = boto3.client('s3', aws_access_key_id='', aws_secret_access_key='',

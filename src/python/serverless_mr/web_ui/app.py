@@ -163,8 +163,8 @@ def modify_job():
                 logger.info("Field serverlessDriver is not provided, default to true")
                 static_job_info_json["serverlessDriver"] = True
             if "useCombine" not in static_job_info_json:
-                logger.info("Field useCombine is not provided, default to true")
-                static_job_info_json["useCombine"] = True
+                logger.info("Field useCombine is not provided, default to false")
+                static_job_info_json["useCombine"] = False
 
             dest_pathname = os.path.join(TMP_DIR_NAME, key)
             create_init_py(dest_pathname, is_local_testing)
@@ -233,8 +233,8 @@ def register_job():
         logger.info("Field serverlessDriver is not provided, default to true")
         static_job_info_json["serverlessDriver"] = True
     if "useCombine" not in static_job_info_json:
-        logger.info("Field useCombine is not provided, default to true")
-        static_job_info_json["useCombine"] = True
+        logger.info("Field useCombine is not provided, default to false")
+        static_job_info_json["useCombine"] = False
 
     dest_pathname = os.path.join(TMP_DIR_NAME, 'configuration/static-job-info.json')
     with open(dest_pathname, 'w') as f:
