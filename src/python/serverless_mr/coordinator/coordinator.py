@@ -66,6 +66,10 @@ def schedule_same_pipeline_next_stage(stage_configuration, stage_id, shuffling_b
     else:
         keys_bins = get_map_reduce_outputs(shuffling_bucket, job_name, [stage_id])
 
+    # keys_bin_size = len(keys_bins[0])
+    # for i in range(1, len(keys_bins)):
+    #     assert keys_bin_size == len(keys_bins[i])
+
     if StaticVariables.OPTIMISATION_FN not in static_job_info \
             or not static_job_info[StaticVariables.OPTIMISATION_FN]:
         stage_progress_obj = stage_progress.StageProgress(in_lambda=True,

@@ -7,8 +7,8 @@ serverless_mr = ServerlessMR()
 # serverless_mr.map(map_function).run()
 #
 # query 2
-# from performance_functions.query_2 import map_function, reduce_function
-# serverless_mr.map(map_function).reduce(reduce_function, 10).run()
+from performance_functions.query_2 import map_function, reduce_function
+serverless_mr.map(map_function).reduce(reduce_function, 10).run()
 #
 # query 2b
 # from performance_functions.query_2_var import map_function, reduce_function
@@ -37,8 +37,8 @@ serverless_mr = ServerlessMR()
 # serverless_mr.map(map_function).reduce(reduce_function, 200).run()
 
 # Task 10
-from performance_functions.task10 import map_function, reduce_function
-serverless_mr.map(map_function).reduce(reduce_function, 100).run()
+# from performance_functions.task10 import map_function, reduce_function
+# serverless_mr.map(map_function).reduce(reduce_function, 100).run()
 
 # Task 11
 # from performance_functions.task11 import map_function, reduce_function
