@@ -3,3 +3,8 @@
   password = pypi-AgENdGVzdC5weXBpLm9yZwIkMDE1ZDhkZWEtZjE1MC00YzdkLTllZDQtNWUwOWY4YTY5MjA1AAIleyJwZXJtaXNzaW9ucyI6ICJ1c2VyIiwgInZlcnNpb24iOiAxfQAABiDbNuzQ-kFgz1vyrG0-NKmQQ6D9r6-k4JnyxuW8RN08KA
 
 [![Build Status](https://travis-ci.org/hanglili/serverless-mr.svg?branch=master)](https://travis-ci.org/hanglili/serverless-mr)
+
+
+serverless-mapreduce-code
+serverless-mapreduce-input-storage
+serverlessmr-wordcount-input

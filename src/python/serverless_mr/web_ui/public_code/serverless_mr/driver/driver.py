@@ -252,7 +252,9 @@ class Driver:
     # Create the aws_lambda functions
     def _create_lambdas(self):
         job_name = self.static_job_info[StaticVariables.JOB_NAME_FN]
-        lambda_name_prefix = self.static_job_info[StaticVariables.LAMBDA_NAME_PREFIX_FN]
+        lambda_name_prefix = self.static_job_info[StaticVariables.LAMBDA_NAME_PREFIX_FN] \
+            if StaticVariables.LAMBDA_NAME_PREFIX_FN in self.static_job_info \
+            else StaticVariables.DEFAULT_LAMBDA_NAME_PREFIX
         shuffling_bucket = self.static_job_info[StaticVariables.SHUFFLING_BUCKET_FN]
         region = self.config[StaticVariables.REGION_FN] \
             if StaticVariables.REGION_FN in self.config else StaticVariables.DEFAULT_REGION
@@ -443,7 +445,9 @@ class Driver:
 
     def invoke_lambda(self, batches, first_function, stage_id, mapper_id):
         job_name = self.static_job_info[StaticVariables.JOB_NAME_FN]
-        lambda_name_prefix = self.static_job_info[StaticVariables.LAMBDA_NAME_PREFIX_FN]
+        lambda_name_prefix = self.static_job_info[StaticVariables.LAMBDA_NAME_PREFIX_FN] \
+            if StaticVariables.LAMBDA_NAME_PREFIX_FN in self.static_job_info \
+            else StaticVariables.DEFAULT_LAMBDA_NAME_PREFIX
         first_function_lambda_name = "%s-%s-%s-%s" % (job_name, lambda_name_prefix, first_function.get_string(),
                                                       stage_id)
 

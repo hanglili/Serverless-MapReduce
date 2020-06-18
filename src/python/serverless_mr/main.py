@@ -201,7 +201,8 @@ class ServerlessMR:
             serverless_driver_setup = ServerlessDriverSetup(self.pipelines, self.total_num_functions)
             serverless_driver_setup.register_driver(main_file_path, self.rel_function_paths)
             logger.info("Driver Lambda function successfully registered")
-            command = input("Enter invoke to invoke and other keys to exit: ")
+            print("")
+            command = input("Enter invoke to start the job and other keys to exit: ")
             if command == "invoke":
                 logger.info("Driver invoked and starting job execution")
                 serverless_driver_setup.invoke()

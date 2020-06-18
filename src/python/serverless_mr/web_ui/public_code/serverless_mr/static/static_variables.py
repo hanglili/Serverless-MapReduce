@@ -77,6 +77,7 @@ class StaticVariables:
     DEFAULT_LAMBDA_READ_TIMEOUT = 300
     DEFAULT_BOTO_MAX_CONNECTIONS = 1000
     DEFAULT_NUM_CONCURRENT_LAMBDAS = 1000
+    DEFAULT_LAMBDA_NAME_PREFIX = "lambda"
 
     # Naming of config files (FN stands for field name)
     # driver.json

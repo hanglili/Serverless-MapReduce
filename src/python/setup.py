@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="serverless-mr",
-    version="9.0.0",
+    version="10.2.0",
     author="Hang Li Li",
     author_email="hl4716@ic.ac.uk",
     description="Serverless Map Reduce",
@@ -23,7 +23,8 @@ setuptools.setup(
                  "performance_functions*", "user_functions", "serverless_mr/web_ui/public_code", "word_count*"]
     ),
     package_data={
-        '': ['templates/static/*.html', 'templates/public/*.*', 'requirements.txt', 'package.json', 'serverless.yml']
+        '': ['templates/static/*.html', 'templates/public/*.*', 'requirements.txt', 'package.json', 'serverless.yml',
+             'policy.json']
     },
     install_requires=[
         'flask==1.1.2',

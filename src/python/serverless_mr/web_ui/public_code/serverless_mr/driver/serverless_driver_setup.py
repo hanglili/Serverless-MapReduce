@@ -52,7 +52,9 @@ class ServerlessDriverSetup:
             if StaticVariables.LAMBDA_READ_TIMEOUT_FN in self.config else StaticVariables.DEFAULT_LAMBDA_READ_TIMEOUT
         boto_max_connections = self.config[StaticVariables.BOTO_MAX_CONNECTIONS_FN] \
             if StaticVariables.BOTO_MAX_CONNECTIONS_FN in self.config else StaticVariables.DEFAULT_BOTO_MAX_CONNECTIONS
-        lambda_name_prefix = self.static_job_info[StaticVariables.LAMBDA_NAME_PREFIX_FN]
+        lambda_name_prefix = self.static_job_info[StaticVariables.LAMBDA_NAME_PREFIX_FN] \
+            if StaticVariables.LAMBDA_NAME_PREFIX_FN in self.static_job_info \
+            else StaticVariables.DEFAULT_LAMBDA_NAME_PREFIX
         self.job_name = self.static_job_info[StaticVariables.JOB_NAME_FN]
         self.driver_lambda_name = "%s-%s-%s" % (self.job_name, lambda_name_prefix, "driver")
 
