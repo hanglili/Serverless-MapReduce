@@ -576,27 +576,30 @@ class Driver:
         executors_memory_usage = {}
         num_objects_in_metrics_bucket = 0
         for content in self._get_all_s3_objects(Bucket=metrics_bucket, Prefix=prefix):
-            num_objects_in_metrics_bucket += 1
-            lambda_info_s3_key = content["Key"]
-            metadata = self.s3_client.head_object(Bucket=metrics_bucket, Key=lambda_info_s3_key)['Metadata']
-            lambda_time = float(metadata['processingtime'])
-            total_lambda_time += lambda_time
+            try:
+                num_objects_in_metrics_bucket += 1
+                lambda_info_s3_key = content["Key"]
+                metadata = self.s3_client.head_object(Bucket=metrics_bucket, Key=lambda_info_s3_key)['Metadata']
+                lambda_time = float(metadata['processingtime'])
+                total_lambda_time += lambda_time
 
-            if "coordinator" not in lambda_info_s3_key:
-                compute_time = float(metadata['computetime'])
-                io_time = float(metadata['iotime'])
-                memory_usage = float(metadata['memoryusage'])
-                stage_id = int(lambda_info_s3_key.split("/")[1].split("-")[1])
-                executors_total_time[stage_id] = executors_total_time.get(stage_id, 0) + lambda_time
-                executors_compute_time[stage_id] = executors_compute_time.get(stage_id, 0) + compute_time
-                executors_io_time[stage_id] = executors_io_time.get(stage_id, 0) + io_time
-                executors_memory_usage[stage_id] = executors_memory_usage.get(stage_id, 0) + memory_usage
-                executors_count[stage_id] = executors_count.get(stage_id, 0) + 1
-                if stage_id in pipelines_first_stage_ids:
-                    num_lines = int(metadata['linecount'])
-                    total_lines += num_lines
-            else:
-                total_coordinator_time += lambda_time
+                if "coordinator" not in lambda_info_s3_key:
+                    compute_time = float(metadata['computetime'])
+                    io_time = float(metadata['iotime'])
+                    memory_usage = float(metadata['memoryusage'])
+                    stage_id = int(lambda_info_s3_key.split("/")[1].split("-")[1])
+                    executors_total_time[stage_id] = executors_total_time.get(stage_id, 0) + lambda_time
+                    executors_compute_time[stage_id] = executors_compute_time.get(stage_id, 0) + compute_time
+                    executors_io_time[stage_id] = executors_io_time.get(stage_id, 0) + io_time
+                    executors_memory_usage[stage_id] = executors_memory_usage.get(stage_id, 0) + memory_usage
+                    executors_count[stage_id] = executors_count.get(stage_id, 0) + 1
+                    if stage_id in pipelines_first_stage_ids:
+                        num_lines = int(metadata['linecount'])
+                        total_lines += num_lines
+                else:
+                    total_coordinator_time += lambda_time
+            except Exception as e:
+                print("Error", str(e))
 
         logger.info("The number of objects in the metrics bucket: %s" % str(num_objects_in_metrics_bucket))
         logger.info("The total coordinator time: %s" % str(total_coordinator_time))
