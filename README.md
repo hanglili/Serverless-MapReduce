@@ -30,6 +30,7 @@ Serverless-MR has the following architecture:
 and other AWS services.
 - Allows users to specify different input and output types of storage. Current S3 and DynamoDB are supported, but 
 support for other storage can be added easily. 
+- Allows users to use combiner functions.
 - Provides a web application to interact with the framework and monitor job progress.
 - Allows users to define multi-stage and multi-pipeline jobs. 
 - Offers abstract infrastructure management.
