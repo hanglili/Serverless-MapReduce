@@ -61,7 +61,7 @@ py==1.8.1
 pyaes==1.6.1
 pyasn1==0.4.8
 pycparser==2.19
-Pygments==2.6.1
+Pygments==2.7.4
 pyparsing==2.4.6
 pyrsistent==0.15.7
 pytest==5.3.5
