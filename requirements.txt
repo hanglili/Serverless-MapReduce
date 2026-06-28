@@ -10,7 +10,7 @@ boto==2.49.0
 boto3==1.12.41
 botocore==1.15.41
 cachetools==3.1.1
-certifi==2019.11.28
+certifi==2022.12.7
 cffi==1.14.0
 cfn-lint==0.28.1
 chardet==3.0.4
