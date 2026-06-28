@@ -22,7 +22,7 @@
     "react-notification-system": "0.2.17",
     "react-router": "5.0.0",
     "react-router-dom": "5.0.0",
-    "react-scripts": "3.0.0",
+    "react-scripts": "5.0.1",
     "react-toggle": "4.0.2",
     "svg-inline-loader": "^0.8.2"
   },
@@ -43,7 +43,7 @@
     "style-loader": "^1.1.4",
     "ttf-loader": "^1.0.2",
     "typescript": "3.4.3",
-    "webpack": "^4.19.1",
+    "webpack": "^5.108.1",
     "webpack-cli": "^3.1.0"
   },
   "scripts": {
