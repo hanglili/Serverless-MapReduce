@@ -57,7 +57,7 @@ pandas==1.0.1
 pipenv==2018.11.26
 pkginfo==1.5.0.1
 pluggy==0.13.1
-py==1.8.1
+py==1.10.0
 pyaes==1.6.1
 pyasn1==0.4.8
 pycparser==2.19
