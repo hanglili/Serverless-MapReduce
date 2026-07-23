@@ -59,7 +59,7 @@ pkginfo==1.5.0.1
 pluggy==0.13.1
 py==1.8.1
 pyaes==1.6.1
-pyasn1==0.4.8
+pyasn1==0.6.4
 pycparser==2.19
 Pygments==2.6.1
 pyparsing==2.4.6
