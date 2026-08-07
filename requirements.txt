@@ -4,7 +4,7 @@ appdirs==1.4.3
 attrs==19.3.0
 aws-sam-translator==1.20.1
 aws-xray-sdk==2.4.3
-awscli==1.18.41
+awscli==1.45.28
 bleach==3.1.4
 boto==2.49.0
 boto3==1.12.41
